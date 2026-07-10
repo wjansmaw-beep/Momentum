@@ -18,8 +18,9 @@ import {
   selectExperience,
 } from './src/decision/localDecision';
 
-type Stage = 'now' | 'time' | 'feeling' | 'promise' | 'prepare' | 'presence' | 'complete';
+type Stage = 'now' | 'context' | 'time' | 'feeling' | 'promise' | 'prepare' | 'presence' | 'complete';
 type Feeling = 'calm' | 'energy' | 'surprise' | 'connection' | 'challenge' | 'choose';
+type ProfilePreset = 'explorer' | 'mover' | 'connector';
 type PresenceMode = 'guided' | 'quiet';
 type ExperienceContent = {
   eyebrow: string;
@@ -143,12 +144,10 @@ const candidateCatalog: ExperienceCandidate[] = [
   { id: 'kettlebell-strength', feeling: 'challenge', minimumMinutes: 25, idealMinutes: 32, friction: 0.28, presencePotential: 0.78, requiredEquipment: ['kettlebell'] },
 ];
 
-const localProfileAffinity: Record<CoreFeeling, number> = {
-  calm: 0.62,
-  energy: 0.7,
-  surprise: 0.86,
-  connection: 0.68,
-  challenge: 0.82,
+const profilePresets: Record<ProfilePreset, { label: string; description: string; affinity: Record<CoreFeeling, number> }> = {
+  explorer: { label: 'Ontdekker', description: 'merkt graag iets nieuws op', affinity: { calm: 0.62, energy: 0.7, surprise: 0.9, connection: 0.62, challenge: 0.76 } },
+  mover: { label: 'Beweger', description: 'krijgt energie van actie', affinity: { calm: 0.5, energy: 0.88, surprise: 0.66, connection: 0.58, challenge: 0.94 } },
+  connector: { label: 'Verbinder', description: 'kiest vaak voor echte aandacht', affinity: { calm: 0.66, energy: 0.56, surprise: 0.68, connection: 0.96, challenge: 0.54 } },
 };
 
 export default function App() {
@@ -156,6 +155,8 @@ export default function App() {
   const [stage, setStage] = useState<Stage>('now');
   const [selectedTime, setSelectedTime] = useState('1 uur');
   const [feeling, setFeeling] = useState<Feeling>('challenge');
+  const [profilePreset, setProfilePreset] = useState<ProfilePreset>('explorer');
+  const [hasKettlebell, setHasKettlebell] = useState(true);
   const [seconds, setSeconds] = useState(40);
   const [paused, setPaused] = useState(false);
   const fade = useRef(new Animated.Value(1)).current;
@@ -169,12 +170,12 @@ export default function App() {
           availableMinutes,
           desiredFeeling: feeling === 'choose' ? undefined : feeling,
           setting: 'work',
-          equipment: ['kettlebell'],
-          profileAffinity: localProfileAffinity,
+          equipment: hasKettlebell ? ['kettlebell'] : [],
+          profileAffinity: profilePresets[profilePreset].affinity,
         },
         candidateCatalog,
       ),
-    [availableMinutes, feeling],
+    [availableMinutes, feeling, hasKettlebell, profilePreset],
   );
   const experience = experienceByCandidateId[decision.selected.id] ?? experienceByFeeling[decision.selected.feeling];
   const experienceMinutes = Math.max(5, Math.min(45, Math.round(availableMinutes * 0.55)));
@@ -248,7 +249,16 @@ export default function App() {
             },
           ]}
         >
-          {stage === 'now' && <Now onStart={() => moveTo('time')} />}
+          {stage === 'now' && <Now onStart={() => moveTo('time')} onContext={() => moveTo('context')} />}
+          {stage === 'context' && (
+            <ContextLab
+              profile={profilePreset}
+              hasKettlebell={hasKettlebell}
+              onProfile={setProfilePreset}
+              onEquipment={setHasKettlebell}
+              onDone={() => moveTo('now')}
+            />
+          )}
           {stage === 'time' && (
             <TimeChoice
               selected={selectedTime}
@@ -269,6 +279,7 @@ export default function App() {
             <PromiseView
               experience={experience}
               decision={decision}
+              contextSummary={`${profilePresets[profilePreset].label} · ${hasKettlebell ? 'kettlebell beschikbaar' : 'zonder materiaal'}`}
               time={selectedTime}
               duration={experienceMinutes}
               buffer={bufferMinutes}
@@ -312,12 +323,14 @@ function Atmosphere({ stage }: { stage: Stage }) {
   );
 }
 
-function Now({ onStart }: { onStart: () => void }) {
+function Now({ onStart, onContext }: { onStart: () => void; onContext: () => void }) {
   return (
     <View style={styles.now}>
       <View style={styles.brandRow}>
         <Text style={styles.brand}>MOMENTUM</Text>
-        <View style={styles.contextPill}><View style={styles.liveDot} /><Text style={styles.scenario}>LOKAAL MOMENT</Text></View>
+        <Pressable onPress={onContext} style={({ pressed }) => [styles.contextPill, pressed && styles.pressed]}>
+          <View style={styles.liveDot} /><Text style={styles.scenario}>LOKAAL MOMENT · WIJZIG</Text>
+        </Pressable>
       </View>
       <View style={styles.nowCopy}>
         <Text style={styles.eyebrow}>NU</Text>
@@ -334,6 +347,38 @@ function Now({ onStart }: { onStart: () => void }) {
         <Text style={styles.quietNote}>Geen agenda of locatie gebruikt</Text>
       </View>
     </View>
+  );
+}
+
+function ContextLab({ profile, hasKettlebell, onProfile, onEquipment, onDone }: { profile: ProfilePreset; hasKettlebell: boolean; onProfile: (value: ProfilePreset) => void; onEquipment: (value: boolean) => void; onDone: () => void }) {
+  return (
+    <ScrollView contentContainerStyle={styles.contextLab} showsVerticalScrollIndicator={false}>
+      <View>
+        <Text style={styles.eyebrow}>LOKALE PROEFSCÈNE</Text>
+        <Text style={styles.promiseTitle}>Laat de beslissing reageren.</Text>
+        <Text style={styles.heroBody}>Dit zijn handmatige testwaarden. Momentum gebruikt hier geen echte agenda, locatie of profielgegevens.</Text>
+      </View>
+      <View style={styles.contextGroup}>
+        <Text style={styles.contextGroupLabel}>PROEFPROFIEL</Text>
+        {(Object.keys(profilePresets) as ProfilePreset[]).map((key) => (
+          <Pressable key={key} onPress={() => onProfile(key)} style={[styles.contextOption, profile === key && styles.choiceSelected]}>
+            <View style={styles.contextOptionCopy}>
+              <Text style={[styles.contextOptionTitle, profile === key && styles.choiceTextSelected]}>{profilePresets[key].label}</Text>
+              <Text style={styles.contextOptionBody}>{profilePresets[key].description}</Text>
+            </View>
+            <Text style={[styles.check, profile === key && styles.choiceTextSelected]}>{profile === key ? '●' : '○'}</Text>
+          </Pressable>
+        ))}
+      </View>
+      <View style={styles.contextGroup}>
+        <Text style={styles.contextGroupLabel}>BESCHIKBAAR OP WERK</Text>
+        <View style={styles.contextToggleRow}>
+          <Choice label="Kettlebell" selected={hasKettlebell} onPress={() => onEquipment(true)} />
+          <Choice label="Geen materiaal" selected={!hasKettlebell} onPress={() => onEquipment(false)} />
+        </View>
+      </View>
+      <PrimaryButton label="Gebruik deze proefscène" onPress={onDone} />
+    </ScrollView>
   );
 }
 
@@ -365,7 +410,7 @@ function FeelingChoice({ selected, onSelect, onContinue, onBack }: { selected: F
   );
 }
 
-function PromiseView({ experience, decision, time, duration, buffer, onAccept, onRedirect, onClose }: { experience: ExperienceContent; decision: DecisionResult; time: string; duration: number; buffer: number; onAccept: () => void; onRedirect: () => void; onClose: () => void }) {
+function PromiseView({ experience, decision, contextSummary, time, duration, buffer, onAccept, onRedirect, onClose }: { experience: ExperienceContent; decision: DecisionResult; contextSummary: string; time: string; duration: number; buffer: number; onAccept: () => void; onRedirect: () => void; onClose: () => void }) {
   return (
     <ScrollView contentContainerStyle={styles.promise} showsVerticalScrollIndicator={false}>
       <TopAction label="Sluiten" onPress={onClose} />
@@ -383,6 +428,7 @@ function PromiseView({ experience, decision, time, duration, buffer, onAccept, o
       <View style={styles.decisionReceipt}>
         <Text style={styles.why}>Waarom dit voorstel</Text>
         <Text style={styles.decisionReason}>{decision.selected.reasons.join(' · ')}</Text>
+        <Text style={styles.decisionMeta}>{contextSummary}</Text>
         <Text style={styles.decisionMeta}>{decision.considered} kandidaten bekeken · {decision.rejected} niet haalbaar · vertrouwen {decision.confidence === 'high' ? 'hoog' : 'redelijk'}</Text>
       </View>
     </ScrollView>
@@ -515,6 +561,7 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.ink }, safe: { flex: 1, alignItems: 'center' }, flex: { flex: 1 }, appFrame: { flex: 1, width: '100%', maxWidth: 520 },
   deepField: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: '#071017' }, glow: { position: 'absolute', borderRadius: 999, opacity: 0.3 }, glowGold: { width: 460, height: 460, backgroundColor: '#875A2A', top: -250, right: -220 }, glowGreen: { width: 390, height: 390, backgroundColor: '#2D4937', bottom: -210, left: -190 }, glowBlue: { width: 430, height: 430, backgroundColor: '#142D3A', top: '28%', left: -330, opacity: 0.36 }, glowQuiet: { opacity: 0.065 }, horizon: { position: 'absolute', top: '44%', left: 26, right: 26, height: 1, backgroundColor: 'rgba(216,170,104,0.14)' }, grainLineOne: { position: 'absolute', width: 1, top: 0, bottom: 0, left: '23%', backgroundColor: 'rgba(255,255,255,0.018)' }, grainLineTwo: { position: 'absolute', width: 1, top: 0, bottom: 0, right: '18%', backgroundColor: 'rgba(255,255,255,0.012)' },
   now: { flex: 1, padding: 26, paddingTop: 20, justifyContent: 'space-between' }, brandRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }, brand: { color: colors.bone, fontWeight: '700', fontSize: 12, letterSpacing: 3 }, contextPill: { minHeight: 28, borderRadius: 99, borderWidth: 1, borderColor: colors.line, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(7,16,23,0.42)' }, liveDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: colors.green }, scenario: { color: colors.muted, fontSize: 8, letterSpacing: 1.2 }, nowCopy: { marginBottom: 42 }, eyebrow: { color: colors.gold, fontSize: 11, letterSpacing: 2.2, fontWeight: '700', marginBottom: 12 }, heroTitle: { color: colors.bone, fontSize: 50, lineHeight: 53, letterSpacing: -1.8, fontWeight: '300', maxWidth: 380 }, heroBody: { color: colors.muted, fontSize: 17, lineHeight: 25, marginTop: 18, maxWidth: 370 }, contextLine: { flexDirection: 'row', alignItems: 'center', marginTop: 26 }, contextLineText: { color: 'rgba(243,235,221,0.56)', fontSize: 11, letterSpacing: 0.4 }, contextDivider: { width: 22, height: 1, marginHorizontal: 10, backgroundColor: 'rgba(216,170,104,0.36)' }, quietNote: { color: colors.muted, fontSize: 11, textAlign: 'center', marginTop: 12 },
+  contextLab: { flexGrow: 1, padding: 24, paddingBottom: 40, gap: 28 }, contextGroup: { gap: 9 }, contextGroupLabel: { color: colors.gold, fontSize: 9, letterSpacing: 1.5, fontWeight: '700' }, contextOption: { minHeight: 64, borderRadius: 18, borderWidth: 1, borderColor: colors.line, paddingHorizontal: 16, paddingVertical: 12, flexDirection: 'row', alignItems: 'center' }, contextOptionCopy: { flex: 1 }, contextOptionTitle: { color: colors.bone, fontSize: 16 }, contextOptionBody: { color: colors.muted, fontSize: 12, marginTop: 3 }, contextToggleRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 9 },
   panelWrap: { flex: 1, padding: 22 }, panel: { marginTop: 'auto', backgroundColor: 'rgba(14,26,33,0.95)', borderWidth: 1, borderColor: colors.line, borderRadius: 30, padding: 22, gap: 18 }, panelTitle: { color: colors.bone, fontSize: 31, lineHeight: 37, fontWeight: '400', letterSpacing: -0.8 }, panelSubtitle: { color: colors.muted, fontSize: 15, lineHeight: 21 }, chipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 }, choice: { borderWidth: 1, borderColor: colors.line, paddingVertical: 13, paddingHorizontal: 17, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.025)' }, choiceSelected: { borderColor: colors.green, backgroundColor: 'rgba(145,169,109,0.18)' }, choiceText: { color: colors.muted, fontSize: 15 }, choiceTextSelected: { color: colors.bone },
   feelingList: { gap: 8 }, feeling: { minHeight: 54, borderRadius: 18, borderWidth: 1, borderColor: colors.line, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center' }, feelingSymbol: { color: colors.gold, width: 34, fontSize: 18 }, feelingText: { color: colors.muted, fontSize: 16, flex: 1 }, check: { color: colors.muted, fontSize: 14 },
   primary: { backgroundColor: colors.green, minHeight: 56, borderRadius: 18, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18 }, primaryText: { color: '#0C160E', fontSize: 16, fontWeight: '700' }, secondary: { minHeight: 48, alignItems: 'center', justifyContent: 'center' }, secondaryText: { color: colors.bone, fontSize: 14 }, pressed: { opacity: 0.72, transform: [{ scale: 0.99 }] }, topAction: { alignSelf: 'flex-start', paddingVertical: 8 }, topActionText: { color: colors.muted, fontSize: 14 },
