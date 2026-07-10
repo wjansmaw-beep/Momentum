@@ -8,12 +8,30 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from 'react-native';
 
 type Stage = 'now' | 'time' | 'feeling' | 'promise' | 'prepare' | 'presence' | 'complete';
 type Feeling = 'calm' | 'energy' | 'surprise' | 'connection' | 'challenge' | 'choose';
-type PromiseContent = { eyebrow: string; title: string; body: string; action: string };
+type PresenceMode = 'guided' | 'quiet';
+type ExperienceContent = {
+  eyebrow: string;
+  title: string;
+  body: string;
+  action: string;
+  visualSymbol: string;
+  visualLabel: string;
+  visualDetail: string;
+  prepareTitle: string;
+  prepareItems: string[];
+  presenceLabel: string;
+  presenceTitle: string;
+  presenceCue: string;
+  presenceMode: PresenceMode;
+  previewSeconds: number;
+  completion: string;
+};
 
 const times = ['15 min', '30 min', '1 uur', '2 uur', 'Tot…'] as const;
 const feelings: Array<{ id: Feeling; label: string; symbol: string }> = [
@@ -25,46 +43,73 @@ const feelings: Array<{ id: Feeling; label: string; symbol: string }> = [
   { id: 'choose', label: 'Kies voor mij', symbol: '◇' },
 ];
 
-const promiseByFeeling: Record<Feeling, PromiseContent> = {
+const experienceByFeeling: Record<Feeling, ExperienceContent> = {
   calm: {
     eyebrow: 'RUIMTE VOOR RUST',
     title: 'Laat het tempo even van je afglijden.',
     body: 'Een korte zachte beweging en vijf rustige ademhalingen. Geen prestatie, geen haast.',
     action: 'Neem deze pauze',
+    visualSymbol: '◌', visualLabel: 'EEN STILLE RESET', visualDetail: 'niets hoeft af',
+    prepareTitle: 'Maak alleen wat ruimte.', prepareItems: ['Voeten op de grond', 'Schouders los', 'Meldingen even stil'],
+    presenceLabel: 'ADEM 1 VAN 5', presenceTitle: 'Langzaam uit', presenceCue: 'Je uitademing mag langer zijn.', presenceMode: 'guided', previewSeconds: 30,
+    completion: 'Laat de rust met je meegaan.',
   },
   energy: {
     eyebrow: 'RUIMTE VOOR ENERGIE',
     title: 'Beweeg genoeg om je middag te veranderen.',
     body: 'Een korte sessie die begint waar je nu bent en meer dan genoeg van het uur overlaat.',
     action: 'Begin met bewegen',
+    visualSymbol: '↗', visualLabel: 'KORTE POWER RESET', visualDetail: 'direct in beweging',
+    prepareTitle: 'Klaar om te bewegen.', prepareItems: ['Stevige schoenen', 'Water', 'Een paar meter ruimte'],
+    presenceLabel: 'BLOK 1 VAN 3', presenceTitle: 'Stevige pas', presenceCue: 'Ritme boven snelheid.', presenceMode: 'guided', previewSeconds: 35,
+    completion: 'Neem die energie mee je middag in.',
   },
   surprise: {
     eyebrow: 'RUIMTE VOOR VERWONDERING',
     title: 'Kijk vandaag naar iets waar je normaal voorbijloopt.',
     body: 'Dertig minuten om één detail te vinden dat het bewaren waard is: licht, natuur, vorm of geluid.',
     action: 'Geef me de aanwijzing',
+    visualSymbol: '✦', visualLabel: 'KIJK OPNIEUW', visualDetail: 'zoek veranderend licht',
+    prepareTitle: 'Neem alleen je aandacht mee.', prepareItems: ['Ga naar buiten of naar een raam', 'Kies geen bestemming', 'Zoek één onverwacht detail'],
+    presenceLabel: 'ONTDEK', presenceTitle: 'Volg het licht', presenceCue: 'Momentum wacht. Kijk eerst zelf.', presenceMode: 'quiet', previewSeconds: 0,
+    completion: 'Misschien zag je meer dan je verwachtte.',
   },
   connection: {
     eyebrow: 'RUIMTE VOOR VERBINDING',
     title: 'Geef iemand tien minuten echte aandacht.',
     body: 'Jij kiest wie. Momentum geeft één vraag en verdwijnt daarna uit het gesprek.',
     action: 'Geef me de vraag',
+    visualSymbol: '◎', visualLabel: 'ÉÉN ECHTE VRAAG', visualDetail: 'zonder haast luisteren',
+    prepareTitle: 'Kies iemand die ertoe doet.', prepareItems: ['Bel of zoek elkaar op', 'Leg afleiding weg', 'Luister zonder meteen op te lossen'],
+    presenceLabel: 'VRAAG', presenceTitle: 'Wat houdt je de laatste tijd echt bezig?', presenceCue: 'De rest van dit moment is van jullie.', presenceMode: 'quiet', previewSeconds: 0,
+    completion: 'Aandacht was genoeg.',
   },
   challenge: {
     eyebrow: 'RUIMTE VOOR KRACHT',
     title: 'Een sterk halfuur, zonder gehaast terug te komen.',
-    body: 'Eén kettlebell is genoeg voor een complete sessie hier. Twintig minuten van je uur blijven beschermd.',
+    body: 'Eén kettlebell is genoeg voor een complete sessie hier. Er blijft ruimte om rustig terug te keren.',
     action: 'Zet deze training klaar',
+    visualSymbol: '▲', visualLabel: 'ÉÉN KETTLEBELL', visualDetail: 'meer is niet nodig',
+    prepareTitle: 'Alles wat je nodig hebt.', prepareItems: ['Eén kettlebell', 'Water', 'Vrije ruimte'],
+    presenceLabel: 'RONDE 1 · OEFENING 1', presenceTitle: 'Goblet squat', presenceCue: 'Rustig en sterk.', presenceMode: 'guided', previewSeconds: 40,
+    completion: 'Neem de rest van je uur terug.',
   },
   choose: {
     eyebrow: 'EEN EERLIJK VOORSTEL',
     title: 'Maak het uur merkbaar anders.',
     body: 'Ik weet nog weinig van dit moment. Daarom kies ik iets dat hier begint en niets extra’s nodig heeft.',
     action: 'Probeer dit',
+    visualSymbol: '◇', visualLabel: 'ZONDER BESTEMMING', visualDetail: 'een kleine andere route',
+    prepareTitle: 'Begin zonder veel te regelen.', prepareItems: ['Neem alleen je sleutels mee', 'Kies de minst bekende richting', 'Keer terug wanneer het goed voelt'],
+    presenceLabel: 'VRIJE ROUTE', presenceTitle: 'Sla anders af', presenceCue: 'Geen doel. Alleen even opnieuw kijken.', presenceMode: 'quiet', previewSeconds: 0,
+    completion: 'Een kleine omweg was genoeg.',
   },
 };
 
+const budgetMinutes: Record<string, number> = { '15 min': 15, '30 min': 30, '1 uur': 60, '2 uur': 120, 'Tot…': 60 };
+
 export default function App() {
+  const { height: windowHeight } = useWindowDimensions();
   const [stage, setStage] = useState<Stage>('now');
   const [selectedTime, setSelectedTime] = useState('1 uur');
   const [feeling, setFeeling] = useState<Feeling>('challenge');
@@ -73,10 +118,19 @@ export default function App() {
   const fade = useRef(new Animated.Value(1)).current;
   const transitioning = useRef(false);
 
-  const promise = useMemo(() => promiseByFeeling[feeling], [feeling]);
+  const experience = useMemo(() => experienceByFeeling[feeling], [feeling]);
+  const availableMinutes = budgetMinutes[selectedTime] ?? 60;
+  const experienceMinutes = Math.max(5, Math.min(45, Math.round(availableMinutes * 0.55)));
+  const bufferMinutes = availableMinutes - experienceMinutes;
 
   useEffect(() => {
-    if (stage !== 'presence' || paused) return;
+    if (typeof document === 'undefined') return;
+    document.documentElement.style.backgroundColor = colors.ink;
+    document.body.style.backgroundColor = colors.ink;
+  }, []);
+
+  useEffect(() => {
+    if (stage !== 'presence' || paused || experience.presenceMode === 'quiet') return;
     const timer = setInterval(() => {
       setSeconds((current) => {
         if (current <= 1) {
@@ -88,7 +142,7 @@ export default function App() {
       });
     }, 1000);
     return () => clearInterval(timer);
-  }, [stage, paused]);
+  }, [stage, paused, experience.presenceMode]);
 
   const moveTo = (next: Stage) => {
     if (transitioning.current || next === stage) return;
@@ -121,7 +175,7 @@ export default function App() {
   };
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { minHeight: windowHeight }]}>
       <StatusBar style="light" />
       <Atmosphere stage={stage} />
       <SafeAreaView style={styles.safe}>
@@ -156,20 +210,29 @@ export default function App() {
           )}
           {stage === 'promise' && (
             <PromiseView
-              promise={promise}
+              experience={experience}
               time={selectedTime}
+              duration={experienceMinutes}
+              buffer={bufferMinutes}
               onAccept={() => moveTo('prepare')}
               onRedirect={() => moveTo('feeling')}
               onClose={() => moveTo('now')}
             />
           )}
           {stage === 'prepare' && (
-            <Prepare onStart={() => moveTo('presence')} onBack={() => moveTo('promise')} />
+            <Prepare
+              experience={experience}
+              onStart={() => {
+                setSeconds(experience.previewSeconds);
+                moveTo('presence');
+              }}
+              onBack={() => moveTo('promise')}
+            />
           )}
           {stage === 'presence' && (
-            <Presence seconds={seconds} paused={paused} onPause={() => setPaused((value) => !value)} onStop={() => moveTo('complete')} />
+            <Presence experience={experience} seconds={seconds} paused={paused} onPause={() => setPaused((value) => !value)} onStop={() => moveTo('complete')} />
           )}
-          {stage === 'complete' && <Complete onDone={restart} />}
+          {stage === 'complete' && <Complete experience={experience} onDone={restart} />}
         </Animated.View>
       </SafeAreaView>
     </View>
@@ -244,45 +307,56 @@ function FeelingChoice({ selected, onSelect, onContinue, onBack }: { selected: F
   );
 }
 
-function PromiseView({ promise, time, onAccept, onRedirect, onClose }: { promise: PromiseContent; time: string; onAccept: () => void; onRedirect: () => void; onClose: () => void }) {
+function PromiseView({ experience, time, duration, buffer, onAccept, onRedirect, onClose }: { experience: ExperienceContent; time: string; duration: number; buffer: number; onAccept: () => void; onRedirect: () => void; onClose: () => void }) {
   return (
     <ScrollView contentContainerStyle={styles.promise} showsVerticalScrollIndicator={false}>
       <TopAction label="Sluiten" onPress={onClose} />
-      <View style={styles.promiseVisual}>
-        <View style={styles.visualHalo} />
-        <View style={styles.visualFloor} />
-        <View style={styles.kettlebellOuter}>
-          <View style={styles.kettlebellHandle} />
-          <View style={styles.kettlebellBody}><View style={styles.kettlebellLight} /></View>
-        </View>
-        <View style={styles.visualCaption}>
-          <Text style={styles.visualCaptionTop}>ÉÉN KETTLEBELL</Text>
-          <Text style={styles.visualCaptionBottom}>meer is niet nodig</Text>
-        </View>
-      </View>
-      <Text style={styles.eyebrow}>{promise.eyebrow}</Text>
-      <Text style={styles.promiseTitle}>{promise.title}</Text>
-      <Text style={styles.promiseBody}>{promise.body}</Text>
+      <ExperienceVisual experience={experience} />
+      <Text style={styles.eyebrow}>{experience.eyebrow}</Text>
+      <Text style={styles.promiseTitle}>{experience.title}</Text>
+      <Text style={styles.promiseBody}>{experience.body}</Text>
       <View style={styles.factRow}>
-        <Fact value="30 min" label="ervaring" />
+        <Fact value={`${duration} min`} label="ervaring" />
         <Fact value={time} label="beschikbaar" />
-        <Fact value="20 min" label="buffer" />
+        <Fact value={`${buffer} min`} label="buffer" />
       </View>
-      <PrimaryButton label={promise.action} onPress={onAccept} />
+      <PrimaryButton label={experience.action} onPress={onAccept} />
       <SecondaryButton label="Iets anders past beter" onPress={onRedirect} />
-      <Text style={styles.why}>Waarom dit past · tijd en jouw keuze voor uitdaging</Text>
+      <Text style={styles.why}>Waarom dit past · beschikbare tijd en het gevoel dat jij koos</Text>
     </ScrollView>
   );
 }
 
-function Prepare({ onStart, onBack }: { onStart: () => void; onBack: () => void }) {
+function ExperienceVisual({ experience }: { experience: ExperienceContent }) {
+  const isStrength = experience === experienceByFeeling.challenge;
+  return (
+    <View style={styles.promiseVisual}>
+      <View style={styles.visualHalo} />
+      <View style={styles.visualFloor} />
+      {isStrength ? (
+        <View style={styles.kettlebellOuter}>
+          <View style={styles.kettlebellHandle} />
+          <View style={styles.kettlebellBody}><View style={styles.kettlebellLight} /></View>
+        </View>
+      ) : (
+        <View style={styles.experienceGlyph}><Text style={styles.experienceGlyphText}>{experience.visualSymbol}</Text></View>
+      )}
+      <View style={styles.visualCaption}>
+        <Text style={styles.visualCaptionTop}>{experience.visualLabel}</Text>
+        <Text style={styles.visualCaptionBottom}>{experience.visualDetail}</Text>
+      </View>
+    </View>
+  );
+}
+
+function Prepare({ experience, onStart, onBack }: { experience: ExperienceContent; onStart: () => void; onBack: () => void }) {
   return (
     <View style={styles.prepare}>
       <TopAction label="Terug" onPress={onBack} />
       <View>
         <Text style={styles.eyebrow}>VOORBEREIDEN</Text>
-        <Text style={styles.promiseTitle}>Alles wat je nodig hebt.</Text>
-        {['Eén kettlebell', 'Water', 'Vrije ruimte'].map((item) => (
+        <Text style={styles.promiseTitle}>{experience.prepareTitle}</Text>
+        {experience.prepareItems.map((item) => (
           <View style={styles.checkRow} key={item}><Text style={styles.checkDot}>✓</Text><Text style={styles.checkLabel}>{item}</Text></View>
         ))}
       </View>
@@ -294,14 +368,26 @@ function Prepare({ onStart, onBack }: { onStart: () => void; onBack: () => void 
   );
 }
 
-function Presence({ seconds, paused, onPause, onStop }: { seconds: number; paused: boolean; onPause: () => void; onStop: () => void }) {
+function Presence({ experience, seconds, paused, onPause, onStop }: { experience: ExperienceContent; seconds: number; paused: boolean; onPause: () => void; onStop: () => void }) {
+  if (experience.presenceMode === 'quiet') {
+    return (
+      <View style={styles.presence}>
+        <Text style={styles.presenceLabel}>{experience.presenceLabel}</Text>
+        <Text style={[styles.exercise, styles.quietPresenceTitle]}>{experience.presenceTitle}</Text>
+        <Text style={styles.quietPresenceCue}>{experience.presenceCue}</Text>
+        <View style={styles.quietOrb}><Text style={styles.quietOrbSymbol}>{experience.visualSymbol}</Text></View>
+        <PrimaryButton label="Ik ben terug" onPress={onStop} />
+        <Text style={styles.presenceFooter}>Momentum blijft op de achtergrond.</Text>
+      </View>
+    );
+  }
   return (
     <View style={styles.presence}>
-      <Text style={styles.presenceLabel}>RONDE 1 · OEFENING 1</Text>
-      <Text style={styles.exercise}>Goblet squat</Text>
+      <Text style={styles.presenceLabel}>{experience.presenceLabel}</Text>
+      <Text style={styles.exercise}>{experience.presenceTitle}</Text>
       <View style={styles.timerRing}>
         <Text style={styles.timer}>{`00:${String(seconds).padStart(2, '0')}`}</Text>
-        <Text style={styles.timerCaption}>{paused ? 'gepauzeerd' : 'rustig en sterk'}</Text>
+        <Text style={styles.timerCaption}>{paused ? 'gepauzeerd' : experience.presenceCue}</Text>
       </View>
       <Pressable onPress={onPause} style={styles.pause}><Text style={styles.pauseText}>{paused ? '▶' : 'Ⅱ'}</Text></Pressable>
       <Pressable onPress={onStop}><Text style={styles.stop}>Stop de ervaring</Text></Pressable>
@@ -310,13 +396,13 @@ function Presence({ seconds, paused, onPause, onStop }: { seconds: number; pause
   );
 }
 
-function Complete({ onDone }: { onDone: () => void }) {
+function Complete({ experience, onDone }: { experience: ExperienceContent; onDone: () => void }) {
   const [answer, setAnswer] = useState<string | null>(null);
   return (
     <View style={styles.complete}>
       <Text style={styles.completeMark}>✓</Text>
       <Text style={styles.promiseTitle}>Klaar.</Text>
-      <Text style={styles.heroBody}>Neem de rest van je uur terug.</Text>
+      <Text style={styles.heroBody}>{experience.completion}</Text>
       <View style={styles.reflection}>
         <Text style={styles.reflectionTitle}>Was dit een goede besteding van je uur?</Text>
         <View style={styles.reflectionRow}>
@@ -370,8 +456,8 @@ const styles = StyleSheet.create({
   panelWrap: { flex: 1, padding: 22 }, panel: { marginTop: 'auto', backgroundColor: 'rgba(14,26,33,0.95)', borderWidth: 1, borderColor: colors.line, borderRadius: 30, padding: 22, gap: 18 }, panelTitle: { color: colors.bone, fontSize: 31, lineHeight: 37, fontWeight: '400', letterSpacing: -0.8 }, panelSubtitle: { color: colors.muted, fontSize: 15, lineHeight: 21 }, chipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 }, choice: { borderWidth: 1, borderColor: colors.line, paddingVertical: 13, paddingHorizontal: 17, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.025)' }, choiceSelected: { borderColor: colors.green, backgroundColor: 'rgba(145,169,109,0.18)' }, choiceText: { color: colors.muted, fontSize: 15 }, choiceTextSelected: { color: colors.bone },
   feelingList: { gap: 8 }, feeling: { minHeight: 54, borderRadius: 18, borderWidth: 1, borderColor: colors.line, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center' }, feelingSymbol: { color: colors.gold, width: 34, fontSize: 18 }, feelingText: { color: colors.muted, fontSize: 16, flex: 1 }, check: { color: colors.muted, fontSize: 14 },
   primary: { backgroundColor: colors.green, minHeight: 56, borderRadius: 18, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18 }, primaryText: { color: '#0C160E', fontSize: 16, fontWeight: '700' }, secondary: { minHeight: 48, alignItems: 'center', justifyContent: 'center' }, secondaryText: { color: colors.bone, fontSize: 14 }, pressed: { opacity: 0.72, transform: [{ scale: 0.99 }] }, topAction: { alignSelf: 'flex-start', paddingVertical: 8 }, topActionText: { color: colors.muted, fontSize: 14 },
-  promise: { padding: 22, paddingBottom: 40 }, promiseVisual: { height: 250, marginVertical: 14, borderRadius: 32, backgroundColor: '#101A1D', borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }, visualHalo: { position: 'absolute', width: 260, height: 260, borderRadius: 130, backgroundColor: 'rgba(216,170,104,0.17)', top: -72, right: -54 }, visualFloor: { position: 'absolute', height: 110, left: -30, right: -30, bottom: -58, borderRadius: 999, backgroundColor: 'rgba(145,169,109,0.13)', transform: [{ scaleX: 1.35 }] }, kettlebellOuter: { alignItems: 'center', marginTop: 5 }, kettlebellHandle: { width: 88, height: 72, borderRadius: 44, borderWidth: 16, borderColor: '#1B1F1B', marginBottom: -24, shadowColor: '#000', shadowOpacity: 0.5, shadowRadius: 12, shadowOffset: { width: 0, height: 8 } }, kettlebellBody: { width: 132, height: 119, borderRadius: 62, backgroundColor: '#171B18', borderWidth: 1, borderColor: '#3D433A', overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.55, shadowRadius: 18, shadowOffset: { width: 0, height: 13 } }, kettlebellLight: { width: 42, height: 100, borderRadius: 30, marginLeft: 23, marginTop: 5, backgroundColor: 'rgba(243,235,221,0.055)', transform: [{ rotate: '12deg' }] }, visualCaption: { position: 'absolute', left: 18, bottom: 16 }, visualCaptionTop: { color: colors.gold, fontSize: 9, fontWeight: '700', letterSpacing: 1.5 }, visualCaptionBottom: { color: 'rgba(243,235,221,0.64)', fontSize: 11, marginTop: 3 }, promiseTitle: { color: colors.bone, fontSize: 37, lineHeight: 42, letterSpacing: -1.1, fontWeight: '300' }, promiseBody: { color: colors.muted, fontSize: 16, lineHeight: 24, marginTop: 15 }, factRow: { flexDirection: 'row', borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.line, marginVertical: 24, paddingVertical: 15 }, fact: { flex: 1 }, factValue: { color: colors.bone, fontSize: 17, fontWeight: '600' }, factLabel: { color: colors.muted, fontSize: 11, marginTop: 3 }, why: { color: colors.muted, fontSize: 11, textAlign: 'center', marginTop: 8 },
+  promise: { padding: 22, paddingBottom: 40 }, promiseVisual: { height: 250, marginVertical: 14, borderRadius: 32, backgroundColor: '#101A1D', borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }, visualHalo: { position: 'absolute', width: 260, height: 260, borderRadius: 130, backgroundColor: 'rgba(216,170,104,0.17)', top: -72, right: -54 }, visualFloor: { position: 'absolute', height: 110, left: -30, right: -30, bottom: -58, borderRadius: 999, backgroundColor: 'rgba(145,169,109,0.13)', transform: [{ scaleX: 1.35 }] }, kettlebellOuter: { alignItems: 'center', marginTop: 5 }, kettlebellHandle: { width: 88, height: 72, borderRadius: 44, borderWidth: 16, borderColor: '#1B1F1B', marginBottom: -24, shadowColor: '#000', shadowOpacity: 0.5, shadowRadius: 12, shadowOffset: { width: 0, height: 8 } }, kettlebellBody: { width: 132, height: 119, borderRadius: 62, backgroundColor: '#171B18', borderWidth: 1, borderColor: '#3D433A', overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.55, shadowRadius: 18, shadowOffset: { width: 0, height: 13 } }, kettlebellLight: { width: 42, height: 100, borderRadius: 30, marginLeft: 23, marginTop: 5, backgroundColor: 'rgba(243,235,221,0.055)', transform: [{ rotate: '12deg' }] }, experienceGlyph: { width: 132, height: 132, borderRadius: 66, borderWidth: 1, borderColor: 'rgba(216,170,104,0.4)', backgroundColor: 'rgba(7,16,23,0.5)', alignItems: 'center', justifyContent: 'center' }, experienceGlyphText: { color: colors.bone, fontSize: 52, fontWeight: '200' }, visualCaption: { position: 'absolute', left: 18, bottom: 16 }, visualCaptionTop: { color: colors.gold, fontSize: 9, fontWeight: '700', letterSpacing: 1.5 }, visualCaptionBottom: { color: 'rgba(243,235,221,0.64)', fontSize: 11, marginTop: 3 }, promiseTitle: { color: colors.bone, fontSize: 37, lineHeight: 42, letterSpacing: -1.1, fontWeight: '300' }, promiseBody: { color: colors.muted, fontSize: 16, lineHeight: 24, marginTop: 15 }, factRow: { flexDirection: 'row', borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.line, marginVertical: 24, paddingVertical: 15 }, fact: { flex: 1 }, factValue: { color: colors.bone, fontSize: 17, fontWeight: '600' }, factLabel: { color: colors.muted, fontSize: 11, marginTop: 3 }, why: { color: colors.muted, fontSize: 11, textAlign: 'center', marginTop: 8 },
   prepare: { flex: 1, padding: 24, justifyContent: 'space-between' }, checkRow: { flexDirection: 'row', alignItems: 'center', marginTop: 20 }, checkDot: { color: colors.green, width: 34, fontSize: 19 }, checkLabel: { color: colors.bone, fontSize: 18 },
-  presence: { flex: 1, padding: 26, alignItems: 'center', justifyContent: 'center' }, presenceLabel: { color: colors.muted, fontSize: 10, letterSpacing: 2, marginBottom: 16 }, exercise: { color: colors.bone, fontSize: 40, fontWeight: '300', letterSpacing: -1 }, timerRing: { width: 230, height: 230, borderRadius: 115, borderWidth: 4, borderColor: 'rgba(145,169,109,0.45)', alignItems: 'center', justifyContent: 'center', marginVertical: 48 }, timer: { color: colors.bone, fontSize: 55, fontVariant: ['tabular-nums'], fontWeight: '200' }, timerCaption: { color: colors.muted, fontSize: 12, marginTop: 6 }, pause: { width: 60, height: 60, borderRadius: 30, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' }, pauseText: { color: colors.bone, fontSize: 22 }, stop: { color: colors.muted, fontSize: 12, marginTop: 24 }, presenceFooter: { color: colors.muted, fontSize: 12, position: 'absolute', bottom: 28 },
+  presence: { flex: 1, padding: 26, alignItems: 'center', justifyContent: 'center' }, presenceLabel: { color: colors.muted, fontSize: 10, letterSpacing: 2, marginBottom: 16 }, exercise: { color: colors.bone, fontSize: 40, fontWeight: '300', letterSpacing: -1, textAlign: 'center' }, quietPresenceTitle: { fontSize: 34, lineHeight: 41, maxWidth: 390 }, quietPresenceCue: { color: colors.muted, fontSize: 15, lineHeight: 22, textAlign: 'center', maxWidth: 320, marginTop: 18 }, quietOrb: { width: 150, height: 150, borderRadius: 75, borderWidth: 1, borderColor: 'rgba(145,169,109,0.3)', alignItems: 'center', justifyContent: 'center', marginVertical: 48, backgroundColor: 'rgba(145,169,109,0.05)' }, quietOrbSymbol: { color: colors.green, fontSize: 42, fontWeight: '200' }, timerRing: { width: 230, height: 230, borderRadius: 115, borderWidth: 4, borderColor: 'rgba(145,169,109,0.45)', alignItems: 'center', justifyContent: 'center', marginVertical: 48 }, timer: { color: colors.bone, fontSize: 55, fontVariant: ['tabular-nums'], fontWeight: '200' }, timerCaption: { color: colors.muted, fontSize: 12, marginTop: 6, textAlign: 'center', paddingHorizontal: 18 }, pause: { width: 60, height: 60, borderRadius: 30, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' }, pauseText: { color: colors.bone, fontSize: 22 }, stop: { color: colors.muted, fontSize: 12, marginTop: 24 }, presenceFooter: { color: colors.muted, fontSize: 12, position: 'absolute', bottom: 28 },
   complete: { flex: 1, padding: 26, justifyContent: 'center' }, completeMark: { color: colors.green, fontSize: 44, marginBottom: 20 }, reflection: { marginVertical: 42, paddingTop: 22, borderTopWidth: 1, borderColor: colors.line }, reflectionTitle: { color: colors.bone, fontSize: 17, lineHeight: 24, marginBottom: 18 }, reflectionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
 });
