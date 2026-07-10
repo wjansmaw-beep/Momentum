@@ -25,6 +25,7 @@ export type RankedCandidate = ExperienceCandidate & {
 
 export type DecisionResult = {
   selected: RankedCandidate;
+  runnerUp?: RankedCandidate;
   considered: number;
   rejected: number;
   confidence: 'high' | 'medium';
@@ -85,10 +86,12 @@ export function selectExperience(
     })
     .sort((a, b) => b.score - a.score || a.id.localeCompare(b.id));
 
-  const margin = ranked.length > 1 ? ranked[0].score - ranked[1].score : ranked[0].score;
+  const runnerUp = ranked.find((candidate) => candidate.feeling !== ranked[0].feeling) ?? ranked[1];
+  const margin = runnerUp ? ranked[0].score - runnerUp.score : ranked[0].score;
 
   return {
     selected: ranked[0],
+    runnerUp,
     considered: candidates.length,
     rejected: candidates.length - feasible.length,
     confidence: margin >= 15 ? 'high' : 'medium',

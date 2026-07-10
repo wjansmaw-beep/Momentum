@@ -18,7 +18,7 @@ import {
   selectExperience,
 } from './src/decision/localDecision';
 
-type Stage = 'now' | 'context' | 'time' | 'feeling' | 'promise' | 'prepare' | 'presence' | 'complete';
+type Stage = 'now' | 'context' | 'time' | 'feeling' | 'clarify' | 'promise' | 'prepare' | 'presence' | 'complete';
 type Feeling = 'calm' | 'energy' | 'surprise' | 'connection' | 'challenge' | 'choose';
 type ProfilePreset = 'explorer' | 'mover' | 'connector';
 type ReflectionAnswer = 'Nee' | 'Een beetje' | 'Ja';
@@ -149,6 +149,14 @@ const profilePresets: Record<ProfilePreset, { label: string; description: string
   explorer: { label: 'Ontdekker', description: 'merkt graag iets nieuws op', affinity: { calm: 0.62, energy: 0.7, surprise: 0.9, connection: 0.62, challenge: 0.76 } },
   mover: { label: 'Beweger', description: 'krijgt energie van actie', affinity: { calm: 0.5, energy: 0.88, surprise: 0.66, connection: 0.58, challenge: 0.94 } },
   connector: { label: 'Verbinder', description: 'kiest vaak voor echte aandacht', affinity: { calm: 0.66, energy: 0.56, surprise: 0.68, connection: 0.96, challenge: 0.54 } },
+};
+
+const clarificationLabels: Record<CoreFeeling, { title: string; body: string }> = {
+  calm: { title: 'Meer rust', body: 'minder prikkels, weinig voorbereiding' },
+  energy: { title: 'Nieuwe energie', body: 'kort bewegen en weer verder' },
+  surprise: { title: 'Iets onverwachts', body: 'met andere ogen naar buiten kijken' },
+  connection: { title: 'Echte aandacht', body: 'een betekenisvol moment met iemand' },
+  challenge: { title: 'Een uitdaging', body: 'duidelijk beginnen en sterk afronden' },
 };
 
 const emptyAffinityAdjustments = (): Record<CoreFeeling, number> => ({ calm: 0, energy: 0, surprise: 0, connection: 0, challenge: 0 });
@@ -297,8 +305,19 @@ export default function App() {
             <FeelingChoice
               selected={feeling}
               onSelect={setFeeling}
-              onContinue={() => moveTo('promise')}
+              onContinue={() => moveTo(feeling === 'choose' && decision.confidence === 'medium' && decision.runnerUp ? 'clarify' : 'promise')}
               onBack={() => moveTo('time')}
+            />
+          )}
+          {stage === 'clarify' && decision.runnerUp && (
+            <ClarifyChoice
+              first={decision.selected.feeling}
+              second={decision.runnerUp.feeling}
+              onSelect={(value) => {
+                setFeeling(value);
+                moveTo('promise');
+              }}
+              onBack={() => moveTo('feeling')}
             />
           )}
           {stage === 'promise' && (
@@ -444,6 +463,24 @@ function FeelingChoice({ selected, onSelect, onContinue, onBack }: { selected: F
         ))}
       </View>
       <PrimaryButton label="Laat mijn voorstel zien" onPress={onContinue} />
+    </Panel>
+  );
+}
+
+function ClarifyChoice({ first, second, onSelect, onBack }: { first: CoreFeeling; second: CoreFeeling; onSelect: (value: CoreFeeling) => void; onBack: () => void }) {
+  return (
+    <Panel title="Twee richtingen passen bijna even goed." subtitle="Eén kleine keuze is eerlijker dan doen alsof Momentum het zeker weet." onBack={onBack}>
+      <Text style={styles.clarifyQuestion}>Wat trekt je nu nét iets meer?</Text>
+      {[first, second].map((feeling) => (
+        <Pressable key={feeling} onPress={() => onSelect(feeling)} style={styles.clarifyOption}>
+          <View style={styles.contextOptionCopy}>
+            <Text style={styles.contextOptionTitle}>{clarificationLabels[feeling].title}</Text>
+            <Text style={styles.contextOptionBody}>{clarificationLabels[feeling].body}</Text>
+          </View>
+          <Text style={styles.clarifyArrow}>›</Text>
+        </Pressable>
+      ))}
+      <Text style={styles.clarifyPrivacy}>Alleen jouw antwoord op dit moment wordt gebruikt.</Text>
     </Panel>
   );
 }
@@ -603,6 +640,7 @@ const styles = StyleSheet.create({
   contextLab: { flexGrow: 1, padding: 24, paddingBottom: 40, gap: 28 }, contextGroup: { gap: 9 }, contextGroupLabel: { color: colors.gold, fontSize: 9, letterSpacing: 1.5, fontWeight: '700' }, contextOption: { minHeight: 64, borderRadius: 18, borderWidth: 1, borderColor: colors.line, paddingHorizontal: 16, paddingVertical: 12, flexDirection: 'row', alignItems: 'center' }, contextOptionCopy: { flex: 1 }, contextOptionTitle: { color: colors.bone, fontSize: 16 }, contextOptionBody: { color: colors.muted, fontSize: 12, marginTop: 3 }, contextToggleRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 9 }, learningNote: { borderWidth: 1, borderColor: colors.line, backgroundColor: 'rgba(145,169,109,0.06)', borderRadius: 18, padding: 16 }, learningNoteTitle: { color: colors.green, fontSize: 9, letterSpacing: 1.3, fontWeight: '700' }, learningNoteBody: { color: colors.muted, fontSize: 12, lineHeight: 18, marginTop: 7 },
   panelWrap: { flex: 1, padding: 22 }, panel: { marginTop: 'auto', backgroundColor: 'rgba(14,26,33,0.95)', borderWidth: 1, borderColor: colors.line, borderRadius: 30, padding: 22, gap: 18 }, panelTitle: { color: colors.bone, fontSize: 31, lineHeight: 37, fontWeight: '400', letterSpacing: -0.8 }, panelSubtitle: { color: colors.muted, fontSize: 15, lineHeight: 21 }, chipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 }, choice: { borderWidth: 1, borderColor: colors.line, paddingVertical: 13, paddingHorizontal: 17, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.025)' }, choiceSelected: { borderColor: colors.green, backgroundColor: 'rgba(145,169,109,0.18)' }, choiceText: { color: colors.muted, fontSize: 15 }, choiceTextSelected: { color: colors.bone },
   feelingList: { gap: 8 }, feeling: { minHeight: 54, borderRadius: 18, borderWidth: 1, borderColor: colors.line, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center' }, feelingSymbol: { color: colors.gold, width: 34, fontSize: 18 }, feelingText: { color: colors.muted, fontSize: 16, flex: 1 }, check: { color: colors.muted, fontSize: 14 },
+  clarifyQuestion: { color: colors.bone, fontSize: 14, marginTop: -2 }, clarifyOption: { minHeight: 70, borderRadius: 20, borderWidth: 1, borderColor: colors.line, paddingHorizontal: 17, paddingVertical: 13, flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.025)' }, clarifyArrow: { color: colors.gold, fontSize: 28, fontWeight: '200', marginLeft: 12 }, clarifyPrivacy: { color: 'rgba(170,179,174,0.62)', fontSize: 10, lineHeight: 15, textAlign: 'center' },
   primary: { backgroundColor: colors.green, minHeight: 56, borderRadius: 18, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18 }, primaryText: { color: '#0C160E', fontSize: 16, fontWeight: '700' }, secondary: { minHeight: 48, alignItems: 'center', justifyContent: 'center' }, secondaryText: { color: colors.bone, fontSize: 14 }, pressed: { opacity: 0.72, transform: [{ scale: 0.99 }] }, topAction: { alignSelf: 'flex-start', paddingVertical: 8 }, topActionText: { color: colors.muted, fontSize: 14 },
   promise: { padding: 22, paddingBottom: 40 }, promiseVisual: { height: 250, marginVertical: 14, borderRadius: 32, backgroundColor: '#101A1D', borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }, visualHalo: { position: 'absolute', width: 260, height: 260, borderRadius: 130, backgroundColor: 'rgba(216,170,104,0.17)', top: -72, right: -54 }, visualFloor: { position: 'absolute', height: 110, left: -30, right: -30, bottom: -58, borderRadius: 999, backgroundColor: 'rgba(145,169,109,0.13)', transform: [{ scaleX: 1.35 }] }, kettlebellOuter: { alignItems: 'center', marginTop: 5 }, kettlebellHandle: { width: 88, height: 72, borderRadius: 44, borderWidth: 16, borderColor: '#1B1F1B', marginBottom: -24, shadowColor: '#000', shadowOpacity: 0.5, shadowRadius: 12, shadowOffset: { width: 0, height: 8 } }, kettlebellBody: { width: 132, height: 119, borderRadius: 62, backgroundColor: '#171B18', borderWidth: 1, borderColor: '#3D433A', overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.55, shadowRadius: 18, shadowOffset: { width: 0, height: 13 } }, kettlebellLight: { width: 42, height: 100, borderRadius: 30, marginLeft: 23, marginTop: 5, backgroundColor: 'rgba(243,235,221,0.055)', transform: [{ rotate: '12deg' }] }, experienceGlyph: { width: 132, height: 132, borderRadius: 66, borderWidth: 1, borderColor: 'rgba(216,170,104,0.4)', backgroundColor: 'rgba(7,16,23,0.5)', alignItems: 'center', justifyContent: 'center' }, experienceGlyphText: { color: colors.bone, fontSize: 52, fontWeight: '200' }, visualCaption: { position: 'absolute', left: 18, bottom: 16 }, visualCaptionTop: { color: colors.gold, fontSize: 9, fontWeight: '700', letterSpacing: 1.5 }, visualCaptionBottom: { color: 'rgba(243,235,221,0.64)', fontSize: 11, marginTop: 3 }, promiseTitle: { color: colors.bone, fontSize: 37, lineHeight: 42, letterSpacing: -1.1, fontWeight: '300' }, promiseBody: { color: colors.muted, fontSize: 16, lineHeight: 24, marginTop: 15 }, factRow: { flexDirection: 'row', borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.line, marginVertical: 24, paddingVertical: 15 }, fact: { flex: 1 }, factValue: { color: colors.bone, fontSize: 17, fontWeight: '600' }, factLabel: { color: colors.muted, fontSize: 11, marginTop: 3 }, decisionReceipt: { marginTop: 10, borderTopWidth: 1, borderColor: colors.line, paddingTop: 15 }, why: { color: colors.gold, fontSize: 10, textAlign: 'center', letterSpacing: 1.1, textTransform: 'uppercase' }, decisionReason: { color: colors.muted, fontSize: 11, lineHeight: 17, textAlign: 'center', marginTop: 7 }, decisionMeta: { color: 'rgba(170,179,174,0.58)', fontSize: 9, textAlign: 'center', marginTop: 8 },
   prepare: { flex: 1, padding: 24, justifyContent: 'space-between' }, checkRow: { flexDirection: 'row', alignItems: 'center', marginTop: 20 }, checkDot: { color: colors.green, width: 34, fontSize: 19 }, checkLabel: { color: colors.bone, fontSize: 18 },
