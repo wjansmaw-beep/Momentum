@@ -23,7 +23,7 @@ Priority labels:
 ## Primary experience and autonomy
 
 - **Now:** Does the primary surface always show exactly one Experience Promise, and what happens when confidence is low?
-- **Now:** What is the smallest active-intent interaction for “I unexpectedly have one hour”?
+- **Resolved direction:** The smallest active-intent interaction begins with available time and asks at most one desired-outcome question when context is insufficient.
 - **Resolved direction:** The first end-to-end blueprint is “I unexpectedly have about an hour.” Its resulting capsule remains context-dependent.
 - **Soon:** When may Momentum proactively surface a detected moment, and how does the user control that initiative?
 - **Soon:** What confidence or ambiguity threshold requires a clarifying question rather than selection?
@@ -33,7 +33,7 @@ Priority labels:
 
 ## Experience Promises and feelings
 
-- **Now:** Which three to five feeling families are essential for the first product test?
+- **Resolved direction:** The first interaction prototype tests calm, energy, surprise, connection, and challenge, plus a transparent “choose for me” path.
 - **Soon:** How is a desired feeling distinguished from an inferred need in language and learning?
 - **Soon:** Who approves Experience Promises for health-adjacent outcomes?
 - **Soon:** What evidence threshold permits phrases such as “likely calming” or “good chance of seeing”?
@@ -92,6 +92,6 @@ Priority labels:
 
 1. Approve or amend the document foundation and lift—or retain—the no-application-code gate.
 2. Confirm whether Momentum remains the working product name.
-3. Decide which active-entry variant and permission-light candidate set should be prototyped from the unexpected-free-hour blueprint.
+3. Approve or amend the active-entry interaction and permission-light prototype content set.
 4. Choose the initial product and documentation language.
 5. Decide whether the next iteration deepens Experience Blueprints or begins technical feasibility research.
