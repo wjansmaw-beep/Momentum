@@ -24,6 +24,9 @@ Priority labels:
 
 - **Now:** Does the primary surface always show exactly one Experience Promise, and what happens when confidence is low?
 - **Now:** What is the smallest active-intent interaction for “I unexpectedly have one hour”?
+- **Now:** Which Human Moment should become the first end-to-end blueprint before choosing its resulting capsule?
+- **Soon:** When may Momentum proactively surface a detected moment, and how does the user control that initiative?
+- **Soon:** What confidence or ambiguity threshold requires a clarifying question rather than selection?
 - **Soon:** How many alternatives preserve autonomy without becoming a feed?
 - **Soon:** Is broader exploration part of the MVP or a later conscious-choice surface?
 - **Soon:** Which reasons appear under “Why this fits,” and which remain private?
@@ -37,7 +40,7 @@ Priority labels:
 
 ## Experience Capsules
 
-- **Now:** Which first capsule best tests the full philosophy: walk, workout, breathing, recipe, place, or event?
+- **Now:** Which first capsule best tests the selected Human Moment without making that activity the product starting point?
 - **Soon:** At what precise point does Momentum hand off to Maps rather than remain active?
 - **Soon:** When is a Live Activity genuinely useful instead of extra screen presence?
 - **Soon:** How does Momentum resume after a handoff without falsely assuming completion?
@@ -89,6 +92,6 @@ Priority labels:
 
 1. Approve or amend the document foundation and lift—or retain—the no-application-code gate.
 2. Confirm whether Momentum remains the working product name.
-3. Choose the first human moment and Experience Capsule to blueprint.
+3. Choose the first Human Moment to blueprint; select its capsule only after candidate comparison.
 4. Choose the initial product and documentation language.
 5. Decide whether the next iteration deepens Experience Blueprints or begins technical feasibility research.
