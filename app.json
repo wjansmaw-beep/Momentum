@@ -18,13 +18,21 @@
     ],
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.momentum.prototype"
+      "bundleIdentifier": "com.momentum.prototype",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.momentum.prototype",
       "blockedPermissions": [
         "android.permission.ACCESS_FINE_LOCATION"
       ]
+    },
+    "extra": {
+      "eas": {
+        "projectId": "13195c21-6844-4e8f-b492-6a579aa70ca8"
+      }
     }
   }
 }

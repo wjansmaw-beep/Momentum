@@ -1,5 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
 import * as Location from 'expo-location';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
@@ -163,6 +164,26 @@ const clarificationLabels: Record<CoreFeeling, { title: string; body: string }> 
 };
 
 const emptyAffinityAdjustments = (): Record<CoreFeeling, number> => ({ calm: 0, energy: 0, surprise: 0, connection: 0, challenge: 0 });
+const localProfileStorageKey = 'momentum.local-profile.v1';
+
+type StoredLocalProfile = {
+  profilePreset: ProfilePreset;
+  hasKettlebell: boolean;
+  affinityAdjustments: Record<CoreFeeling, number>;
+  learningCount: number;
+};
+
+const isProfilePreset = (value: unknown): value is ProfilePreset =>
+  value === 'explorer' || value === 'mover' || value === 'connector';
+
+const safeAffinity = (value: unknown): Record<CoreFeeling, number> => {
+  const source = value && typeof value === 'object' ? value as Partial<Record<CoreFeeling, unknown>> : {};
+  return (Object.keys(emptyAffinityAdjustments()) as CoreFeeling[]).reduce<Record<CoreFeeling, number>>((result, key) => {
+    const adjustment = typeof source[key] === 'number' ? source[key] : 0;
+    result[key] = Math.max(-0.3, Math.min(0.3, adjustment));
+    return result;
+  }, emptyAffinityAdjustments());
+};
 
 export default function App() {
   const { height: windowHeight } = useWindowDimensions();
@@ -173,6 +194,7 @@ export default function App() {
   const [hasKettlebell, setHasKettlebell] = useState(true);
   const [affinityAdjustments, setAffinityAdjustments] = useState<Record<CoreFeeling, number>>(emptyAffinityAdjustments);
   const [learningCount, setLearningCount] = useState(0);
+  const [profileHydrated, setProfileHydrated] = useState(false);
   const [seconds, setSeconds] = useState(40);
   const [paused, setPaused] = useState(false);
   const fade = useRef(new Animated.Value(1)).current;
@@ -209,6 +231,30 @@ export default function App() {
     document.documentElement.style.backgroundColor = colors.ink;
     document.body.style.backgroundColor = colors.ink;
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    AsyncStorage.getItem(localProfileStorageKey)
+      .then((stored) => {
+        if (!active || !stored) return;
+        const parsed = JSON.parse(stored) as Partial<StoredLocalProfile>;
+        if (isProfilePreset(parsed.profilePreset)) setProfilePreset(parsed.profilePreset);
+        if (typeof parsed.hasKettlebell === 'boolean') setHasKettlebell(parsed.hasKettlebell);
+        setAffinityAdjustments(safeAffinity(parsed.affinityAdjustments));
+        if (typeof parsed.learningCount === 'number') setLearningCount(Math.max(0, Math.floor(parsed.learningCount)));
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (active) setProfileHydrated(true);
+      });
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    if (!profileHydrated) return;
+    const value: StoredLocalProfile = { profilePreset, hasKettlebell, affinityAdjustments, learningCount };
+    AsyncStorage.setItem(localProfileStorageKey, JSON.stringify(value)).catch(() => undefined);
+  }, [affinityAdjustments, hasKettlebell, learningCount, profileHydrated, profilePreset]);
 
   useEffect(() => {
     if (stage !== 'presence' || paused || experience.presenceMode === 'quiet') return;
@@ -659,7 +705,7 @@ function Complete({ experience, onDone }: { experience: ExperienceContent; onDon
         <View style={styles.reflectionRow}>
           {(['Nee', 'Een beetje', 'Ja'] as ReflectionAnswer[]).map((item) => <Choice key={item} label={item} selected={answer === item} onPress={() => setAnswer(item)} />)}
         </View>
-        <Text style={styles.reflectionPrivacy}>Alleen het lokale proefprofiel van deze sessie wordt aangepast.</Text>
+        <Text style={styles.reflectionPrivacy}>Deze keuze past alleen je lokale proefprofiel op dit apparaat aan.</Text>
       </View>
       <PrimaryButton label={answer ? 'Afronden' : 'Sla over'} onPress={() => onDone(answer)} />
     </View>
