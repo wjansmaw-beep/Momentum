@@ -1,0 +1,16 @@
+{
+  "expo": {
+    "name": "Momentum",
+    "slug": "momentum",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.momentum.prototype"
+    },
+    "android": {
+      "package": "com.momentum.prototype"
+    }
+  }
+}

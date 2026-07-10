@@ -4,7 +4,7 @@ These instructions apply to the entire repository.
 
 ## Current phase
 
-The project is establishing its document foundation. **Do not add application code until the Founder explicitly approves the foundation and requests implementation.**
+The Founder approved the document foundation on 2026-07-10 and requested the first application slice. Application code is allowed only for the bounded North Star prototype described in `08_Design/North_Star_Active_Flow.md` and `13_Technical_Feasibility/MVP_Technical_Boundary.md`. New integrations or product scope still require explicit approval.
 
 ## Read before acting
 

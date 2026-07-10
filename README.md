@@ -2,7 +2,7 @@
 
 Momentum is a companion for living: it uses context to help people notice, choose, begin, experience, and remember meaningful moments—while spending less time on their phone.
 
-The document foundation is being established before application development begins.
+The document foundation is established and the Founder approved the first bounded application prototype on 2026-07-10.
 
 ## Start here
 
@@ -13,4 +13,22 @@ The document foundation is being established before application development begi
 
 > Understanding → Wonder → Momentum → Presence → Memory
 
-See [`AGENTS.md`](AGENTS.md) for repository-wide rules and the current no-application-code foundation gate.
+See [`AGENTS.md`](AGENTS.md) for repository-wide rules and the current implementation boundary.
+
+## First application prototype
+
+The Expo/React Native prototype implements:
+
+> Now → active time → desired outcome → Experience Promise → correction → preparation → Presence → optional reflection
+
+It uses local scenario content only. No Apple, calendar, health, location, weather, backend, account, or generative-AI integration is present.
+
+After installing dependencies:
+
+```text
+npm install
+npm run typecheck
+npm start
+```
+
+See [`00_Project/Decisions/ADR-001-foundation-approved.md`](00_Project/Decisions/ADR-001-foundation-approved.md) for the approved scope.
