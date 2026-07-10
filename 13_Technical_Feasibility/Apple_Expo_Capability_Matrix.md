@@ -17,6 +17,8 @@ Momentum's core experience is technically feasible, but not entirely inside Expo
 - **Native iOS code and extensions** are required for HealthKit, Foundation Models, App Intents, widgets, and Live Activities unless maintained third-party modules fully cover the exact need.
 - Momentum must not be designed around unrestricted access to Apple Intelligence, Focus status, messages, mail, WhatsApp, or private system-wide context. Those capabilities do not exist as a general context feed for third-party apps.
 
+Momentum does not require Cursor or another specific editor. Codex can maintain the code and native configuration in this repository. EAS Build can create iOS device builds in the cloud from Windows; a paid Apple Developer account is required to sign builds installed on a physical iPhone. Native app extensions are supported through Expo/EAS configuration, although Continuous Native Generation support for extensions is currently described by Expo as experimental and should be revalidated before use.
+
 ## Capability matrix
 
 | Capability | Expo Go | Expo development build | Native iOS work | MVP recommendation |
@@ -216,4 +218,3 @@ Every platform adapter must have:
 - a no-permission fallback;
 - a revocation path;
 - a test showing that its value exceeds its privacy and complexity cost.
-

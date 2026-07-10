@@ -11,9 +11,26 @@ Build the smallest product proof that demonstrates:
 
 The first proof validates the interaction and philosophy before attempting passive context intelligence.
 
+## Development environment decision
+
+Expo Go is optional, not a product constraint. Cursor is not required; it is an editor rather than a build architecture.
+
+Momentum can be developed in this repository with Codex using Expo and React Native. When native iOS capabilities are needed, use an Expo development build and EAS Build:
+
+- EAS can create iOS cloud builds from Windows without local Xcode;
+- an installable development build for a physical iPhone requires Apple signing and therefore a paid Apple Developer account;
+- native modules, entitlements, config plugins, and iOS app extensions can remain part of the same project;
+- a Mac with Xcode is useful for direct native debugging and the iOS Simulator, but it is not required to begin or to trigger EAS iPhone builds.
+
+Official sources:
+
+- [Expo: Create a development build on EAS](https://docs.expo.dev/develop/development-builds/create-a-build/)
+- [Expo: iOS app extensions](https://docs.expo.dev/build-reference/app-extensions/)
+- [Expo: EAS Build](https://docs.expo.dev/build/introduction/)
+
 ## Stage 0 — Visual interaction proof
 
-Environment: Expo / React Native, initially compatible with Expo Go where practical.
+Environment: Expo / React Native. Expo Go may be used where convenient, but compatibility with Expo Go is not a requirement. Starting directly with a development build is acceptable and becomes preferable once native capability work begins.
 
 Use:
 
@@ -109,6 +126,14 @@ Recommended first Capsule pair:
 
 This pair tests two different experience forms while remaining truthful without optional permissions.
 
+Recommended implementation route:
+
+1. create the Expo/React Native application in this repository;
+2. keep the first slice free of unnecessary native dependencies;
+3. configure `expo-dev-client` and EAS early enough that Expo Go does not shape the architecture;
+4. produce an EAS iOS development build when a physical iPhone and Apple signing are available;
+5. add native Apple capabilities one validated adapter at a time.
+
 ## Why a route-based experience is not first
 
 A nature or cultural route is emotionally central to Momentum, but its strongest form depends on location, verified live detail, travel calculation, media provenance, and a Maps handoff. Beginning with it would mix product validation with platform and content complexity.
@@ -127,4 +152,3 @@ Before lifting the gate, confirm:
 - scenario data is visibly distinguished from real context;
 - the initial product language is chosen;
 - the first visual direction is sufficient to guide implementation without freezing exploration.
-
