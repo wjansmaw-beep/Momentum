@@ -66,9 +66,9 @@ Priority labels:
 
 ## Apple and platform feasibility
 
-- **Soon:** Which desired Apple data and capabilities are actually available to a third-party app under current APIs and review rules?
-- **Soon:** Which features require native modules or a development build rather than Expo Go?
-- **Soon:** What are the realistic limits of Health, Calendar, Weather, Maps, Widgets, App Intents, and Live Activities?
+- **Resolved direction:** The first visual interaction proof uses explicit input and labelled mock context; real Apple context begins in a development build.
+- **Resolved research:** Calendar is unavailable in current Expo Go; HealthKit, Live Activities, widgets, App Intents, and Foundation Models require native iOS capabilities or extensions.
+- **Soon:** Revalidate the capability matrix immediately before implementation because Apple and Expo support changes.
 - **Soon:** Which platform handoffs can return useful state without invasive tracking?
 - **Later:** How portable should the core system be to Android or other wearables?
 
@@ -94,4 +94,4 @@ Priority labels:
 2. Confirm whether Momentum remains the working product name.
 3. Approve or amend the active-entry interaction and permission-light prototype content set.
 4. Choose the initial product and documentation language.
-5. Decide whether the next iteration deepens Experience Blueprints or begins technical feasibility research.
+5. Approve or amend the staged MVP technical boundary and first Capsule pair.

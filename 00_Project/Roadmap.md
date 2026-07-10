@@ -106,6 +106,7 @@ The four continuous tracks are Philosophy, Experience, Understanding, and Trust.
 **Deliverables**
 
 - verified platform capability matrix, especially Apple integrations;
+- staged technical boundary from Expo Go interaction proof to native iOS capabilities;
 - system architecture and data model;
 - privacy and on-device processing plan;
 - source ingestion and freshness approach;
@@ -115,6 +116,7 @@ The four continuous tracks are Philosophy, Experience, Understanding, and Trust.
 **Definition of Done**
 
 - every dependency serves a validated experience requirement;
+- Expo Go, development-build, and native-extension boundaries are explicit;
 - unavailable platform access has a fallback;
 - privacy boundaries and data lifetimes are implementable;
 - the vertical slice can be built without speculative engines.
