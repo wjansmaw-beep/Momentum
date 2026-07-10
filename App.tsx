@@ -11,6 +11,12 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+import {
+  CoreFeeling,
+  DecisionResult,
+  ExperienceCandidate,
+  selectExperience,
+} from './src/decision/localDecision';
 
 type Stage = 'now' | 'time' | 'feeling' | 'promise' | 'prepare' | 'presence' | 'complete';
 type Feeling = 'calm' | 'energy' | 'surprise' | 'connection' | 'challenge' | 'choose';
@@ -106,7 +112,44 @@ const experienceByFeeling: Record<Feeling, ExperienceContent> = {
   },
 };
 
+const shortChallenge: ExperienceContent = {
+  eyebrow: 'KORTE RUIMTE VOOR KRACHT',
+  title: 'Tien scherpe minuten. Daarna ben je weer vrij.',
+  body: 'Geen materiaal en geen omweg. Drie eenvoudige bewegingen maken dit korte moment toch uitdagend.',
+  action: 'Zet deze korte training klaar',
+  visualSymbol: '▲', visualLabel: 'ALLEEN LICHAAMSGEWICHT', visualDetail: 'kort en compleet',
+  prepareTitle: 'Je kunt meteen beginnen.', prepareItems: ['Een paar meter ruimte', 'Water binnen bereik', 'Stop als de techniek vervaagt'],
+  presenceLabel: 'RONDE 1 · OEFENING 1', presenceTitle: 'Air squat', presenceCue: 'Beheerst omlaag. Sterk omhoog.', presenceMode: 'guided', previewSeconds: 30,
+  completion: 'Kort was genoeg om jezelf uit te dagen.',
+};
+
+const experienceByCandidateId: Record<string, ExperienceContent> = {
+  'quiet-reset': experienceByFeeling.calm,
+  'power-reset': experienceByFeeling.energy,
+  'notice-light': experienceByFeeling.surprise,
+  'one-question': experienceByFeeling.connection,
+  'bodyweight-challenge': shortChallenge,
+  'kettlebell-strength': experienceByFeeling.challenge,
+};
+
 const budgetMinutes: Record<string, number> = { '15 min': 15, '30 min': 30, '1 uur': 60, '2 uur': 120, 'Tot…': 60 };
+
+const candidateCatalog: ExperienceCandidate[] = [
+  { id: 'quiet-reset', feeling: 'calm', minimumMinutes: 5, idealMinutes: 10, friction: 0.05, presencePotential: 0.95 },
+  { id: 'power-reset', feeling: 'energy', minimumMinutes: 10, idealMinutes: 18, friction: 0.16, presencePotential: 0.82 },
+  { id: 'notice-light', feeling: 'surprise', minimumMinutes: 12, idealMinutes: 25, friction: 0.12, presencePotential: 0.98 },
+  { id: 'one-question', feeling: 'connection', minimumMinutes: 10, idealMinutes: 20, friction: 0.2, presencePotential: 1 },
+  { id: 'bodyweight-challenge', feeling: 'challenge', minimumMinutes: 8, idealMinutes: 12, friction: 0.08, presencePotential: 0.82 },
+  { id: 'kettlebell-strength', feeling: 'challenge', minimumMinutes: 25, idealMinutes: 32, friction: 0.28, presencePotential: 0.78, requiredEquipment: ['kettlebell'] },
+];
+
+const localProfileAffinity: Record<CoreFeeling, number> = {
+  calm: 0.62,
+  energy: 0.7,
+  surprise: 0.86,
+  connection: 0.68,
+  challenge: 0.82,
+};
 
 export default function App() {
   const { height: windowHeight } = useWindowDimensions();
@@ -118,8 +161,22 @@ export default function App() {
   const fade = useRef(new Animated.Value(1)).current;
   const transitioning = useRef(false);
 
-  const experience = useMemo(() => experienceByFeeling[feeling], [feeling]);
   const availableMinutes = budgetMinutes[selectedTime] ?? 60;
+  const decision = useMemo(
+    () =>
+      selectExperience(
+        {
+          availableMinutes,
+          desiredFeeling: feeling === 'choose' ? undefined : feeling,
+          setting: 'work',
+          equipment: ['kettlebell'],
+          profileAffinity: localProfileAffinity,
+        },
+        candidateCatalog,
+      ),
+    [availableMinutes, feeling],
+  );
+  const experience = experienceByCandidateId[decision.selected.id] ?? experienceByFeeling[decision.selected.feeling];
   const experienceMinutes = Math.max(5, Math.min(45, Math.round(availableMinutes * 0.55)));
   const bufferMinutes = availableMinutes - experienceMinutes;
 
@@ -211,6 +268,7 @@ export default function App() {
           {stage === 'promise' && (
             <PromiseView
               experience={experience}
+              decision={decision}
               time={selectedTime}
               duration={experienceMinutes}
               buffer={bufferMinutes}
@@ -307,7 +365,7 @@ function FeelingChoice({ selected, onSelect, onContinue, onBack }: { selected: F
   );
 }
 
-function PromiseView({ experience, time, duration, buffer, onAccept, onRedirect, onClose }: { experience: ExperienceContent; time: string; duration: number; buffer: number; onAccept: () => void; onRedirect: () => void; onClose: () => void }) {
+function PromiseView({ experience, decision, time, duration, buffer, onAccept, onRedirect, onClose }: { experience: ExperienceContent; decision: DecisionResult; time: string; duration: number; buffer: number; onAccept: () => void; onRedirect: () => void; onClose: () => void }) {
   return (
     <ScrollView contentContainerStyle={styles.promise} showsVerticalScrollIndicator={false}>
       <TopAction label="Sluiten" onPress={onClose} />
@@ -322,7 +380,11 @@ function PromiseView({ experience, time, duration, buffer, onAccept, onRedirect,
       </View>
       <PrimaryButton label={experience.action} onPress={onAccept} />
       <SecondaryButton label="Iets anders past beter" onPress={onRedirect} />
-      <Text style={styles.why}>Waarom dit past · beschikbare tijd en het gevoel dat jij koos</Text>
+      <View style={styles.decisionReceipt}>
+        <Text style={styles.why}>Waarom dit voorstel</Text>
+        <Text style={styles.decisionReason}>{decision.selected.reasons.join(' · ')}</Text>
+        <Text style={styles.decisionMeta}>{decision.considered} kandidaten bekeken · {decision.rejected} niet haalbaar · vertrouwen {decision.confidence === 'high' ? 'hoog' : 'redelijk'}</Text>
+      </View>
     </ScrollView>
   );
 }
@@ -456,7 +518,7 @@ const styles = StyleSheet.create({
   panelWrap: { flex: 1, padding: 22 }, panel: { marginTop: 'auto', backgroundColor: 'rgba(14,26,33,0.95)', borderWidth: 1, borderColor: colors.line, borderRadius: 30, padding: 22, gap: 18 }, panelTitle: { color: colors.bone, fontSize: 31, lineHeight: 37, fontWeight: '400', letterSpacing: -0.8 }, panelSubtitle: { color: colors.muted, fontSize: 15, lineHeight: 21 }, chipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 }, choice: { borderWidth: 1, borderColor: colors.line, paddingVertical: 13, paddingHorizontal: 17, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.025)' }, choiceSelected: { borderColor: colors.green, backgroundColor: 'rgba(145,169,109,0.18)' }, choiceText: { color: colors.muted, fontSize: 15 }, choiceTextSelected: { color: colors.bone },
   feelingList: { gap: 8 }, feeling: { minHeight: 54, borderRadius: 18, borderWidth: 1, borderColor: colors.line, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center' }, feelingSymbol: { color: colors.gold, width: 34, fontSize: 18 }, feelingText: { color: colors.muted, fontSize: 16, flex: 1 }, check: { color: colors.muted, fontSize: 14 },
   primary: { backgroundColor: colors.green, minHeight: 56, borderRadius: 18, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18 }, primaryText: { color: '#0C160E', fontSize: 16, fontWeight: '700' }, secondary: { minHeight: 48, alignItems: 'center', justifyContent: 'center' }, secondaryText: { color: colors.bone, fontSize: 14 }, pressed: { opacity: 0.72, transform: [{ scale: 0.99 }] }, topAction: { alignSelf: 'flex-start', paddingVertical: 8 }, topActionText: { color: colors.muted, fontSize: 14 },
-  promise: { padding: 22, paddingBottom: 40 }, promiseVisual: { height: 250, marginVertical: 14, borderRadius: 32, backgroundColor: '#101A1D', borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }, visualHalo: { position: 'absolute', width: 260, height: 260, borderRadius: 130, backgroundColor: 'rgba(216,170,104,0.17)', top: -72, right: -54 }, visualFloor: { position: 'absolute', height: 110, left: -30, right: -30, bottom: -58, borderRadius: 999, backgroundColor: 'rgba(145,169,109,0.13)', transform: [{ scaleX: 1.35 }] }, kettlebellOuter: { alignItems: 'center', marginTop: 5 }, kettlebellHandle: { width: 88, height: 72, borderRadius: 44, borderWidth: 16, borderColor: '#1B1F1B', marginBottom: -24, shadowColor: '#000', shadowOpacity: 0.5, shadowRadius: 12, shadowOffset: { width: 0, height: 8 } }, kettlebellBody: { width: 132, height: 119, borderRadius: 62, backgroundColor: '#171B18', borderWidth: 1, borderColor: '#3D433A', overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.55, shadowRadius: 18, shadowOffset: { width: 0, height: 13 } }, kettlebellLight: { width: 42, height: 100, borderRadius: 30, marginLeft: 23, marginTop: 5, backgroundColor: 'rgba(243,235,221,0.055)', transform: [{ rotate: '12deg' }] }, experienceGlyph: { width: 132, height: 132, borderRadius: 66, borderWidth: 1, borderColor: 'rgba(216,170,104,0.4)', backgroundColor: 'rgba(7,16,23,0.5)', alignItems: 'center', justifyContent: 'center' }, experienceGlyphText: { color: colors.bone, fontSize: 52, fontWeight: '200' }, visualCaption: { position: 'absolute', left: 18, bottom: 16 }, visualCaptionTop: { color: colors.gold, fontSize: 9, fontWeight: '700', letterSpacing: 1.5 }, visualCaptionBottom: { color: 'rgba(243,235,221,0.64)', fontSize: 11, marginTop: 3 }, promiseTitle: { color: colors.bone, fontSize: 37, lineHeight: 42, letterSpacing: -1.1, fontWeight: '300' }, promiseBody: { color: colors.muted, fontSize: 16, lineHeight: 24, marginTop: 15 }, factRow: { flexDirection: 'row', borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.line, marginVertical: 24, paddingVertical: 15 }, fact: { flex: 1 }, factValue: { color: colors.bone, fontSize: 17, fontWeight: '600' }, factLabel: { color: colors.muted, fontSize: 11, marginTop: 3 }, why: { color: colors.muted, fontSize: 11, textAlign: 'center', marginTop: 8 },
+  promise: { padding: 22, paddingBottom: 40 }, promiseVisual: { height: 250, marginVertical: 14, borderRadius: 32, backgroundColor: '#101A1D', borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }, visualHalo: { position: 'absolute', width: 260, height: 260, borderRadius: 130, backgroundColor: 'rgba(216,170,104,0.17)', top: -72, right: -54 }, visualFloor: { position: 'absolute', height: 110, left: -30, right: -30, bottom: -58, borderRadius: 999, backgroundColor: 'rgba(145,169,109,0.13)', transform: [{ scaleX: 1.35 }] }, kettlebellOuter: { alignItems: 'center', marginTop: 5 }, kettlebellHandle: { width: 88, height: 72, borderRadius: 44, borderWidth: 16, borderColor: '#1B1F1B', marginBottom: -24, shadowColor: '#000', shadowOpacity: 0.5, shadowRadius: 12, shadowOffset: { width: 0, height: 8 } }, kettlebellBody: { width: 132, height: 119, borderRadius: 62, backgroundColor: '#171B18', borderWidth: 1, borderColor: '#3D433A', overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.55, shadowRadius: 18, shadowOffset: { width: 0, height: 13 } }, kettlebellLight: { width: 42, height: 100, borderRadius: 30, marginLeft: 23, marginTop: 5, backgroundColor: 'rgba(243,235,221,0.055)', transform: [{ rotate: '12deg' }] }, experienceGlyph: { width: 132, height: 132, borderRadius: 66, borderWidth: 1, borderColor: 'rgba(216,170,104,0.4)', backgroundColor: 'rgba(7,16,23,0.5)', alignItems: 'center', justifyContent: 'center' }, experienceGlyphText: { color: colors.bone, fontSize: 52, fontWeight: '200' }, visualCaption: { position: 'absolute', left: 18, bottom: 16 }, visualCaptionTop: { color: colors.gold, fontSize: 9, fontWeight: '700', letterSpacing: 1.5 }, visualCaptionBottom: { color: 'rgba(243,235,221,0.64)', fontSize: 11, marginTop: 3 }, promiseTitle: { color: colors.bone, fontSize: 37, lineHeight: 42, letterSpacing: -1.1, fontWeight: '300' }, promiseBody: { color: colors.muted, fontSize: 16, lineHeight: 24, marginTop: 15 }, factRow: { flexDirection: 'row', borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.line, marginVertical: 24, paddingVertical: 15 }, fact: { flex: 1 }, factValue: { color: colors.bone, fontSize: 17, fontWeight: '600' }, factLabel: { color: colors.muted, fontSize: 11, marginTop: 3 }, decisionReceipt: { marginTop: 10, borderTopWidth: 1, borderColor: colors.line, paddingTop: 15 }, why: { color: colors.gold, fontSize: 10, textAlign: 'center', letterSpacing: 1.1, textTransform: 'uppercase' }, decisionReason: { color: colors.muted, fontSize: 11, lineHeight: 17, textAlign: 'center', marginTop: 7 }, decisionMeta: { color: 'rgba(170,179,174,0.58)', fontSize: 9, textAlign: 'center', marginTop: 8 },
   prepare: { flex: 1, padding: 24, justifyContent: 'space-between' }, checkRow: { flexDirection: 'row', alignItems: 'center', marginTop: 20 }, checkDot: { color: colors.green, width: 34, fontSize: 19 }, checkLabel: { color: colors.bone, fontSize: 18 },
   presence: { flex: 1, padding: 26, alignItems: 'center', justifyContent: 'center' }, presenceLabel: { color: colors.muted, fontSize: 10, letterSpacing: 2, marginBottom: 16 }, exercise: { color: colors.bone, fontSize: 40, fontWeight: '300', letterSpacing: -1, textAlign: 'center' }, quietPresenceTitle: { fontSize: 34, lineHeight: 41, maxWidth: 390 }, quietPresenceCue: { color: colors.muted, fontSize: 15, lineHeight: 22, textAlign: 'center', maxWidth: 320, marginTop: 18 }, quietOrb: { width: 150, height: 150, borderRadius: 75, borderWidth: 1, borderColor: 'rgba(145,169,109,0.3)', alignItems: 'center', justifyContent: 'center', marginVertical: 48, backgroundColor: 'rgba(145,169,109,0.05)' }, quietOrbSymbol: { color: colors.green, fontSize: 42, fontWeight: '200' }, timerRing: { width: 230, height: 230, borderRadius: 115, borderWidth: 4, borderColor: 'rgba(145,169,109,0.45)', alignItems: 'center', justifyContent: 'center', marginVertical: 48 }, timer: { color: colors.bone, fontSize: 55, fontVariant: ['tabular-nums'], fontWeight: '200' }, timerCaption: { color: colors.muted, fontSize: 12, marginTop: 6, textAlign: 'center', paddingHorizontal: 18 }, pause: { width: 60, height: 60, borderRadius: 30, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' }, pauseText: { color: colors.bone, fontSize: 22 }, stop: { color: colors.muted, fontSize: 12, marginTop: 24 }, presenceFooter: { color: colors.muted, fontSize: 12, position: 'absolute', bottom: 28 },
   complete: { flex: 1, padding: 26, justifyContent: 'center' }, completeMark: { color: colors.green, fontSize: 44, marginBottom: 20 }, reflection: { marginVertical: 42, paddingTop: 22, borderTopWidth: 1, borderColor: colors.line }, reflectionTitle: { color: colors.bone, fontSize: 17, lineHeight: 24, marginBottom: 18 }, reflectionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
