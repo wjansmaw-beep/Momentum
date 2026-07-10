@@ -71,6 +71,7 @@ export default function App() {
   const [seconds, setSeconds] = useState(40);
   const [paused, setPaused] = useState(false);
   const fade = useRef(new Animated.Value(1)).current;
+  const transitioning = useRef(false);
 
   const promise = useMemo(() => promiseByFeeling[feeling], [feeling]);
 
@@ -90,16 +91,25 @@ export default function App() {
   }, [stage, paused]);
 
   const moveTo = (next: Stage) => {
-    Animated.sequence([
-      Animated.timing(fade, { toValue: 0, duration: 130, useNativeDriver: true }),
+    if (transitioning.current || next === stage) return;
+    transitioning.current = true;
+    Animated.timing(fade, {
+      toValue: 0,
+      duration: 120,
+      easing: Easing.in(Easing.quad),
+      useNativeDriver: true,
+    }).start(() => {
+      setStage(next);
+      fade.setValue(0);
       Animated.timing(fade, {
         toValue: 1,
-        duration: 320,
+        duration: 360,
         easing: Easing.out(Easing.cubic),
         useNativeDriver: true,
-      }),
-    ]).start();
-    setStage(next);
+      }).start(() => {
+        transitioning.current = false;
+      });
+    });
   };
 
   const restart = () => {
@@ -113,9 +123,20 @@ export default function App() {
   return (
     <View style={styles.root}>
       <StatusBar style="light" />
-      <Atmosphere active={stage !== 'presence' && stage !== 'complete'} />
+      <Atmosphere stage={stage} />
       <SafeAreaView style={styles.safe}>
-        <Animated.View style={[styles.flex, { opacity: fade }]}>
+        <Animated.View
+          style={[
+            styles.appFrame,
+            {
+              opacity: fade,
+              transform: [
+                { translateY: fade.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) },
+                { scale: fade.interpolate({ inputRange: [0, 1], outputRange: [0.992, 1] }) },
+              ],
+            },
+          ]}
+        >
           {stage === 'now' && <Now onStart={() => moveTo('time')} />}
           {stage === 'time' && (
             <TimeChoice
@@ -155,12 +176,17 @@ export default function App() {
   );
 }
 
-function Atmosphere({ active }: { active: boolean }) {
+function Atmosphere({ stage }: { stage: Stage }) {
+  const quiet = stage === 'presence' || stage === 'complete';
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-      <View style={[styles.glow, styles.glowGold, !active && styles.glowQuiet]} />
-      <View style={[styles.glow, styles.glowGreen, !active && styles.glowQuiet]} />
+      <View style={styles.deepField} />
+      <View style={[styles.glow, styles.glowGold, quiet && styles.glowQuiet]} />
+      <View style={[styles.glow, styles.glowGreen, quiet && styles.glowQuiet]} />
+      <View style={[styles.glow, styles.glowBlue, quiet && styles.glowQuiet]} />
       <View style={styles.horizon} />
+      <View style={styles.grainLineOne} />
+      <View style={styles.grainLineTwo} />
     </View>
   );
 }
@@ -170,12 +196,17 @@ function Now({ onStart }: { onStart: () => void }) {
     <View style={styles.now}>
       <View style={styles.brandRow}>
         <Text style={styles.brand}>MOMENTUM</Text>
-        <Text style={styles.scenario}>PROTOTYPE · LOKALE SCÈNE</Text>
+        <View style={styles.contextPill}><View style={styles.liveDot} /><Text style={styles.scenario}>LOKAAL MOMENT</Text></View>
       </View>
       <View style={styles.nowCopy}>
         <Text style={styles.eyebrow}>NU</Text>
         <Text style={styles.heroTitle}>Er is ruimte ontstaan.</Text>
         <Text style={styles.heroBody}>Vertel alleen hoeveel. Momentum helpt je zien wat dit moment kan worden.</Text>
+        <View style={styles.contextLine}>
+          <Text style={styles.contextLineText}>10 juli</Text>
+          <View style={styles.contextDivider} />
+          <Text style={styles.contextLineText}>Jij houdt de regie</Text>
+        </View>
       </View>
       <View>
         <PrimaryButton label="Ik heb tijd nu" onPress={onStart} />
@@ -218,7 +249,16 @@ function PromiseView({ promise, time, onAccept, onRedirect, onClose }: { promise
     <ScrollView contentContainerStyle={styles.promise} showsVerticalScrollIndicator={false}>
       <TopAction label="Sluiten" onPress={onClose} />
       <View style={styles.promiseVisual}>
-        <View style={styles.kettlebellOuter}><View style={styles.kettlebellHandle} /><View style={styles.kettlebellBody} /></View>
+        <View style={styles.visualHalo} />
+        <View style={styles.visualFloor} />
+        <View style={styles.kettlebellOuter}>
+          <View style={styles.kettlebellHandle} />
+          <View style={styles.kettlebellBody}><View style={styles.kettlebellLight} /></View>
+        </View>
+        <View style={styles.visualCaption}>
+          <Text style={styles.visualCaptionTop}>ÉÉN KETTLEBELL</Text>
+          <Text style={styles.visualCaptionBottom}>meer is niet nodig</Text>
+        </View>
       </View>
       <Text style={styles.eyebrow}>{promise.eyebrow}</Text>
       <Text style={styles.promiseTitle}>{promise.title}</Text>
@@ -324,13 +364,13 @@ function Fact({ value, label }: { value: string; label: string }) {
 const colors = { ink: '#071017', panel: '#0E1A21', bone: '#F3EBDD', muted: '#AAB3AE', gold: '#D8AA68', green: '#91A96D', line: 'rgba(243,235,221,0.14)' };
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.ink }, safe: { flex: 1 }, flex: { flex: 1 },
-  glow: { position: 'absolute', borderRadius: 999, opacity: 0.32 }, glowGold: { width: 420, height: 420, backgroundColor: '#8F612E', top: -210, right: -190 }, glowGreen: { width: 340, height: 340, backgroundColor: '#334B32', bottom: -160, left: -170 }, glowQuiet: { opacity: 0.08 }, horizon: { position: 'absolute', top: '44%', left: 26, right: 26, height: 1, backgroundColor: 'rgba(216,170,104,0.18)' },
-  now: { flex: 1, padding: 26, justifyContent: 'space-between' }, brandRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }, brand: { color: colors.bone, fontWeight: '700', fontSize: 12, letterSpacing: 3 }, scenario: { color: colors.muted, fontSize: 9, letterSpacing: 1 }, nowCopy: { marginBottom: 60 }, eyebrow: { color: colors.gold, fontSize: 11, letterSpacing: 2.2, fontWeight: '700', marginBottom: 12 }, heroTitle: { color: colors.bone, fontSize: 48, lineHeight: 52, letterSpacing: -1.6, fontWeight: '300', maxWidth: 350 }, heroBody: { color: colors.muted, fontSize: 17, lineHeight: 25, marginTop: 18, maxWidth: 360 }, quietNote: { color: colors.muted, fontSize: 11, textAlign: 'center', marginTop: 12 },
+  root: { flex: 1, backgroundColor: colors.ink }, safe: { flex: 1, alignItems: 'center' }, flex: { flex: 1 }, appFrame: { flex: 1, width: '100%', maxWidth: 520 },
+  deepField: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: '#071017' }, glow: { position: 'absolute', borderRadius: 999, opacity: 0.3 }, glowGold: { width: 460, height: 460, backgroundColor: '#875A2A', top: -250, right: -220 }, glowGreen: { width: 390, height: 390, backgroundColor: '#2D4937', bottom: -210, left: -190 }, glowBlue: { width: 430, height: 430, backgroundColor: '#142D3A', top: '28%', left: -330, opacity: 0.36 }, glowQuiet: { opacity: 0.065 }, horizon: { position: 'absolute', top: '44%', left: 26, right: 26, height: 1, backgroundColor: 'rgba(216,170,104,0.14)' }, grainLineOne: { position: 'absolute', width: 1, top: 0, bottom: 0, left: '23%', backgroundColor: 'rgba(255,255,255,0.018)' }, grainLineTwo: { position: 'absolute', width: 1, top: 0, bottom: 0, right: '18%', backgroundColor: 'rgba(255,255,255,0.012)' },
+  now: { flex: 1, padding: 26, paddingTop: 20, justifyContent: 'space-between' }, brandRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }, brand: { color: colors.bone, fontWeight: '700', fontSize: 12, letterSpacing: 3 }, contextPill: { minHeight: 28, borderRadius: 99, borderWidth: 1, borderColor: colors.line, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(7,16,23,0.42)' }, liveDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: colors.green }, scenario: { color: colors.muted, fontSize: 8, letterSpacing: 1.2 }, nowCopy: { marginBottom: 42 }, eyebrow: { color: colors.gold, fontSize: 11, letterSpacing: 2.2, fontWeight: '700', marginBottom: 12 }, heroTitle: { color: colors.bone, fontSize: 50, lineHeight: 53, letterSpacing: -1.8, fontWeight: '300', maxWidth: 380 }, heroBody: { color: colors.muted, fontSize: 17, lineHeight: 25, marginTop: 18, maxWidth: 370 }, contextLine: { flexDirection: 'row', alignItems: 'center', marginTop: 26 }, contextLineText: { color: 'rgba(243,235,221,0.56)', fontSize: 11, letterSpacing: 0.4 }, contextDivider: { width: 22, height: 1, marginHorizontal: 10, backgroundColor: 'rgba(216,170,104,0.36)' }, quietNote: { color: colors.muted, fontSize: 11, textAlign: 'center', marginTop: 12 },
   panelWrap: { flex: 1, padding: 22 }, panel: { marginTop: 'auto', backgroundColor: 'rgba(14,26,33,0.95)', borderWidth: 1, borderColor: colors.line, borderRadius: 30, padding: 22, gap: 18 }, panelTitle: { color: colors.bone, fontSize: 31, lineHeight: 37, fontWeight: '400', letterSpacing: -0.8 }, panelSubtitle: { color: colors.muted, fontSize: 15, lineHeight: 21 }, chipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 }, choice: { borderWidth: 1, borderColor: colors.line, paddingVertical: 13, paddingHorizontal: 17, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.025)' }, choiceSelected: { borderColor: colors.green, backgroundColor: 'rgba(145,169,109,0.18)' }, choiceText: { color: colors.muted, fontSize: 15 }, choiceTextSelected: { color: colors.bone },
   feelingList: { gap: 8 }, feeling: { minHeight: 54, borderRadius: 18, borderWidth: 1, borderColor: colors.line, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center' }, feelingSymbol: { color: colors.gold, width: 34, fontSize: 18 }, feelingText: { color: colors.muted, fontSize: 16, flex: 1 }, check: { color: colors.muted, fontSize: 14 },
   primary: { backgroundColor: colors.green, minHeight: 56, borderRadius: 18, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18 }, primaryText: { color: '#0C160E', fontSize: 16, fontWeight: '700' }, secondary: { minHeight: 48, alignItems: 'center', justifyContent: 'center' }, secondaryText: { color: colors.bone, fontSize: 14 }, pressed: { opacity: 0.72, transform: [{ scale: 0.99 }] }, topAction: { alignSelf: 'flex-start', paddingVertical: 8 }, topActionText: { color: colors.muted, fontSize: 14 },
-  promise: { padding: 22, paddingBottom: 40 }, promiseVisual: { height: 230, marginVertical: 14, borderRadius: 30, backgroundColor: 'rgba(216,170,104,0.10)', borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }, kettlebellOuter: { alignItems: 'center', marginTop: 22 }, kettlebellHandle: { width: 84, height: 70, borderRadius: 44, borderWidth: 17, borderColor: '#171A18', marginBottom: -24 }, kettlebellBody: { width: 126, height: 115, borderRadius: 60, backgroundColor: '#151816', borderWidth: 1, borderColor: '#363A33' }, promiseTitle: { color: colors.bone, fontSize: 37, lineHeight: 42, letterSpacing: -1.1, fontWeight: '300' }, promiseBody: { color: colors.muted, fontSize: 16, lineHeight: 24, marginTop: 15 }, factRow: { flexDirection: 'row', borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.line, marginVertical: 24, paddingVertical: 15 }, fact: { flex: 1 }, factValue: { color: colors.bone, fontSize: 17, fontWeight: '600' }, factLabel: { color: colors.muted, fontSize: 11, marginTop: 3 }, why: { color: colors.muted, fontSize: 11, textAlign: 'center', marginTop: 8 },
+  promise: { padding: 22, paddingBottom: 40 }, promiseVisual: { height: 250, marginVertical: 14, borderRadius: 32, backgroundColor: '#101A1D', borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }, visualHalo: { position: 'absolute', width: 260, height: 260, borderRadius: 130, backgroundColor: 'rgba(216,170,104,0.17)', top: -72, right: -54 }, visualFloor: { position: 'absolute', height: 110, left: -30, right: -30, bottom: -58, borderRadius: 999, backgroundColor: 'rgba(145,169,109,0.13)', transform: [{ scaleX: 1.35 }] }, kettlebellOuter: { alignItems: 'center', marginTop: 5 }, kettlebellHandle: { width: 88, height: 72, borderRadius: 44, borderWidth: 16, borderColor: '#1B1F1B', marginBottom: -24, shadowColor: '#000', shadowOpacity: 0.5, shadowRadius: 12, shadowOffset: { width: 0, height: 8 } }, kettlebellBody: { width: 132, height: 119, borderRadius: 62, backgroundColor: '#171B18', borderWidth: 1, borderColor: '#3D433A', overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.55, shadowRadius: 18, shadowOffset: { width: 0, height: 13 } }, kettlebellLight: { width: 42, height: 100, borderRadius: 30, marginLeft: 23, marginTop: 5, backgroundColor: 'rgba(243,235,221,0.055)', transform: [{ rotate: '12deg' }] }, visualCaption: { position: 'absolute', left: 18, bottom: 16 }, visualCaptionTop: { color: colors.gold, fontSize: 9, fontWeight: '700', letterSpacing: 1.5 }, visualCaptionBottom: { color: 'rgba(243,235,221,0.64)', fontSize: 11, marginTop: 3 }, promiseTitle: { color: colors.bone, fontSize: 37, lineHeight: 42, letterSpacing: -1.1, fontWeight: '300' }, promiseBody: { color: colors.muted, fontSize: 16, lineHeight: 24, marginTop: 15 }, factRow: { flexDirection: 'row', borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.line, marginVertical: 24, paddingVertical: 15 }, fact: { flex: 1 }, factValue: { color: colors.bone, fontSize: 17, fontWeight: '600' }, factLabel: { color: colors.muted, fontSize: 11, marginTop: 3 }, why: { color: colors.muted, fontSize: 11, textAlign: 'center', marginTop: 8 },
   prepare: { flex: 1, padding: 24, justifyContent: 'space-between' }, checkRow: { flexDirection: 'row', alignItems: 'center', marginTop: 20 }, checkDot: { color: colors.green, width: 34, fontSize: 19 }, checkLabel: { color: colors.bone, fontSize: 18 },
   presence: { flex: 1, padding: 26, alignItems: 'center', justifyContent: 'center' }, presenceLabel: { color: colors.muted, fontSize: 10, letterSpacing: 2, marginBottom: 16 }, exercise: { color: colors.bone, fontSize: 40, fontWeight: '300', letterSpacing: -1 }, timerRing: { width: 230, height: 230, borderRadius: 115, borderWidth: 4, borderColor: 'rgba(145,169,109,0.45)', alignItems: 'center', justifyContent: 'center', marginVertical: 48 }, timer: { color: colors.bone, fontSize: 55, fontVariant: ['tabular-nums'], fontWeight: '200' }, timerCaption: { color: colors.muted, fontSize: 12, marginTop: 6 }, pause: { width: 60, height: 60, borderRadius: 30, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' }, pauseText: { color: colors.bone, fontSize: 22 }, stop: { color: colors.muted, fontSize: 12, marginTop: 24 }, presenceFooter: { color: colors.muted, fontSize: 12, position: 'absolute', bottom: 28 },
   complete: { flex: 1, padding: 26, justifyContent: 'center' }, completeMark: { color: colors.green, fontSize: 44, marginBottom: 20 }, reflection: { marginVertical: 42, paddingTop: 22, borderTopWidth: 1, borderColor: colors.line }, reflectionTitle: { color: colors.bone, fontSize: 17, lineHeight: 24, marginBottom: 18 }, reflectionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
