@@ -21,6 +21,7 @@ import {
 type Stage = 'now' | 'context' | 'time' | 'feeling' | 'promise' | 'prepare' | 'presence' | 'complete';
 type Feeling = 'calm' | 'energy' | 'surprise' | 'connection' | 'challenge' | 'choose';
 type ProfilePreset = 'explorer' | 'mover' | 'connector';
+type ReflectionAnswer = 'Nee' | 'Een beetje' | 'Ja';
 type PresenceMode = 'guided' | 'quiet';
 type ExperienceContent = {
   eyebrow: string;
@@ -150,6 +151,8 @@ const profilePresets: Record<ProfilePreset, { label: string; description: string
   connector: { label: 'Verbinder', description: 'kiest vaak voor echte aandacht', affinity: { calm: 0.66, energy: 0.56, surprise: 0.68, connection: 0.96, challenge: 0.54 } },
 };
 
+const emptyAffinityAdjustments = (): Record<CoreFeeling, number> => ({ calm: 0, energy: 0, surprise: 0, connection: 0, challenge: 0 });
+
 export default function App() {
   const { height: windowHeight } = useWindowDimensions();
   const [stage, setStage] = useState<Stage>('now');
@@ -157,12 +160,21 @@ export default function App() {
   const [feeling, setFeeling] = useState<Feeling>('challenge');
   const [profilePreset, setProfilePreset] = useState<ProfilePreset>('explorer');
   const [hasKettlebell, setHasKettlebell] = useState(true);
+  const [affinityAdjustments, setAffinityAdjustments] = useState<Record<CoreFeeling, number>>(emptyAffinityAdjustments);
+  const [learningCount, setLearningCount] = useState(0);
   const [seconds, setSeconds] = useState(40);
   const [paused, setPaused] = useState(false);
   const fade = useRef(new Animated.Value(1)).current;
   const transitioning = useRef(false);
 
   const availableMinutes = budgetMinutes[selectedTime] ?? 60;
+  const effectiveAffinity = useMemo(() => {
+    const base = profilePresets[profilePreset].affinity;
+    return (Object.keys(base) as CoreFeeling[]).reduce<Record<CoreFeeling, number>>((result, key) => {
+      result[key] = Math.max(0, Math.min(1, base[key] + affinityAdjustments[key]));
+      return result;
+    }, emptyAffinityAdjustments());
+  }, [affinityAdjustments, profilePreset]);
   const decision = useMemo(
     () =>
       selectExperience(
@@ -171,11 +183,11 @@ export default function App() {
           desiredFeeling: feeling === 'choose' ? undefined : feeling,
           setting: 'work',
           equipment: hasKettlebell ? ['kettlebell'] : [],
-          profileAffinity: profilePresets[profilePreset].affinity,
+          profileAffinity: effectiveAffinity,
         },
         candidateCatalog,
       ),
-    [availableMinutes, feeling, hasKettlebell, profilePreset],
+    [availableMinutes, effectiveAffinity, feeling, hasKettlebell],
   );
   const experience = experienceByCandidateId[decision.selected.id] ?? experienceByFeeling[decision.selected.feeling];
   const experienceMinutes = Math.max(5, Math.min(45, Math.round(availableMinutes * 0.55)));
@@ -232,6 +244,19 @@ export default function App() {
     moveTo('now');
   };
 
+  const changeProfilePreset = (value: ProfilePreset) => {
+    setProfilePreset(value);
+    setAffinityAdjustments(emptyAffinityAdjustments());
+    setLearningCount(0);
+  };
+
+  const learnFromReflection = (answer: ReflectionAnswer | null, selectedFeeling: CoreFeeling) => {
+    if (!answer) return;
+    const change = answer === 'Ja' ? 0.08 : answer === 'Een beetje' ? 0.02 : -0.06;
+    setAffinityAdjustments((current) => ({ ...current, [selectedFeeling]: current[selectedFeeling] + change }));
+    setLearningCount((current) => current + 1);
+  };
+
   return (
     <View style={[styles.root, { minHeight: windowHeight }]}>
       <StatusBar style="light" />
@@ -254,7 +279,8 @@ export default function App() {
             <ContextLab
               profile={profilePreset}
               hasKettlebell={hasKettlebell}
-              onProfile={setProfilePreset}
+              learningCount={learningCount}
+              onProfile={changeProfilePreset}
               onEquipment={setHasKettlebell}
               onDone={() => moveTo('now')}
             />
@@ -279,7 +305,7 @@ export default function App() {
             <PromiseView
               experience={experience}
               decision={decision}
-              contextSummary={`${profilePresets[profilePreset].label} · ${hasKettlebell ? 'kettlebell beschikbaar' : 'zonder materiaal'}`}
+              contextSummary={`${profilePresets[profilePreset].label} · ${hasKettlebell ? 'kettlebell beschikbaar' : 'zonder materiaal'}${learningCount ? ` · ${learningCount} lokale reflectie${learningCount === 1 ? '' : 's'}` : ''}`}
               time={selectedTime}
               duration={experienceMinutes}
               buffer={bufferMinutes}
@@ -301,7 +327,15 @@ export default function App() {
           {stage === 'presence' && (
             <Presence experience={experience} seconds={seconds} paused={paused} onPause={() => setPaused((value) => !value)} onStop={() => moveTo('complete')} />
           )}
-          {stage === 'complete' && <Complete experience={experience} onDone={restart} />}
+          {stage === 'complete' && (
+            <Complete
+              experience={experience}
+              onDone={(answer) => {
+                learnFromReflection(answer, decision.selected.feeling);
+                restart();
+              }}
+            />
+          )}
         </Animated.View>
       </SafeAreaView>
     </View>
@@ -350,7 +384,7 @@ function Now({ onStart, onContext }: { onStart: () => void; onContext: () => voi
   );
 }
 
-function ContextLab({ profile, hasKettlebell, onProfile, onEquipment, onDone }: { profile: ProfilePreset; hasKettlebell: boolean; onProfile: (value: ProfilePreset) => void; onEquipment: (value: boolean) => void; onDone: () => void }) {
+function ContextLab({ profile, hasKettlebell, learningCount, onProfile, onEquipment, onDone }: { profile: ProfilePreset; hasKettlebell: boolean; learningCount: number; onProfile: (value: ProfilePreset) => void; onEquipment: (value: boolean) => void; onDone: () => void }) {
   return (
     <ScrollView contentContainerStyle={styles.contextLab} showsVerticalScrollIndicator={false}>
       <View>
@@ -376,6 +410,10 @@ function ContextLab({ profile, hasKettlebell, onProfile, onEquipment, onDone }: 
           <Choice label="Kettlebell" selected={hasKettlebell} onPress={() => onEquipment(true)} />
           <Choice label="Geen materiaal" selected={!hasKettlebell} onPress={() => onEquipment(false)} />
         </View>
+      </View>
+      <View style={styles.learningNote}>
+        <Text style={styles.learningNoteTitle}>SESSIELEREN · {learningCount}</Text>
+        <Text style={styles.learningNoteBody}>Reflecties verschuiven alleen dit lokale proefprofiel. Kies opnieuw een profiel om ze direct te wissen.</Text>
       </View>
       <PrimaryButton label="Gebruik deze proefscène" onPress={onDone} />
     </ScrollView>
@@ -504,8 +542,8 @@ function Presence({ experience, seconds, paused, onPause, onStop }: { experience
   );
 }
 
-function Complete({ experience, onDone }: { experience: ExperienceContent; onDone: () => void }) {
-  const [answer, setAnswer] = useState<string | null>(null);
+function Complete({ experience, onDone }: { experience: ExperienceContent; onDone: (answer: ReflectionAnswer | null) => void }) {
+  const [answer, setAnswer] = useState<ReflectionAnswer | null>(null);
   return (
     <View style={styles.complete}>
       <Text style={styles.completeMark}>✓</Text>
@@ -514,10 +552,11 @@ function Complete({ experience, onDone }: { experience: ExperienceContent; onDon
       <View style={styles.reflection}>
         <Text style={styles.reflectionTitle}>Was dit een goede besteding van je uur?</Text>
         <View style={styles.reflectionRow}>
-          {['Nee', 'Een beetje', 'Ja'].map((item) => <Choice key={item} label={item} selected={answer === item} onPress={() => setAnswer(item)} />)}
+          {(['Nee', 'Een beetje', 'Ja'] as ReflectionAnswer[]).map((item) => <Choice key={item} label={item} selected={answer === item} onPress={() => setAnswer(item)} />)}
         </View>
+        <Text style={styles.reflectionPrivacy}>Alleen het lokale proefprofiel van deze sessie wordt aangepast.</Text>
       </View>
-      <PrimaryButton label={answer ? 'Afronden' : 'Sla over'} onPress={onDone} />
+      <PrimaryButton label={answer ? 'Afronden' : 'Sla over'} onPress={() => onDone(answer)} />
     </View>
   );
 }
@@ -561,12 +600,12 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.ink }, safe: { flex: 1, alignItems: 'center' }, flex: { flex: 1 }, appFrame: { flex: 1, width: '100%', maxWidth: 520 },
   deepField: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: '#071017' }, glow: { position: 'absolute', borderRadius: 999, opacity: 0.3 }, glowGold: { width: 460, height: 460, backgroundColor: '#875A2A', top: -250, right: -220 }, glowGreen: { width: 390, height: 390, backgroundColor: '#2D4937', bottom: -210, left: -190 }, glowBlue: { width: 430, height: 430, backgroundColor: '#142D3A', top: '28%', left: -330, opacity: 0.36 }, glowQuiet: { opacity: 0.065 }, horizon: { position: 'absolute', top: '44%', left: 26, right: 26, height: 1, backgroundColor: 'rgba(216,170,104,0.14)' }, grainLineOne: { position: 'absolute', width: 1, top: 0, bottom: 0, left: '23%', backgroundColor: 'rgba(255,255,255,0.018)' }, grainLineTwo: { position: 'absolute', width: 1, top: 0, bottom: 0, right: '18%', backgroundColor: 'rgba(255,255,255,0.012)' },
   now: { flex: 1, padding: 26, paddingTop: 20, justifyContent: 'space-between' }, brandRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }, brand: { color: colors.bone, fontWeight: '700', fontSize: 12, letterSpacing: 3 }, contextPill: { minHeight: 28, borderRadius: 99, borderWidth: 1, borderColor: colors.line, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(7,16,23,0.42)' }, liveDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: colors.green }, scenario: { color: colors.muted, fontSize: 8, letterSpacing: 1.2 }, nowCopy: { marginBottom: 42 }, eyebrow: { color: colors.gold, fontSize: 11, letterSpacing: 2.2, fontWeight: '700', marginBottom: 12 }, heroTitle: { color: colors.bone, fontSize: 50, lineHeight: 53, letterSpacing: -1.8, fontWeight: '300', maxWidth: 380 }, heroBody: { color: colors.muted, fontSize: 17, lineHeight: 25, marginTop: 18, maxWidth: 370 }, contextLine: { flexDirection: 'row', alignItems: 'center', marginTop: 26 }, contextLineText: { color: 'rgba(243,235,221,0.56)', fontSize: 11, letterSpacing: 0.4 }, contextDivider: { width: 22, height: 1, marginHorizontal: 10, backgroundColor: 'rgba(216,170,104,0.36)' }, quietNote: { color: colors.muted, fontSize: 11, textAlign: 'center', marginTop: 12 },
-  contextLab: { flexGrow: 1, padding: 24, paddingBottom: 40, gap: 28 }, contextGroup: { gap: 9 }, contextGroupLabel: { color: colors.gold, fontSize: 9, letterSpacing: 1.5, fontWeight: '700' }, contextOption: { minHeight: 64, borderRadius: 18, borderWidth: 1, borderColor: colors.line, paddingHorizontal: 16, paddingVertical: 12, flexDirection: 'row', alignItems: 'center' }, contextOptionCopy: { flex: 1 }, contextOptionTitle: { color: colors.bone, fontSize: 16 }, contextOptionBody: { color: colors.muted, fontSize: 12, marginTop: 3 }, contextToggleRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 9 },
+  contextLab: { flexGrow: 1, padding: 24, paddingBottom: 40, gap: 28 }, contextGroup: { gap: 9 }, contextGroupLabel: { color: colors.gold, fontSize: 9, letterSpacing: 1.5, fontWeight: '700' }, contextOption: { minHeight: 64, borderRadius: 18, borderWidth: 1, borderColor: colors.line, paddingHorizontal: 16, paddingVertical: 12, flexDirection: 'row', alignItems: 'center' }, contextOptionCopy: { flex: 1 }, contextOptionTitle: { color: colors.bone, fontSize: 16 }, contextOptionBody: { color: colors.muted, fontSize: 12, marginTop: 3 }, contextToggleRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 9 }, learningNote: { borderWidth: 1, borderColor: colors.line, backgroundColor: 'rgba(145,169,109,0.06)', borderRadius: 18, padding: 16 }, learningNoteTitle: { color: colors.green, fontSize: 9, letterSpacing: 1.3, fontWeight: '700' }, learningNoteBody: { color: colors.muted, fontSize: 12, lineHeight: 18, marginTop: 7 },
   panelWrap: { flex: 1, padding: 22 }, panel: { marginTop: 'auto', backgroundColor: 'rgba(14,26,33,0.95)', borderWidth: 1, borderColor: colors.line, borderRadius: 30, padding: 22, gap: 18 }, panelTitle: { color: colors.bone, fontSize: 31, lineHeight: 37, fontWeight: '400', letterSpacing: -0.8 }, panelSubtitle: { color: colors.muted, fontSize: 15, lineHeight: 21 }, chipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 }, choice: { borderWidth: 1, borderColor: colors.line, paddingVertical: 13, paddingHorizontal: 17, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.025)' }, choiceSelected: { borderColor: colors.green, backgroundColor: 'rgba(145,169,109,0.18)' }, choiceText: { color: colors.muted, fontSize: 15 }, choiceTextSelected: { color: colors.bone },
   feelingList: { gap: 8 }, feeling: { minHeight: 54, borderRadius: 18, borderWidth: 1, borderColor: colors.line, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center' }, feelingSymbol: { color: colors.gold, width: 34, fontSize: 18 }, feelingText: { color: colors.muted, fontSize: 16, flex: 1 }, check: { color: colors.muted, fontSize: 14 },
   primary: { backgroundColor: colors.green, minHeight: 56, borderRadius: 18, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18 }, primaryText: { color: '#0C160E', fontSize: 16, fontWeight: '700' }, secondary: { minHeight: 48, alignItems: 'center', justifyContent: 'center' }, secondaryText: { color: colors.bone, fontSize: 14 }, pressed: { opacity: 0.72, transform: [{ scale: 0.99 }] }, topAction: { alignSelf: 'flex-start', paddingVertical: 8 }, topActionText: { color: colors.muted, fontSize: 14 },
   promise: { padding: 22, paddingBottom: 40 }, promiseVisual: { height: 250, marginVertical: 14, borderRadius: 32, backgroundColor: '#101A1D', borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }, visualHalo: { position: 'absolute', width: 260, height: 260, borderRadius: 130, backgroundColor: 'rgba(216,170,104,0.17)', top: -72, right: -54 }, visualFloor: { position: 'absolute', height: 110, left: -30, right: -30, bottom: -58, borderRadius: 999, backgroundColor: 'rgba(145,169,109,0.13)', transform: [{ scaleX: 1.35 }] }, kettlebellOuter: { alignItems: 'center', marginTop: 5 }, kettlebellHandle: { width: 88, height: 72, borderRadius: 44, borderWidth: 16, borderColor: '#1B1F1B', marginBottom: -24, shadowColor: '#000', shadowOpacity: 0.5, shadowRadius: 12, shadowOffset: { width: 0, height: 8 } }, kettlebellBody: { width: 132, height: 119, borderRadius: 62, backgroundColor: '#171B18', borderWidth: 1, borderColor: '#3D433A', overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.55, shadowRadius: 18, shadowOffset: { width: 0, height: 13 } }, kettlebellLight: { width: 42, height: 100, borderRadius: 30, marginLeft: 23, marginTop: 5, backgroundColor: 'rgba(243,235,221,0.055)', transform: [{ rotate: '12deg' }] }, experienceGlyph: { width: 132, height: 132, borderRadius: 66, borderWidth: 1, borderColor: 'rgba(216,170,104,0.4)', backgroundColor: 'rgba(7,16,23,0.5)', alignItems: 'center', justifyContent: 'center' }, experienceGlyphText: { color: colors.bone, fontSize: 52, fontWeight: '200' }, visualCaption: { position: 'absolute', left: 18, bottom: 16 }, visualCaptionTop: { color: colors.gold, fontSize: 9, fontWeight: '700', letterSpacing: 1.5 }, visualCaptionBottom: { color: 'rgba(243,235,221,0.64)', fontSize: 11, marginTop: 3 }, promiseTitle: { color: colors.bone, fontSize: 37, lineHeight: 42, letterSpacing: -1.1, fontWeight: '300' }, promiseBody: { color: colors.muted, fontSize: 16, lineHeight: 24, marginTop: 15 }, factRow: { flexDirection: 'row', borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.line, marginVertical: 24, paddingVertical: 15 }, fact: { flex: 1 }, factValue: { color: colors.bone, fontSize: 17, fontWeight: '600' }, factLabel: { color: colors.muted, fontSize: 11, marginTop: 3 }, decisionReceipt: { marginTop: 10, borderTopWidth: 1, borderColor: colors.line, paddingTop: 15 }, why: { color: colors.gold, fontSize: 10, textAlign: 'center', letterSpacing: 1.1, textTransform: 'uppercase' }, decisionReason: { color: colors.muted, fontSize: 11, lineHeight: 17, textAlign: 'center', marginTop: 7 }, decisionMeta: { color: 'rgba(170,179,174,0.58)', fontSize: 9, textAlign: 'center', marginTop: 8 },
   prepare: { flex: 1, padding: 24, justifyContent: 'space-between' }, checkRow: { flexDirection: 'row', alignItems: 'center', marginTop: 20 }, checkDot: { color: colors.green, width: 34, fontSize: 19 }, checkLabel: { color: colors.bone, fontSize: 18 },
   presence: { flex: 1, padding: 26, alignItems: 'center', justifyContent: 'center' }, presenceLabel: { color: colors.muted, fontSize: 10, letterSpacing: 2, marginBottom: 16 }, exercise: { color: colors.bone, fontSize: 40, fontWeight: '300', letterSpacing: -1, textAlign: 'center' }, quietPresenceTitle: { fontSize: 34, lineHeight: 41, maxWidth: 390 }, quietPresenceCue: { color: colors.muted, fontSize: 15, lineHeight: 22, textAlign: 'center', maxWidth: 320, marginTop: 18 }, quietOrb: { width: 150, height: 150, borderRadius: 75, borderWidth: 1, borderColor: 'rgba(145,169,109,0.3)', alignItems: 'center', justifyContent: 'center', marginVertical: 48, backgroundColor: 'rgba(145,169,109,0.05)' }, quietOrbSymbol: { color: colors.green, fontSize: 42, fontWeight: '200' }, timerRing: { width: 230, height: 230, borderRadius: 115, borderWidth: 4, borderColor: 'rgba(145,169,109,0.45)', alignItems: 'center', justifyContent: 'center', marginVertical: 48 }, timer: { color: colors.bone, fontSize: 55, fontVariant: ['tabular-nums'], fontWeight: '200' }, timerCaption: { color: colors.muted, fontSize: 12, marginTop: 6, textAlign: 'center', paddingHorizontal: 18 }, pause: { width: 60, height: 60, borderRadius: 30, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' }, pauseText: { color: colors.bone, fontSize: 22 }, stop: { color: colors.muted, fontSize: 12, marginTop: 24 }, presenceFooter: { color: colors.muted, fontSize: 12, position: 'absolute', bottom: 28 },
-  complete: { flex: 1, padding: 26, justifyContent: 'center' }, completeMark: { color: colors.green, fontSize: 44, marginBottom: 20 }, reflection: { marginVertical: 42, paddingTop: 22, borderTopWidth: 1, borderColor: colors.line }, reflectionTitle: { color: colors.bone, fontSize: 17, lineHeight: 24, marginBottom: 18 }, reflectionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  complete: { flex: 1, padding: 26, justifyContent: 'center' }, completeMark: { color: colors.green, fontSize: 44, marginBottom: 20 }, reflection: { marginVertical: 42, paddingTop: 22, borderTopWidth: 1, borderColor: colors.line }, reflectionTitle: { color: colors.bone, fontSize: 17, lineHeight: 24, marginBottom: 18 }, reflectionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 }, reflectionPrivacy: { color: 'rgba(170,179,174,0.65)', fontSize: 10, lineHeight: 15, marginTop: 14 },
 });
