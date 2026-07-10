@@ -24,7 +24,7 @@ Priority labels:
 
 - **Now:** Does the primary surface always show exactly one Experience Promise, and what happens when confidence is low?
 - **Now:** What is the smallest active-intent interaction for “I unexpectedly have one hour”?
-- **Now:** Which Human Moment should become the first end-to-end blueprint before choosing its resulting capsule?
+- **Resolved direction:** The first end-to-end blueprint is “I unexpectedly have about an hour.” Its resulting capsule remains context-dependent.
 - **Soon:** When may Momentum proactively surface a detected moment, and how does the user control that initiative?
 - **Soon:** What confidence or ambiguity threshold requires a clarifying question rather than selection?
 - **Soon:** How many alternatives preserve autonomy without becoming a feed?
@@ -92,6 +92,6 @@ Priority labels:
 
 1. Approve or amend the document foundation and lift—or retain—the no-application-code gate.
 2. Confirm whether Momentum remains the working product name.
-3. Choose the first Human Moment to blueprint; select its capsule only after candidate comparison.
+3. Decide which active-entry variant and permission-light candidate set should be prototyped from the unexpected-free-hour blueprint.
 4. Choose the initial product and documentation language.
 5. Decide whether the next iteration deepens Experience Blueprints or begins technical feasibility research.

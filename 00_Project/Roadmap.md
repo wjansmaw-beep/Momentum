@@ -58,6 +58,7 @@ The four continuous tracks are Philosophy, Experience, Understanding, and Trust.
 - separation of context, Human Moment, explicit intent, and inferred need;
 - experience candidate selection and comparative ranking;
 - translation from selected experience to Experience Promise and Capsule;
+- a reusable Human Moment Blueprint and the first end-to-end blueprint for an unexpected free hour;
 - context model and data sensitivity classes;
 - candidate and suggestion schemas;
 - deterministic safety and feasibility rules;
@@ -70,6 +71,7 @@ The four continuous tracks are Philosophy, Experience, Understanding, and Trust.
 - the same context produces explainable candidate selection;
 - raw signals are not confused with Human Moments or user intent;
 - an activity is selected only after the moment is understood;
+- one Human Moment can responsibly produce different experience forms as context and explicit intent change;
 - missing permissions do not make the product useless;
 - live claims require provenance and freshness;
 - abstention, correction, and deletion behavior are specified;
