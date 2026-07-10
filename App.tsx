@@ -1,8 +1,11 @@
 import { StatusBar } from 'expo-status-bar';
+import * as Location from 'expo-location';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   Easing,
+  Linking,
+  Platform,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -18,7 +21,7 @@ import {
   selectExperience,
 } from './src/decision/localDecision';
 
-type Stage = 'now' | 'context' | 'time' | 'feeling' | 'clarify' | 'promise' | 'prepare' | 'presence' | 'complete';
+type Stage = 'now' | 'context' | 'time' | 'feeling' | 'clarify' | 'promise' | 'prepare' | 'location' | 'presence' | 'complete';
 type Feeling = 'calm' | 'energy' | 'surprise' | 'connection' | 'challenge' | 'choose';
 type ProfilePreset = 'explorer' | 'mover' | 'connector';
 type ReflectionAnswer = 'Nee' | 'Een beetje' | 'Ja';
@@ -338,9 +341,15 @@ export default function App() {
               experience={experience}
               onStart={() => {
                 setSeconds(experience.previewSeconds);
-                moveTo('presence');
+                moveTo(decision.selected.id === 'notice-light' ? 'location' : 'presence');
               }}
               onBack={() => moveTo('promise')}
+            />
+          )}
+          {stage === 'location' && (
+            <LocationAssist
+              onBack={() => moveTo('prepare')}
+              onContinue={() => moveTo('presence')}
             />
           )}
           {stage === 'presence' && (
@@ -551,6 +560,65 @@ function Prepare({ experience, onStart, onBack }: { experience: ExperienceConten
   );
 }
 
+function LocationAssist({ onBack, onContinue }: { onBack: () => void; onContinue: () => void }) {
+  const [status, setStatus] = useState<'idle' | 'loading' | 'denied' | 'error' | 'ready'>('idle');
+  const [approximate, setApproximate] = useState<{ latitude: number; longitude: number } | null>(null);
+
+  const requestApproximateLocation = async () => {
+    if (status === 'loading') return;
+    setStatus('loading');
+    try {
+      const permission = await Location.requestForegroundPermissionsAsync();
+      if (!permission.granted) {
+        setStatus('denied');
+        return;
+      }
+      const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Low });
+      setApproximate({
+        latitude: Math.round(position.coords.latitude * 100) / 100,
+        longitude: Math.round(position.coords.longitude * 100) / 100,
+      });
+      setStatus('ready');
+    } catch {
+      setStatus('error');
+    }
+  };
+
+  const openNearbyGreenSpace = async () => {
+    if (!approximate) return;
+    const query = encodeURIComponent('park or green space');
+    const mapUrl = `http://maps.apple.com/?q=${query}&near=${approximate.latitude},${approximate.longitude}`;
+    await Linking.openURL(mapUrl);
+    onContinue();
+  };
+
+  return (
+    <View style={styles.locationAssist}>
+      <TopAction label="Terug" onPress={onBack} />
+      <View>
+        <Text style={styles.eyebrow}>ALLEEN ALS HET HELPT</Text>
+        <Text style={styles.promiseTitle}>Zoek iets groens dichtbij.</Text>
+        <Text style={styles.heroBody}>Deel eenmalig je globale locatie om Apple Maps rond jouw omgeving te laten zoeken. Momentum bewaart de coördinaten niet.</Text>
+        <View style={styles.permissionCard}>
+          <Text style={styles.permissionCardTitle}>Voorgrond · eenmalig</Text>
+          <Text style={styles.permissionCardBody}>Geen achtergrondtracking, geen routegeschiedenis en geen toegang wanneer je Momentum niet gebruikt.</Text>
+        </View>
+        {status === 'denied' && <Text style={styles.permissionStatus}>Locatie is niet gedeeld. De ervaring blijft gewoon bruikbaar.</Text>}
+        {status === 'error' && <Text style={styles.permissionStatus}>Locatie ophalen lukte niet. Je kunt zonder kaart verder.</Text>}
+        {status === 'ready' && approximate && <Text style={styles.permissionStatus}>Globale omgeving klaar · afgerond op ongeveer één kilometer.</Text>}
+      </View>
+      <View>
+        {status === 'ready' ? (
+          <PrimaryButton label={Platform.OS === 'ios' ? 'Open Apple Maps' : 'Open Apple Maps op het web'} onPress={openNearbyGreenSpace} />
+        ) : (
+          <PrimaryButton label={status === 'loading' ? 'Globale locatie ophalen…' : 'Gebruik globale locatie'} onPress={requestApproximateLocation} />
+        )}
+        <SecondaryButton label="Verder zonder locatie" onPress={onContinue} />
+      </View>
+    </View>
+  );
+}
+
 function Presence({ experience, seconds, paused, onPause, onStop }: { experience: ExperienceContent; seconds: number; paused: boolean; onPause: () => void; onStop: () => void }) {
   if (experience.presenceMode === 'quiet') {
     return (
@@ -644,6 +712,7 @@ const styles = StyleSheet.create({
   primary: { backgroundColor: colors.green, minHeight: 56, borderRadius: 18, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18 }, primaryText: { color: '#0C160E', fontSize: 16, fontWeight: '700' }, secondary: { minHeight: 48, alignItems: 'center', justifyContent: 'center' }, secondaryText: { color: colors.bone, fontSize: 14 }, pressed: { opacity: 0.72, transform: [{ scale: 0.99 }] }, topAction: { alignSelf: 'flex-start', paddingVertical: 8 }, topActionText: { color: colors.muted, fontSize: 14 },
   promise: { padding: 22, paddingBottom: 40 }, promiseVisual: { height: 250, marginVertical: 14, borderRadius: 32, backgroundColor: '#101A1D', borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }, visualHalo: { position: 'absolute', width: 260, height: 260, borderRadius: 130, backgroundColor: 'rgba(216,170,104,0.17)', top: -72, right: -54 }, visualFloor: { position: 'absolute', height: 110, left: -30, right: -30, bottom: -58, borderRadius: 999, backgroundColor: 'rgba(145,169,109,0.13)', transform: [{ scaleX: 1.35 }] }, kettlebellOuter: { alignItems: 'center', marginTop: 5 }, kettlebellHandle: { width: 88, height: 72, borderRadius: 44, borderWidth: 16, borderColor: '#1B1F1B', marginBottom: -24, shadowColor: '#000', shadowOpacity: 0.5, shadowRadius: 12, shadowOffset: { width: 0, height: 8 } }, kettlebellBody: { width: 132, height: 119, borderRadius: 62, backgroundColor: '#171B18', borderWidth: 1, borderColor: '#3D433A', overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.55, shadowRadius: 18, shadowOffset: { width: 0, height: 13 } }, kettlebellLight: { width: 42, height: 100, borderRadius: 30, marginLeft: 23, marginTop: 5, backgroundColor: 'rgba(243,235,221,0.055)', transform: [{ rotate: '12deg' }] }, experienceGlyph: { width: 132, height: 132, borderRadius: 66, borderWidth: 1, borderColor: 'rgba(216,170,104,0.4)', backgroundColor: 'rgba(7,16,23,0.5)', alignItems: 'center', justifyContent: 'center' }, experienceGlyphText: { color: colors.bone, fontSize: 52, fontWeight: '200' }, visualCaption: { position: 'absolute', left: 18, bottom: 16 }, visualCaptionTop: { color: colors.gold, fontSize: 9, fontWeight: '700', letterSpacing: 1.5 }, visualCaptionBottom: { color: 'rgba(243,235,221,0.64)', fontSize: 11, marginTop: 3 }, promiseTitle: { color: colors.bone, fontSize: 37, lineHeight: 42, letterSpacing: -1.1, fontWeight: '300' }, promiseBody: { color: colors.muted, fontSize: 16, lineHeight: 24, marginTop: 15 }, factRow: { flexDirection: 'row', borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.line, marginVertical: 24, paddingVertical: 15 }, fact: { flex: 1 }, factValue: { color: colors.bone, fontSize: 17, fontWeight: '600' }, factLabel: { color: colors.muted, fontSize: 11, marginTop: 3 }, decisionReceipt: { marginTop: 10, borderTopWidth: 1, borderColor: colors.line, paddingTop: 15 }, why: { color: colors.gold, fontSize: 10, textAlign: 'center', letterSpacing: 1.1, textTransform: 'uppercase' }, decisionReason: { color: colors.muted, fontSize: 11, lineHeight: 17, textAlign: 'center', marginTop: 7 }, decisionMeta: { color: 'rgba(170,179,174,0.58)', fontSize: 9, textAlign: 'center', marginTop: 8 },
   prepare: { flex: 1, padding: 24, justifyContent: 'space-between' }, checkRow: { flexDirection: 'row', alignItems: 'center', marginTop: 20 }, checkDot: { color: colors.green, width: 34, fontSize: 19 }, checkLabel: { color: colors.bone, fontSize: 18 },
+  locationAssist: { flex: 1, padding: 24, justifyContent: 'space-between' }, permissionCard: { marginTop: 28, borderWidth: 1, borderColor: colors.line, borderRadius: 20, backgroundColor: 'rgba(216,170,104,0.06)', padding: 17 }, permissionCardTitle: { color: colors.gold, fontSize: 10, letterSpacing: 1.2, fontWeight: '700' }, permissionCardBody: { color: colors.muted, fontSize: 13, lineHeight: 20, marginTop: 8 }, permissionStatus: { color: colors.green, fontSize: 12, lineHeight: 18, marginTop: 16 },
   presence: { flex: 1, padding: 26, alignItems: 'center', justifyContent: 'center' }, presenceLabel: { color: colors.muted, fontSize: 10, letterSpacing: 2, marginBottom: 16 }, exercise: { color: colors.bone, fontSize: 40, fontWeight: '300', letterSpacing: -1, textAlign: 'center' }, quietPresenceTitle: { fontSize: 34, lineHeight: 41, maxWidth: 390 }, quietPresenceCue: { color: colors.muted, fontSize: 15, lineHeight: 22, textAlign: 'center', maxWidth: 320, marginTop: 18 }, quietOrb: { width: 150, height: 150, borderRadius: 75, borderWidth: 1, borderColor: 'rgba(145,169,109,0.3)', alignItems: 'center', justifyContent: 'center', marginVertical: 48, backgroundColor: 'rgba(145,169,109,0.05)' }, quietOrbSymbol: { color: colors.green, fontSize: 42, fontWeight: '200' }, timerRing: { width: 230, height: 230, borderRadius: 115, borderWidth: 4, borderColor: 'rgba(145,169,109,0.45)', alignItems: 'center', justifyContent: 'center', marginVertical: 48 }, timer: { color: colors.bone, fontSize: 55, fontVariant: ['tabular-nums'], fontWeight: '200' }, timerCaption: { color: colors.muted, fontSize: 12, marginTop: 6, textAlign: 'center', paddingHorizontal: 18 }, pause: { width: 60, height: 60, borderRadius: 30, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' }, pauseText: { color: colors.bone, fontSize: 22 }, stop: { color: colors.muted, fontSize: 12, marginTop: 24 }, presenceFooter: { color: colors.muted, fontSize: 12, position: 'absolute', bottom: 28 },
   complete: { flex: 1, padding: 26, justifyContent: 'center' }, completeMark: { color: colors.green, fontSize: 44, marginBottom: 20 }, reflection: { marginVertical: 42, paddingTop: 22, borderTopWidth: 1, borderColor: colors.line }, reflectionTitle: { color: colors.bone, fontSize: 17, lineHeight: 24, marginBottom: 18 }, reflectionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 }, reflectionPrivacy: { color: 'rgba(170,179,174,0.65)', fontSize: 10, lineHeight: 15, marginTop: 14 },
 });
