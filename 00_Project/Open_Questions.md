@@ -1,0 +1,94 @@
+# Open Questions
+
+Status: Operational, living document  
+Version: 1.0
+
+## How to use this document
+
+This file records consequential questions without silently deciding them. When resolved, move the decision into a dated decision record, link it here, and update affected documents.
+
+Priority labels:
+
+- **Now:** blocks approval or the next phase;
+- **Soon:** needed before engineering or MVP scope;
+- **Later:** important, but should not expand current scope.
+
+## Identity and language
+
+- **Now:** Is Momentum the final product name, a working title, or the name of one stage in the Experience Loop?
+- **Now:** Should the loop stage also be called Momentum if the product keeps that name?
+- **Soon:** What is the initial product language, and which repository documents remain English?
+- **Soon:** What single sentence explains Momentum to a first-time user without leading with AI?
+
+## Primary experience and autonomy
+
+- **Now:** Does the primary surface always show exactly one Experience Promise, and what happens when confidence is low?
+- **Now:** What is the smallest active-intent interaction for “I unexpectedly have one hour”?
+- **Soon:** How many alternatives preserve autonomy without becoming a feed?
+- **Soon:** Is broader exploration part of the MVP or a later conscious-choice surface?
+- **Soon:** Which reasons appear under “Why this fits,” and which remain private?
+
+## Experience Promises and feelings
+
+- **Now:** Which three to five feeling families are essential for the first product test?
+- **Soon:** How is a desired feeling distinguished from an inferred need in language and learning?
+- **Soon:** Who approves Experience Promises for health-adjacent outcomes?
+- **Soon:** What evidence threshold permits phrases such as “likely calming” or “good chance of seeing”?
+
+## Experience Capsules
+
+- **Now:** Which first capsule best tests the full philosophy: walk, workout, breathing, recipe, place, or event?
+- **Soon:** At what precise point does Momentum hand off to Maps rather than remain active?
+- **Soon:** When is a Live Activity genuinely useful instead of extra screen presence?
+- **Soon:** How does Momentum resume after a handoff without falsely assuming completion?
+- **Soon:** Which experiences require safety or accessibility screening before acceptance?
+- **Later:** How should shared or family capsules work when participants have different needs and permissions?
+
+## Memory and learning
+
+- **Soon:** What is the smallest meaningful Memory: feeling, photo, sentence, inferred completion, or a combination?
+- **Soon:** When should reflection appear, and when should Momentum remain silent?
+- **Soon:** What does the user see and control in the learned profile?
+- **Soon:** How long are moment-level signals retained?
+- **Later:** Does a Life view exist, and how can it celebrate lived experience without becoming a performance dashboard?
+
+## Trust, onboarding, and permissions
+
+- **Now:** What useful experience can Momentum provide before any optional permission is granted?
+- **Now:** Which questions are necessary in the smallest onboarding?
+- **Soon:** Which permission is first requested in the MVP, at what moment, and for what immediate value?
+- **Soon:** How are approximate and precise location used differently?
+- **Soon:** What is processed on-device, and what may leave the device?
+- **Later:** Can communication data ever meet Momentum's trust standard, or should it remain out of scope?
+
+## Apple and platform feasibility
+
+- **Soon:** Which desired Apple data and capabilities are actually available to a third-party app under current APIs and review rules?
+- **Soon:** Which features require native modules or a development build rather than Expo Go?
+- **Soon:** What are the realistic limits of Health, Calendar, Weather, Maps, Widgets, App Intents, and Live Activities?
+- **Soon:** Which platform handoffs can return useful state without invasive tracking?
+- **Later:** How portable should the core system be to Android or other wearables?
+
+## Living World
+
+- **Soon:** Which bounded region and sources are suitable for the first pilot?
+- **Soon:** How fresh must each type of live claim be?
+- **Soon:** Who is responsible for licensing, attribution, correction, and removal?
+- **Soon:** How are sensitive wildlife and fragile places protected?
+- **Later:** How does Living World scale internationally without losing local character?
+- **Later:** Can local curators or users contribute without turning Momentum into social media?
+
+## Business and success
+
+- **Soon:** Who is the first narrow user group and which repeated moment is valuable enough to test?
+- **Soon:** What is the business model if success intentionally reduces screen time?
+- **Soon:** Which measurements prove meaningful action without invasive monitoring?
+- **Later:** How can sponsorship exist without corrupting personal recommendation?
+
+## Questions waiting for Founder decision
+
+1. Approve or amend the document foundation and lift—or retain—the no-application-code gate.
+2. Confirm whether Momentum remains the working product name.
+3. Choose the first human moment and Experience Capsule to blueprint.
+4. Choose the initial product and documentation language.
+5. Decide whether the next iteration deepens Experience Blueprints or begins technical feasibility research.
