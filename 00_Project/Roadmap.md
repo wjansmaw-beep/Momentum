@@ -90,6 +90,7 @@ The four continuous tracks are Philosophy, Experience, Understanding, and Trust.
 - motion, haptics, typography, color, imagery, and accessibility rules;
 - prototypes for passive and active intent.
 - an active-intent interaction blueprint covering time entry, adaptive clarification, correction, abstention, and transition into a Capsule;
+- a North Star visual flow for the first active-intent challenge scenario;
 
 **Definition of Done**
 
