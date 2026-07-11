@@ -477,6 +477,8 @@ function Atmosphere({ stage }: { stage: Stage }) {
 }
 
 function Now({ experience, profileLabel, onAccept, onStart, onContext }: { experience: ExperienceContent; profileLabel: string; onAccept: () => void; onStart: () => void; onContext: () => void }) {
+  const [whyOpen, setWhyOpen] = useState(false);
+  const [declined, setDeclined] = useState(false);
   return (
     <ScrollView contentContainerStyle={styles.now} showsVerticalScrollIndicator={false}>
       <View style={styles.brandRow}>
@@ -486,7 +488,7 @@ function Now({ experience, profileLabel, onAccept, onStart, onContext }: { exper
         </Pressable>
       </View>
 
-      <View style={styles.nowPromise}>
+      {!declined ? <View style={styles.nowPromise}>
         <View style={styles.nowVisual}>
           <View style={styles.visualHalo} />
           <View style={styles.visualFloor} />
@@ -505,10 +507,30 @@ function Now({ experience, profileLabel, onAccept, onStart, onContext }: { exper
           <View><Text style={styles.factValue}>{profileLabel}</Text><Text style={styles.factLabel}>proefprofiel</Text></View>
         </View>
         <PrimaryButton label="Beleef dit" onPress={onAccept} />
-        <Pressable onPress={onContext} style={({ pressed }) => [styles.whyRow, pressed && styles.pressed]}>
-          <Text style={styles.whyRowText}>Waarom dit nu past</Text><Text style={styles.whyRowArrow}>⌄</Text>
+        <Pressable onPress={() => setWhyOpen((value) => !value)} style={({ pressed }) => [styles.whyRow, pressed && styles.pressed]}>
+          <Text style={styles.whyRowText}>Waarom dit nu past</Text><Text style={styles.whyRowArrow}>{whyOpen ? '⌃' : '⌄'}</Text>
         </Pressable>
-      </View>
+        {whyOpen && (
+          <View style={styles.whyPanel}>
+            <Text style={styles.whyReason}>Bekend · er is in deze proefscène één uur beschikbaar</Text>
+            <Text style={styles.whyReason}>Gekozen · je lokale proefprofiel is {profileLabel.toLowerCase()}</Text>
+            <Text style={styles.whyReason}>Berekend · deze ervaring vraagt weinig voorbereiding</Text>
+            <Text style={styles.whyPrivacy}>Geen agenda, locatie, weer of gezondheidsdata gebruikt.</Text>
+          </View>
+        )}
+        <Pressable onPress={() => setDeclined(true)} style={({ pressed }) => [styles.declineAction, pressed && styles.pressed]}>
+          <Text style={styles.declineActionText}>Niet nu</Text>
+        </Pressable>
+      </View> : (
+        <View style={styles.declinedState}>
+          <Text style={styles.eyebrow}>MOMENTUM BLIJFT STIL</Text>
+          <Text style={styles.declinedTitle}>Prima. Dit moment hoeft niets te worden.</Text>
+          <Text style={styles.heroBody}>Deze afwijzing verandert je blijvende voorkeur niet.</Text>
+          <Pressable onPress={() => setDeclined(false)} style={({ pressed }) => [styles.restoreSuggestion, pressed && styles.pressed]}>
+            <Text style={styles.restoreSuggestionText}>Toon het voorstel opnieuw</Text>
+          </Pressable>
+        </View>
+      )}
 
       <Pressable onPress={onStart} style={({ pressed }) => [styles.activeIntentCard, pressed && styles.pressed]}>
         <View style={styles.activeIntentIcon}><Text style={styles.activeIntentIconText}>◷</Text></View>
@@ -821,6 +843,7 @@ const styles = StyleSheet.create({
   deepField: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: '#071017' }, glow: { position: 'absolute', borderRadius: 999, opacity: 0.3 }, glowGold: { width: 460, height: 460, backgroundColor: '#875A2A', top: -250, right: -220 }, glowGreen: { width: 390, height: 390, backgroundColor: '#2D4937', bottom: -210, left: -190 }, glowBlue: { width: 430, height: 430, backgroundColor: '#142D3A', top: '28%', left: -330, opacity: 0.36 }, glowQuiet: { opacity: 0.065 }, horizon: { position: 'absolute', top: '44%', left: 26, right: 26, height: 1, backgroundColor: 'rgba(216,170,104,0.14)' }, grainLineOne: { position: 'absolute', width: 1, top: 0, bottom: 0, left: '23%', backgroundColor: 'rgba(255,255,255,0.018)' }, grainLineTwo: { position: 'absolute', width: 1, top: 0, bottom: 0, right: '18%', backgroundColor: 'rgba(255,255,255,0.012)' },
   now: { flexGrow: 1, padding: 22, paddingTop: 18, paddingBottom: 34 }, brandRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }, brand: { color: colors.bone, fontWeight: '700', fontSize: 12, letterSpacing: 3 }, contextPill: { minHeight: 28, borderRadius: 99, borderWidth: 1, borderColor: colors.line, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(7,16,23,0.42)' }, liveDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: colors.green }, scenario: { color: colors.muted, fontSize: 8, letterSpacing: 1.2 }, nowCopy: { marginBottom: 42 }, eyebrow: { color: colors.gold, fontSize: 11, letterSpacing: 2.2, fontWeight: '700', marginBottom: 12 }, heroTitle: { color: colors.bone, fontSize: 50, lineHeight: 53, letterSpacing: -1.8, fontWeight: '300', maxWidth: 380 }, heroBody: { color: colors.muted, fontSize: 17, lineHeight: 25, marginTop: 18, maxWidth: 370 }, contextLine: { flexDirection: 'row', alignItems: 'center', marginTop: 26 }, contextLineText: { color: 'rgba(243,235,221,0.56)', fontSize: 11, letterSpacing: 0.4 }, contextDivider: { width: 22, height: 1, marginHorizontal: 10, backgroundColor: 'rgba(216,170,104,0.36)' }, quietNote: { color: colors.muted, fontSize: 10, textAlign: 'center', marginTop: 12 },
   nowPromise: { marginTop: 24 }, nowVisual: { height: 214, borderRadius: 28, backgroundColor: '#101A1D', borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', marginBottom: 22 }, nowVisualSymbol: { color: colors.bone, fontSize: 64, fontWeight: '200' }, nowPromiseTitle: { color: colors.bone, fontSize: 38, lineHeight: 43, letterSpacing: -1.15, fontWeight: '300' }, nowFacts: { flexDirection: 'row', justifyContent: 'space-between', gap: 14, borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.line, marginVertical: 20, paddingVertical: 14 }, whyRow: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 4 }, whyRowText: { color: colors.muted, fontSize: 13 }, whyRowArrow: { color: colors.gold, fontSize: 20 }, activeIntentCard: { minHeight: 92, borderRadius: 24, borderWidth: 1, borderColor: 'rgba(216,170,104,0.27)', backgroundColor: 'rgba(7,16,23,0.58)', flexDirection: 'row', alignItems: 'center', padding: 16, marginTop: 12 }, activeIntentIcon: { width: 45, height: 45, borderRadius: 23, borderWidth: 1, borderColor: colors.gold, alignItems: 'center', justifyContent: 'center' }, activeIntentIconText: { color: colors.gold, fontSize: 21 }, activeIntentCopy: { flex: 1, marginHorizontal: 14 }, activeIntentTitle: { color: colors.bone, fontSize: 18, fontWeight: '500' }, activeIntentBody: { color: colors.muted, fontSize: 11, lineHeight: 16, marginTop: 4 }, activeIntentArrow: { color: colors.gold, fontSize: 28 },
+  whyPanel: { borderRadius: 18, borderWidth: 1, borderColor: colors.line, backgroundColor: 'rgba(145,169,109,0.05)', padding: 15, gap: 8 }, whyReason: { color: colors.bone, fontSize: 11, lineHeight: 17 }, whyPrivacy: { color: 'rgba(170,179,174,0.62)', fontSize: 9, lineHeight: 14, marginTop: 3 }, declineAction: { alignSelf: 'center', minHeight: 40, justifyContent: 'center', paddingHorizontal: 18 }, declineActionText: { color: colors.muted, fontSize: 12 }, declinedState: { minHeight: 420, justifyContent: 'center', paddingVertical: 42 }, declinedTitle: { color: colors.bone, fontSize: 38, lineHeight: 44, letterSpacing: -1.1, fontWeight: '300', maxWidth: 390 }, restoreSuggestion: { alignSelf: 'flex-start', minHeight: 42, justifyContent: 'center', marginTop: 22, borderBottomWidth: 1, borderBottomColor: 'rgba(216,170,104,0.48)' }, restoreSuggestionText: { color: colors.gold, fontSize: 12, fontWeight: '700' },
   contextLab: { flexGrow: 1, padding: 24, paddingBottom: 40, gap: 28 }, contextGroup: { gap: 9 }, contextGroupLabel: { color: colors.gold, fontSize: 9, letterSpacing: 1.5, fontWeight: '700' }, contextOption: { minHeight: 64, borderRadius: 18, borderWidth: 1, borderColor: colors.line, paddingHorizontal: 16, paddingVertical: 12, flexDirection: 'row', alignItems: 'center' }, contextOptionCopy: { flex: 1 }, contextOptionTitle: { color: colors.bone, fontSize: 16 }, contextOptionBody: { color: colors.muted, fontSize: 12, marginTop: 3 }, contextToggleRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 9 }, learningNote: { borderWidth: 1, borderColor: colors.line, backgroundColor: 'rgba(145,169,109,0.06)', borderRadius: 18, padding: 16 }, learningNoteTitle: { color: colors.green, fontSize: 9, letterSpacing: 1.3, fontWeight: '700' }, learningNoteBody: { color: colors.muted, fontSize: 12, lineHeight: 18, marginTop: 7 },
   panelWrap: { flex: 1, padding: 22 }, panel: { marginTop: 'auto', backgroundColor: 'rgba(14,26,33,0.95)', borderWidth: 1, borderColor: colors.line, borderRadius: 30, padding: 22, gap: 18 }, panelTitle: { color: colors.bone, fontSize: 31, lineHeight: 37, fontWeight: '400', letterSpacing: -0.8 }, panelSubtitle: { color: colors.muted, fontSize: 15, lineHeight: 21 }, chipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 }, choice: { borderWidth: 1, borderColor: colors.line, paddingVertical: 13, paddingHorizontal: 17, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.025)' }, choiceSelected: { borderColor: colors.green, backgroundColor: 'rgba(145,169,109,0.18)' }, choiceText: { color: colors.muted, fontSize: 15 }, choiceTextSelected: { color: colors.bone },
   feelingList: { gap: 8 }, feeling: { minHeight: 54, borderRadius: 18, borderWidth: 1, borderColor: colors.line, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center' }, feelingSymbol: { color: colors.gold, width: 34, fontSize: 18 }, feelingText: { color: colors.muted, fontSize: 16, flex: 1 }, check: { color: colors.muted, fontSize: 14 },
