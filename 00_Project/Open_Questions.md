@@ -28,7 +28,8 @@ Priority labels:
 - **Soon:** When may Momentum proactively surface a detected moment, and how does the user control that initiative?
 - **Soon:** What confidence or ambiguity threshold requires a clarifying question rather than selection?
 - **Soon:** How many alternatives preserve autonomy without becoming a feed?
-- **Resolved direction:** Broader exploration is a later conscious-choice surface and does not appear as a feed on `Now`; see `Decisions/ADR-012-discovery-is-intentional-and-separate.md`.
+- **Resolved direction:** Broader exploration is a conscious-choice surface and does not appear as a feed on `Now`; see ADR-012 and its four-surface refinement in ADR-014.
+- **Resolved direction:** The primary product surfaces are `Now`, `Today`, `Discover`, and `Life Book`. Today is a finite day rhythm; Discover supports open intent expression.
 - **Resolved prototype direction:** “Why this fits” shows a concise subset of non-sensitive time, explicit preference and feasibility reasons, labelled by certainty; see `Decisions/ADR-013-explanation-and-situational-decline.md`.
 
 ## Experience Promises and feelings

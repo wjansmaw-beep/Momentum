@@ -89,6 +89,8 @@ The four continuous tracks are Philosophy, Experience, Understanding, and Trust.
 - Feeling-to-visual language;
 - motion, haptics, typography, color, imagery, and accessibility rules;
 - prototypes for passive and active intent.
+- a four-surface interaction architecture for Now, Today, Discover, and Life Book;
+- a Today orchestration blueprint and open intent-expression model;
 - an active-intent interaction blueprint covering time entry, adaptive clarification, correction, abstention, and transition into a Capsule;
 - a North Star visual flow for the first active-intent challenge scenario;
 
@@ -96,6 +98,7 @@ The four continuous tracks are Philosophy, Experience, Understanding, and Trust.
 
 - users understand the promise and commitment within seconds;
 - users can accept, decline, or redirect without confusion;
+- users understand the difference between immediate guidance, day opportunities, deliberate discovery, and memory;
 - transitions into representative capsules are prototype-tested;
 - visual polish strengthens action without increasing consumption;
 - the Founder approves a design direction without declaring exploratory pixels final.
