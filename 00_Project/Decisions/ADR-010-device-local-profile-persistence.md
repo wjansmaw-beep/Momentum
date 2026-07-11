@@ -23,7 +23,7 @@ Do not persist location, inferred private context, raw activity history or refle
 - Web, Android and later iOS sessions can demonstrate continuity without an account or backend.
 - The UI must accurately say that the profile is stored locally on the device rather than only for the current session.
 - This storage is a product proof, not authorization for a hidden behavioral profile.
-- A future privacy control should expose a direct reset before the profile becomes part of an MVP.
+- The Context Lab exposes a direct reset that removes learned state and restores neutral trial defaults.
 
 ## Philosophy alignment
 

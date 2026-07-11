@@ -195,6 +195,7 @@ export default function App() {
   const [affinityAdjustments, setAffinityAdjustments] = useState<Record<CoreFeeling, number>>(emptyAffinityAdjustments);
   const [learningCount, setLearningCount] = useState(0);
   const [profileHydrated, setProfileHydrated] = useState(false);
+  const [profileResetNotice, setProfileResetNotice] = useState(false);
   const [seconds, setSeconds] = useState(40);
   const [paused, setPaused] = useState(false);
   const fade = useRef(new Animated.Value(1)).current;
@@ -302,9 +303,19 @@ export default function App() {
   };
 
   const changeProfilePreset = (value: ProfilePreset) => {
+    setProfileResetNotice(false);
     setProfilePreset(value);
     setAffinityAdjustments(emptyAffinityAdjustments());
     setLearningCount(0);
+  };
+
+  const resetLocalProfile = async () => {
+    setProfilePreset('explorer');
+    setHasKettlebell(true);
+    setAffinityAdjustments(emptyAffinityAdjustments());
+    setLearningCount(0);
+    await AsyncStorage.removeItem(localProfileStorageKey).catch(() => undefined);
+    setProfileResetNotice(true);
   };
 
   const learnFromReflection = (answer: ReflectionAnswer | null, selectedFeeling: CoreFeeling) => {
@@ -337,8 +348,10 @@ export default function App() {
               profile={profilePreset}
               hasKettlebell={hasKettlebell}
               learningCount={learningCount}
+              resetNotice={profileResetNotice}
               onProfile={changeProfilePreset}
               onEquipment={setHasKettlebell}
+              onReset={resetLocalProfile}
               onDone={() => moveTo('now')}
             />
           )}
@@ -458,7 +471,7 @@ function Now({ onStart, onContext }: { onStart: () => void; onContext: () => voi
   );
 }
 
-function ContextLab({ profile, hasKettlebell, learningCount, onProfile, onEquipment, onDone }: { profile: ProfilePreset; hasKettlebell: boolean; learningCount: number; onProfile: (value: ProfilePreset) => void; onEquipment: (value: boolean) => void; onDone: () => void }) {
+function ContextLab({ profile, hasKettlebell, learningCount, resetNotice, onProfile, onEquipment, onReset, onDone }: { profile: ProfilePreset; hasKettlebell: boolean; learningCount: number; resetNotice: boolean; onProfile: (value: ProfilePreset) => void; onEquipment: (value: boolean) => void; onReset: () => void; onDone: () => void }) {
   return (
     <ScrollView contentContainerStyle={styles.contextLab} showsVerticalScrollIndicator={false}>
       <View>
@@ -486,8 +499,12 @@ function ContextLab({ profile, hasKettlebell, learningCount, onProfile, onEquipm
         </View>
       </View>
       <View style={styles.learningNote}>
-        <Text style={styles.learningNoteTitle}>SESSIELEREN · {learningCount}</Text>
-        <Text style={styles.learningNoteBody}>Reflecties verschuiven alleen dit lokale proefprofiel. Kies opnieuw een profiel om ze direct te wissen.</Text>
+        <Text style={styles.learningNoteTitle}>LOKAAL ONTHOUDEN · {learningCount} REFLECTIES</Text>
+        <Text style={styles.learningNoteBody}>Momentum bewaart op dit apparaat alleen je proefprofiel, materiaalkeuze en de verschuiving uit deze reflecties. Geen locatie, agenda of antwoorden.</Text>
+        <Pressable onPress={onReset} style={({ pressed }) => [styles.resetButton, pressed && styles.pressed]}>
+          <Text style={styles.resetButtonText}>Wis lokale leergegevens</Text>
+        </Pressable>
+        {resetNotice && <Text style={styles.resetNotice}>Gewist. De neutrale proefinstellingen zijn hersteld.</Text>}
       </View>
       <PrimaryButton label="Gebruik deze proefscène" onPress={onDone} />
     </ScrollView>
@@ -760,5 +777,6 @@ const styles = StyleSheet.create({
   prepare: { flex: 1, padding: 24, justifyContent: 'space-between' }, checkRow: { flexDirection: 'row', alignItems: 'center', marginTop: 20 }, checkDot: { color: colors.green, width: 34, fontSize: 19 }, checkLabel: { color: colors.bone, fontSize: 18 },
   locationAssist: { flex: 1, padding: 24, justifyContent: 'space-between' }, permissionCard: { marginTop: 28, borderWidth: 1, borderColor: colors.line, borderRadius: 20, backgroundColor: 'rgba(216,170,104,0.06)', padding: 17 }, permissionCardTitle: { color: colors.gold, fontSize: 10, letterSpacing: 1.2, fontWeight: '700' }, permissionCardBody: { color: colors.muted, fontSize: 13, lineHeight: 20, marginTop: 8 }, permissionStatus: { color: colors.green, fontSize: 12, lineHeight: 18, marginTop: 16 },
   presence: { flex: 1, padding: 26, alignItems: 'center', justifyContent: 'center' }, presenceLabel: { color: colors.muted, fontSize: 10, letterSpacing: 2, marginBottom: 16 }, exercise: { color: colors.bone, fontSize: 40, fontWeight: '300', letterSpacing: -1, textAlign: 'center' }, quietPresenceTitle: { fontSize: 34, lineHeight: 41, maxWidth: 390 }, quietPresenceCue: { color: colors.muted, fontSize: 15, lineHeight: 22, textAlign: 'center', maxWidth: 320, marginTop: 18 }, quietOrb: { width: 150, height: 150, borderRadius: 75, borderWidth: 1, borderColor: 'rgba(145,169,109,0.3)', alignItems: 'center', justifyContent: 'center', marginVertical: 48, backgroundColor: 'rgba(145,169,109,0.05)' }, quietOrbSymbol: { color: colors.green, fontSize: 42, fontWeight: '200' }, timerRing: { width: 230, height: 230, borderRadius: 115, borderWidth: 4, borderColor: 'rgba(145,169,109,0.45)', alignItems: 'center', justifyContent: 'center', marginVertical: 48 }, timer: { color: colors.bone, fontSize: 55, fontVariant: ['tabular-nums'], fontWeight: '200' }, timerCaption: { color: colors.muted, fontSize: 12, marginTop: 6, textAlign: 'center', paddingHorizontal: 18 }, pause: { width: 60, height: 60, borderRadius: 30, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' }, pauseText: { color: colors.bone, fontSize: 22 }, stop: { color: colors.muted, fontSize: 12, marginTop: 24 }, presenceFooter: { color: colors.muted, fontSize: 12, position: 'absolute', bottom: 28 },
+  resetButton: { alignSelf: 'flex-start', minHeight: 34, justifyContent: 'center', marginTop: 14, borderBottomWidth: 1, borderBottomColor: 'rgba(216,170,104,0.5)' }, resetButtonText: { color: colors.gold, fontSize: 11, fontWeight: '700' }, resetNotice: { color: colors.green, fontSize: 11, lineHeight: 16, marginTop: 10 },
   complete: { flex: 1, padding: 26, justifyContent: 'center' }, completeMark: { color: colors.green, fontSize: 44, marginBottom: 20 }, reflection: { marginVertical: 42, paddingTop: 22, borderTopWidth: 1, borderColor: colors.line }, reflectionTitle: { color: colors.bone, fontSize: 17, lineHeight: 24, marginBottom: 18 }, reflectionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 }, reflectionPrivacy: { color: 'rgba(170,179,174,0.65)', fontSize: 10, lineHeight: 15, marginTop: 14 },
 });
