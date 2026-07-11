@@ -1,10 +1,8 @@
 import { StatusBar } from 'expo-status-bar';
-import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
-  Animated,
-  Easing,
+  ImageBackground,
   Linking,
   Platform,
   Pressable,
@@ -12,847 +10,362 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   useWindowDimensions,
   View,
 } from 'react-native';
 import {
-  CoreFeeling,
-  DecisionResult,
-  ExperienceCandidate,
-  selectExperience,
-} from './src/decision/localDecision';
+  byId,
+  Experience,
+  experiences,
+  selectForIntent,
+  Surface,
+  todayMoments,
+} from './src/product/experienceModel';
 
-type Stage = 'now' | 'context' | 'time' | 'feeling' | 'clarify' | 'promise' | 'prepare' | 'location' | 'presence' | 'complete';
-type Feeling = 'calm' | 'energy' | 'surprise' | 'connection' | 'challenge' | 'choose';
-type ProfilePreset = 'explorer' | 'mover' | 'connector';
-type ReflectionAnswer = 'Nee' | 'Een beetje' | 'Ja';
-type PresenceMode = 'guided' | 'quiet';
-type EntryMode = 'passive' | 'active';
-type ExperienceContent = {
-  eyebrow: string;
-  title: string;
-  body: string;
-  action: string;
-  visualSymbol: string;
-  visualLabel: string;
-  visualDetail: string;
-  prepareTitle: string;
-  prepareItems: string[];
-  presenceLabel: string;
-  presenceTitle: string;
-  presenceCue: string;
-  presenceMode: PresenceMode;
-  previewSeconds: number;
-  completion: string;
+type FlowStage = 'promise' | 'prepare' | 'presence' | 'remember' | 'profile' | null;
+type Memory = { id: string; title: string; date: string; image: string; note: string };
+
+const colors = {
+  ink: '#071013', panel: '#101A1D', bone: '#F4EEE3', muted: '#AEB4AE',
+  green: '#A4C55D', gold: '#D9B36B', line: 'rgba(244,238,227,0.14)',
 };
-
-const times = ['15 min', '30 min', '1 uur', '2 uur', 'Tot…'] as const;
-const feelings: Array<{ id: Feeling; label: string; symbol: string }> = [
-  { id: 'calm', label: 'Tot rust komen', symbol: '◌' },
-  { id: 'energy', label: 'Energie voelen', symbol: '↗' },
-  { id: 'surprise', label: 'Verrast worden', symbol: '✦' },
-  { id: 'connection', label: 'Verbinding', symbol: '◎' },
-  { id: 'challenge', label: 'Mezelf uitdagen', symbol: '▲' },
-  { id: 'choose', label: 'Kies voor mij', symbol: '◇' },
-];
-
-const experienceByFeeling: Record<Feeling, ExperienceContent> = {
-  calm: {
-    eyebrow: 'RUIMTE VOOR RUST',
-    title: 'Laat het tempo even van je afglijden.',
-    body: 'Een korte zachte beweging en vijf rustige ademhalingen. Geen prestatie, geen haast.',
-    action: 'Neem deze pauze',
-    visualSymbol: '◌', visualLabel: 'EEN STILLE RESET', visualDetail: 'niets hoeft af',
-    prepareTitle: 'Maak alleen wat ruimte.', prepareItems: ['Voeten op de grond', 'Schouders los', 'Meldingen even stil'],
-    presenceLabel: 'ADEM 1 VAN 5', presenceTitle: 'Langzaam uit', presenceCue: 'Je uitademing mag langer zijn.', presenceMode: 'guided', previewSeconds: 30,
-    completion: 'Laat de rust met je meegaan.',
-  },
-  energy: {
-    eyebrow: 'RUIMTE VOOR ENERGIE',
-    title: 'Beweeg genoeg om je middag te veranderen.',
-    body: 'Een korte sessie die begint waar je nu bent en meer dan genoeg van het uur overlaat.',
-    action: 'Begin met bewegen',
-    visualSymbol: '↗', visualLabel: 'KORTE POWER RESET', visualDetail: 'direct in beweging',
-    prepareTitle: 'Klaar om te bewegen.', prepareItems: ['Stevige schoenen', 'Water', 'Een paar meter ruimte'],
-    presenceLabel: 'BLOK 1 VAN 3', presenceTitle: 'Stevige pas', presenceCue: 'Ritme boven snelheid.', presenceMode: 'guided', previewSeconds: 35,
-    completion: 'Neem die energie mee je middag in.',
-  },
-  surprise: {
-    eyebrow: 'RUIMTE VOOR VERWONDERING',
-    title: 'Kijk vandaag naar iets waar je normaal voorbijloopt.',
-    body: 'Dertig minuten om één detail te vinden dat het bewaren waard is: licht, natuur, vorm of geluid.',
-    action: 'Geef me de aanwijzing',
-    visualSymbol: '✦', visualLabel: 'KIJK OPNIEUW', visualDetail: 'zoek veranderend licht',
-    prepareTitle: 'Neem alleen je aandacht mee.', prepareItems: ['Ga naar buiten of naar een raam', 'Kies geen bestemming', 'Zoek één onverwacht detail'],
-    presenceLabel: 'ONTDEK', presenceTitle: 'Volg het licht', presenceCue: 'Momentum wacht. Kijk eerst zelf.', presenceMode: 'quiet', previewSeconds: 0,
-    completion: 'Misschien zag je meer dan je verwachtte.',
-  },
-  connection: {
-    eyebrow: 'RUIMTE VOOR VERBINDING',
-    title: 'Geef iemand tien minuten echte aandacht.',
-    body: 'Jij kiest wie. Momentum geeft één vraag en verdwijnt daarna uit het gesprek.',
-    action: 'Geef me de vraag',
-    visualSymbol: '◎', visualLabel: 'ÉÉN ECHTE VRAAG', visualDetail: 'zonder haast luisteren',
-    prepareTitle: 'Kies iemand die ertoe doet.', prepareItems: ['Bel of zoek elkaar op', 'Leg afleiding weg', 'Luister zonder meteen op te lossen'],
-    presenceLabel: 'VRAAG', presenceTitle: 'Wat houdt je de laatste tijd echt bezig?', presenceCue: 'De rest van dit moment is van jullie.', presenceMode: 'quiet', previewSeconds: 0,
-    completion: 'Aandacht was genoeg.',
-  },
-  challenge: {
-    eyebrow: 'RUIMTE VOOR KRACHT',
-    title: 'Een sterk halfuur, zonder gehaast terug te komen.',
-    body: 'Eén kettlebell is genoeg voor een complete sessie hier. Er blijft ruimte om rustig terug te keren.',
-    action: 'Zet deze training klaar',
-    visualSymbol: '▲', visualLabel: 'ÉÉN KETTLEBELL', visualDetail: 'meer is niet nodig',
-    prepareTitle: 'Alles wat je nodig hebt.', prepareItems: ['Eén kettlebell', 'Water', 'Vrije ruimte'],
-    presenceLabel: 'RONDE 1 · OEFENING 1', presenceTitle: 'Goblet squat', presenceCue: 'Rustig en sterk.', presenceMode: 'guided', previewSeconds: 40,
-    completion: 'Neem de rest van je uur terug.',
-  },
-  choose: {
-    eyebrow: 'EEN EERLIJK VOORSTEL',
-    title: 'Maak het uur merkbaar anders.',
-    body: 'Ik weet nog weinig van dit moment. Daarom kies ik iets dat hier begint en niets extra’s nodig heeft.',
-    action: 'Probeer dit',
-    visualSymbol: '◇', visualLabel: 'ZONDER BESTEMMING', visualDetail: 'een kleine andere route',
-    prepareTitle: 'Begin zonder veel te regelen.', prepareItems: ['Neem alleen je sleutels mee', 'Kies de minst bekende richting', 'Keer terug wanneer het goed voelt'],
-    presenceLabel: 'VRIJE ROUTE', presenceTitle: 'Sla anders af', presenceCue: 'Geen doel. Alleen even opnieuw kijken.', presenceMode: 'quiet', previewSeconds: 0,
-    completion: 'Een kleine omweg was genoeg.',
-  },
-};
-
-const shortChallenge: ExperienceContent = {
-  eyebrow: 'KORTE RUIMTE VOOR KRACHT',
-  title: 'Tien scherpe minuten. Daarna ben je weer vrij.',
-  body: 'Geen materiaal en geen omweg. Drie eenvoudige bewegingen maken dit korte moment toch uitdagend.',
-  action: 'Zet deze korte training klaar',
-  visualSymbol: '▲', visualLabel: 'ALLEEN LICHAAMSGEWICHT', visualDetail: 'kort en compleet',
-  prepareTitle: 'Je kunt meteen beginnen.', prepareItems: ['Een paar meter ruimte', 'Water binnen bereik', 'Stop als de techniek vervaagt'],
-  presenceLabel: 'RONDE 1 · OEFENING 1', presenceTitle: 'Air squat', presenceCue: 'Beheerst omlaag. Sterk omhoog.', presenceMode: 'guided', previewSeconds: 30,
-  completion: 'Kort was genoeg om jezelf uit te dagen.',
-};
-
-const experienceByCandidateId: Record<string, ExperienceContent> = {
-  'quiet-reset': experienceByFeeling.calm,
-  'power-reset': experienceByFeeling.energy,
-  'notice-light': experienceByFeeling.surprise,
-  'one-question': experienceByFeeling.connection,
-  'bodyweight-challenge': shortChallenge,
-  'kettlebell-strength': experienceByFeeling.challenge,
-};
-
-const budgetMinutes: Record<string, number> = { '15 min': 15, '30 min': 30, '1 uur': 60, '2 uur': 120, 'Tot…': 60 };
-
-const candidateCatalog: ExperienceCandidate[] = [
-  { id: 'quiet-reset', feeling: 'calm', minimumMinutes: 5, idealMinutes: 10, friction: 0.05, presencePotential: 0.95 },
-  { id: 'power-reset', feeling: 'energy', minimumMinutes: 10, idealMinutes: 18, friction: 0.16, presencePotential: 0.82 },
-  { id: 'notice-light', feeling: 'surprise', minimumMinutes: 12, idealMinutes: 25, friction: 0.12, presencePotential: 0.98 },
-  { id: 'one-question', feeling: 'connection', minimumMinutes: 10, idealMinutes: 20, friction: 0.2, presencePotential: 1 },
-  { id: 'bodyweight-challenge', feeling: 'challenge', minimumMinutes: 8, idealMinutes: 12, friction: 0.08, presencePotential: 0.82 },
-  { id: 'kettlebell-strength', feeling: 'challenge', minimumMinutes: 25, idealMinutes: 32, friction: 0.28, presencePotential: 0.78, requiredEquipment: ['kettlebell'] },
-];
-
-const profilePresets: Record<ProfilePreset, { label: string; description: string; affinity: Record<CoreFeeling, number> }> = {
-  explorer: { label: 'Ontdekker', description: 'merkt graag iets nieuws op', affinity: { calm: 0.62, energy: 0.7, surprise: 0.9, connection: 0.62, challenge: 0.76 } },
-  mover: { label: 'Beweger', description: 'krijgt energie van actie', affinity: { calm: 0.5, energy: 0.88, surprise: 0.66, connection: 0.58, challenge: 0.94 } },
-  connector: { label: 'Verbinder', description: 'kiest vaak voor echte aandacht', affinity: { calm: 0.66, energy: 0.56, surprise: 0.68, connection: 0.96, challenge: 0.54 } },
-};
-
-const clarificationLabels: Record<CoreFeeling, { title: string; body: string }> = {
-  calm: { title: 'Meer rust', body: 'minder prikkels, weinig voorbereiding' },
-  energy: { title: 'Nieuwe energie', body: 'kort bewegen en weer verder' },
-  surprise: { title: 'Iets onverwachts', body: 'met andere ogen naar buiten kijken' },
-  connection: { title: 'Echte aandacht', body: 'een betekenisvol moment met iemand' },
-  challenge: { title: 'Een uitdaging', body: 'duidelijk beginnen en sterk afronden' },
-};
-
-const emptyAffinityAdjustments = (): Record<CoreFeeling, number> => ({ calm: 0, energy: 0, surprise: 0, connection: 0, challenge: 0 });
-const localProfileStorageKey = 'momentum.local-profile.v1';
-
-type StoredLocalProfile = {
-  profilePreset: ProfilePreset;
-  hasKettlebell: boolean;
-  affinityAdjustments: Record<CoreFeeling, number>;
-  learningCount: number;
-};
-
-const isProfilePreset = (value: unknown): value is ProfilePreset =>
-  value === 'explorer' || value === 'mover' || value === 'connector';
-
-const safeAffinity = (value: unknown): Record<CoreFeeling, number> => {
-  const source = value && typeof value === 'object' ? value as Partial<Record<CoreFeeling, unknown>> : {};
-  return (Object.keys(emptyAffinityAdjustments()) as CoreFeeling[]).reduce<Record<CoreFeeling, number>>((result, key) => {
-    const adjustment = typeof source[key] === 'number' ? source[key] : 0;
-    result[key] = Math.max(-0.3, Math.min(0.3, adjustment));
-    return result;
-  }, emptyAffinityAdjustments());
-};
+const memoryKey = 'momentum.memories.v2';
+const timeOptions = [15, 30, 60, 120];
 
 export default function App() {
-  const { height: windowHeight } = useWindowDimensions();
-  const [stage, setStage] = useState<Stage>('now');
-  const [entryMode, setEntryMode] = useState<EntryMode>('passive');
-  const [selectedTime, setSelectedTime] = useState('1 uur');
-  const [feeling, setFeeling] = useState<Feeling>('challenge');
-  const [profilePreset, setProfilePreset] = useState<ProfilePreset>('explorer');
-  const [hasKettlebell, setHasKettlebell] = useState(true);
-  const [affinityAdjustments, setAffinityAdjustments] = useState<Record<CoreFeeling, number>>(emptyAffinityAdjustments);
-  const [learningCount, setLearningCount] = useState(0);
-  const [profileHydrated, setProfileHydrated] = useState(false);
-  const [profileResetNotice, setProfileResetNotice] = useState(false);
-  const [seconds, setSeconds] = useState(40);
-  const [paused, setPaused] = useState(false);
-  const fade = useRef(new Animated.Value(1)).current;
-  const transitioning = useRef(false);
-
-  const availableMinutes = budgetMinutes[selectedTime] ?? 60;
-  const effectiveAffinity = useMemo(() => {
-    const base = profilePresets[profilePreset].affinity;
-    return (Object.keys(base) as CoreFeeling[]).reduce<Record<CoreFeeling, number>>((result, key) => {
-      result[key] = Math.max(0, Math.min(1, base[key] + affinityAdjustments[key]));
-      return result;
-    }, emptyAffinityAdjustments());
-  }, [affinityAdjustments, profilePreset]);
-  const activeDecision = useMemo(
-    () =>
-      selectExperience(
-        {
-          availableMinutes,
-          desiredFeeling: feeling === 'choose' ? undefined : feeling,
-          setting: 'work',
-          equipment: hasKettlebell ? ['kettlebell'] : [],
-          profileAffinity: effectiveAffinity,
-        },
-        candidateCatalog,
-      ),
-    [availableMinutes, effectiveAffinity, feeling, hasKettlebell],
-  );
-  const passiveDecision = useMemo(
-    () =>
-      selectExperience(
-        {
-          availableMinutes: 60,
-          setting: 'work',
-          equipment: hasKettlebell ? ['kettlebell'] : [],
-          profileAffinity: effectiveAffinity,
-        },
-        candidateCatalog,
-      ),
-    [effectiveAffinity, hasKettlebell],
-  );
-  const decision = entryMode === 'passive' ? passiveDecision : activeDecision;
-  const experience = experienceByCandidateId[decision.selected.id] ?? experienceByFeeling[decision.selected.feeling];
-  const experienceMinutes = Math.max(5, Math.min(45, Math.round(availableMinutes * 0.55)));
-  const bufferMinutes = availableMinutes - experienceMinutes;
+  const { height } = useWindowDimensions();
+  const [surface, setSurface] = useState<Surface>('now');
+  const [flowStage, setFlowStage] = useState<FlowStage>(null);
+  const [selected, setSelected] = useState<Experience>(byId('wadden-light'));
+  const [origin, setOrigin] = useState<Surface>('now');
+  const [memories, setMemories] = useState<Memory[]>([
+    { id: 'seed-1', title: 'Licht boven het Wad', date: '8 juli', image: byId('wadden-light').image, note: 'De lucht werd stiller dan verwacht.' },
+    { id: 'seed-2', title: 'Een sterk halfuur', date: '5 juli', image: byId('kettlebell-focus').image, note: 'Kort, scherp en precies genoeg.' },
+  ]);
 
   useEffect(() => {
-    if (typeof document === 'undefined') return;
-    document.documentElement.style.backgroundColor = colors.ink;
-    document.body.style.backgroundColor = colors.ink;
+    if (typeof document !== 'undefined') {
+      document.documentElement.style.backgroundColor = colors.ink;
+      document.body.style.backgroundColor = colors.ink;
+    }
+    AsyncStorage.getItem(memoryKey).then((value) => {
+      if (value) setMemories(JSON.parse(value));
+    }).catch(() => undefined);
   }, []);
 
   useEffect(() => {
-    let active = true;
-    AsyncStorage.getItem(localProfileStorageKey)
-      .then((stored) => {
-        if (!active || !stored) return;
-        const parsed = JSON.parse(stored) as Partial<StoredLocalProfile>;
-        if (isProfilePreset(parsed.profilePreset)) setProfilePreset(parsed.profilePreset);
-        if (typeof parsed.hasKettlebell === 'boolean') setHasKettlebell(parsed.hasKettlebell);
-        setAffinityAdjustments(safeAffinity(parsed.affinityAdjustments));
-        if (typeof parsed.learningCount === 'number') setLearningCount(Math.max(0, Math.floor(parsed.learningCount)));
-      })
-      .catch(() => undefined)
-      .finally(() => {
-        if (active) setProfileHydrated(true);
-      });
-    return () => { active = false; };
-  }, []);
+    AsyncStorage.setItem(memoryKey, JSON.stringify(memories)).catch(() => undefined);
+  }, [memories]);
 
-  useEffect(() => {
-    if (!profileHydrated) return;
-    const value: StoredLocalProfile = { profilePreset, hasKettlebell, affinityAdjustments, learningCount };
-    AsyncStorage.setItem(localProfileStorageKey, JSON.stringify(value)).catch(() => undefined);
-  }, [affinityAdjustments, hasKettlebell, learningCount, profileHydrated, profilePreset]);
-
-  useEffect(() => {
-    if (stage !== 'presence' || paused || experience.presenceMode === 'quiet') return;
-    const timer = setInterval(() => {
-      setSeconds((current) => {
-        if (current <= 1) {
-          clearInterval(timer);
-          setStage('complete');
-          return 0;
-        }
-        return current - 1;
-      });
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [stage, paused, experience.presenceMode]);
-
-  const moveTo = (next: Stage) => {
-    if (transitioning.current || next === stage) return;
-    transitioning.current = true;
-    Animated.timing(fade, {
-      toValue: 0,
-      duration: 120,
-      easing: Easing.in(Easing.quad),
-      useNativeDriver: true,
-    }).start(() => {
-      setStage(next);
-      fade.setValue(0);
-      Animated.timing(fade, {
-        toValue: 1,
-        duration: 360,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }).start(() => {
-        transitioning.current = false;
-      });
-    });
+  const openExperience = (experience: Experience, from: Surface, stage: FlowStage = 'promise') => {
+    setSelected(experience);
+    setOrigin(from);
+    setFlowStage(stage);
   };
 
-  const restart = () => {
-    setSeconds(40);
-    setPaused(false);
-    setSelectedTime('1 uur');
-    setFeeling('challenge');
-    setEntryMode('passive');
-    moveTo('now');
-  };
-
-  const changeProfilePreset = (value: ProfilePreset) => {
-    setProfileResetNotice(false);
-    setProfilePreset(value);
-    setAffinityAdjustments(emptyAffinityAdjustments());
-    setLearningCount(0);
-  };
-
-  const resetLocalProfile = async () => {
-    setProfilePreset('explorer');
-    setHasKettlebell(true);
-    setAffinityAdjustments(emptyAffinityAdjustments());
-    setLearningCount(0);
-    await AsyncStorage.removeItem(localProfileStorageKey).catch(() => undefined);
-    setProfileResetNotice(true);
-  };
-
-  const learnFromReflection = (answer: ReflectionAnswer | null, selectedFeeling: CoreFeeling) => {
-    if (!answer) return;
-    const change = answer === 'Ja' ? 0.08 : answer === 'Een beetje' ? 0.02 : -0.06;
-    setAffinityAdjustments((current) => ({ ...current, [selectedFeeling]: current[selectedFeeling] + change }));
-    setLearningCount((current) => current + 1);
+  const closeFlow = () => setFlowStage(null);
+  const finishExperience = (note: string) => {
+    const memory: Memory = {
+      id: `${selected.id}-${Date.now()}`,
+      title: selected.title,
+      date: 'Vandaag',
+      image: selected.image,
+      note: note || 'Een moment dat de moeite waard was.',
+    };
+    setMemories((current) => [memory, ...current.filter((item) => item.id !== selected.id)].slice(0, 12));
+    setFlowStage(null);
+    setSurface('lifebook');
   };
 
   return (
-    <View style={[styles.root, { minHeight: windowHeight }]}>
+    <View style={[styles.root, { minHeight: height }]}>
       <StatusBar style="light" />
-      <Atmosphere stage={stage} />
+      <View pointerEvents="none" style={styles.ambientGold} />
+      <View pointerEvents="none" style={styles.ambientGreen} />
       <SafeAreaView style={styles.safe}>
-        <Animated.View
-          style={[
-            styles.appFrame,
-            {
-              opacity: fade,
-              transform: [
-                { translateY: fade.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) },
-                { scale: fade.interpolate({ inputRange: [0, 1], outputRange: [0.992, 1] }) },
-              ],
-            },
-          ]}
-        >
-          {stage === 'now' && (
-            <Now
-              experience={experienceByCandidateId[passiveDecision.selected.id] ?? experienceByFeeling[passiveDecision.selected.feeling]}
-              profileLabel={profilePresets[profilePreset].label}
-              onAccept={() => {
-                setEntryMode('passive');
-                setSelectedTime('1 uur');
-                moveTo('prepare');
-              }}
-              onStart={() => {
-                setEntryMode('active');
-                moveTo('time');
-              }}
-              onContext={() => moveTo('context')}
-            />
+        <View style={styles.appFrame}>
+          {flowStage === null && (
+            <>
+              {surface === 'now' && <NowScreen onOpen={(item, stage) => openExperience(item, 'now', stage)} onProfile={() => setFlowStage('profile')} onDiscover={() => setSurface('discover')} />}
+              {surface === 'today' && <TodayScreen onOpen={(item) => openExperience(item, 'today')} />}
+              {surface === 'discover' && <DiscoverScreen onOpen={(item) => openExperience(item, 'discover')} />}
+              {surface === 'lifebook' && <LifeBookScreen memories={memories} onOpen={(item) => openExperience(item, 'lifebook')} />}
+              <BottomNav surface={surface} onChange={setSurface} />
+            </>
           )}
-          {stage === 'context' && (
-            <ContextLab
-              profile={profilePreset}
-              hasKettlebell={hasKettlebell}
-              learningCount={learningCount}
-              resetNotice={profileResetNotice}
-              onProfile={changeProfilePreset}
-              onEquipment={setHasKettlebell}
-              onReset={resetLocalProfile}
-              onDone={() => moveTo('now')}
-            />
-          )}
-          {stage === 'time' && (
-            <TimeChoice
-              selected={selectedTime}
-              onSelect={setSelectedTime}
-              onContinue={() => moveTo('feeling')}
-              onBack={() => moveTo('now')}
-            />
-          )}
-          {stage === 'feeling' && (
-            <FeelingChoice
-              selected={feeling}
-              onSelect={setFeeling}
-              onContinue={() => moveTo(feeling === 'choose' && decision.confidence === 'medium' && decision.runnerUp ? 'clarify' : 'promise')}
-              onBack={() => moveTo('time')}
-            />
-          )}
-          {stage === 'clarify' && decision.runnerUp && (
-            <ClarifyChoice
-              first={decision.selected.feeling}
-              second={decision.runnerUp.feeling}
-              onSelect={(value) => {
-                setFeeling(value);
-                moveTo('promise');
-              }}
-              onBack={() => moveTo('feeling')}
-            />
-          )}
-          {stage === 'promise' && (
-            <PromiseView
-              experience={experience}
-              decision={decision}
-              contextSummary={`${profilePresets[profilePreset].label} · ${hasKettlebell ? 'kettlebell beschikbaar' : 'zonder materiaal'}${learningCount ? ` · ${learningCount} lokale reflectie${learningCount === 1 ? '' : 's'}` : ''}`}
-              time={selectedTime}
-              duration={experienceMinutes}
-              buffer={bufferMinutes}
-              onAccept={() => moveTo('prepare')}
-              onRedirect={() => moveTo('feeling')}
-              onClose={() => moveTo('now')}
-            />
-          )}
-          {stage === 'prepare' && (
-            <Prepare
-              experience={experience}
-              onStart={() => {
-                setSeconds(experience.previewSeconds);
-                moveTo(decision.selected.id === 'notice-light' ? 'location' : 'presence');
-              }}
-              onBack={() => moveTo(entryMode === 'passive' ? 'now' : 'promise')}
-            />
-          )}
-          {stage === 'location' && (
-            <LocationAssist
-              onBack={() => moveTo('prepare')}
-              onContinue={() => moveTo('presence')}
-            />
-          )}
-          {stage === 'presence' && (
-            <Presence experience={experience} seconds={seconds} paused={paused} onPause={() => setPaused((value) => !value)} onStop={() => moveTo('complete')} />
-          )}
-          {stage === 'complete' && (
-            <Complete
-              experience={experience}
-              onDone={(answer) => {
-                learnFromReflection(answer, decision.selected.feeling);
-                restart();
-              }}
-            />
-          )}
-        </Animated.View>
+          {flowStage === 'promise' && <PromiseScreen experience={selected} onClose={closeFlow} onAccept={() => setFlowStage('prepare')} />}
+          {flowStage === 'prepare' && <PrepareScreen experience={selected} onBack={() => setFlowStage('promise')} onStart={() => setFlowStage('presence')} />}
+          {flowStage === 'presence' && <PresenceScreen experience={selected} onBack={() => setFlowStage('prepare')} onFinish={() => setFlowStage('remember')} />}
+          {flowStage === 'remember' && <RememberScreen experience={selected} onSkip={() => { setFlowStage(null); setSurface(origin); }} onSave={finishExperience} />}
+          {flowStage === 'profile' && <ProfileScreen onClose={closeFlow} />}
+        </View>
       </SafeAreaView>
     </View>
   );
 }
 
-function Atmosphere({ stage }: { stage: Stage }) {
-  const quiet = stage === 'presence' || stage === 'complete';
+function ScreenHeader({ eyebrow, title, subtitle, onProfile }: { eyebrow?: string; title: string; subtitle?: string; onProfile?: () => void }) {
   return (
-    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-      <View style={styles.deepField} />
-      <View style={[styles.glow, styles.glowGold, quiet && styles.glowQuiet]} />
-      <View style={[styles.glow, styles.glowGreen, quiet && styles.glowQuiet]} />
-      <View style={[styles.glow, styles.glowBlue, quiet && styles.glowQuiet]} />
-      <View style={styles.horizon} />
-      <View style={styles.grainLineOne} />
-      <View style={styles.grainLineTwo} />
+    <View style={styles.header}>
+      <View style={styles.headerCopy}>
+        {eyebrow && <Text style={styles.eyebrow}>{eyebrow}</Text>}
+        <Text style={styles.screenTitle}>{title}</Text>
+        {subtitle && <Text style={styles.screenSubtitle}>{subtitle}</Text>}
+      </View>
+      {onProfile && <Pressable accessibilityLabel="Open profiel" onPress={onProfile} style={styles.avatar}><Text style={styles.avatarText}>W</Text></Pressable>}
     </View>
   );
 }
 
-function Now({ experience, profileLabel, onAccept, onStart, onContext }: { experience: ExperienceContent; profileLabel: string; onAccept: () => void; onStart: () => void; onContext: () => void }) {
-  const [whyOpen, setWhyOpen] = useState(false);
+function NowScreen({ onOpen, onProfile, onDiscover }: { onOpen: (item: Experience, stage?: FlowStage) => void; onProfile: () => void; onDiscover: () => void }) {
   const [declined, setDeclined] = useState(false);
+  const [whyOpen, setWhyOpen] = useState(false);
+  const experience = byId('wadden-light');
   return (
-    <ScrollView contentContainerStyle={styles.now} showsVerticalScrollIndicator={false}>
-      <View style={styles.brandRow}>
-        <Text style={styles.brand}>MOMENTUM</Text>
-        <Pressable onPress={onContext} style={({ pressed }) => [styles.contextPill, pressed && styles.pressed]}>
-          <View style={styles.liveDot} /><Text style={styles.scenario}>LOKAAL MOMENT · WIJZIG</Text>
-        </Pressable>
-      </View>
-
-      {!declined ? <View style={styles.nowPromise}>
-        <View style={styles.nowVisual}>
-          <View style={styles.visualHalo} />
-          <View style={styles.visualFloor} />
-          <Text style={styles.nowVisualSymbol}>{experience.visualSymbol}</Text>
-          <View style={styles.visualCaption}>
-            <Text style={styles.visualCaptionTop}>{experience.visualLabel}</Text>
-            <Text style={styles.visualCaptionBottom}>{experience.visualDetail}</Text>
-          </View>
-        </View>
-        <Text style={styles.eyebrow}>EEN VOORSTEL VOOR NU</Text>
-        <Text style={styles.nowPromiseTitle}>{experience.title}</Text>
-        <Text style={styles.promiseBody}>{experience.body}</Text>
-        <View style={styles.nowFacts}>
-          <View><Text style={styles.factValue}>± 30 min</Text><Text style={styles.factLabel}>ervaring</Text></View>
-          <View><Text style={styles.factValue}>weinig</Text><Text style={styles.factLabel}>voorbereiding</Text></View>
-          <View><Text style={styles.factValue}>{profileLabel}</Text><Text style={styles.factLabel}>proefprofiel</Text></View>
-        </View>
-        <PrimaryButton label="Beleef dit" onPress={onAccept} />
-        <Pressable onPress={() => setWhyOpen((value) => !value)} style={({ pressed }) => [styles.whyRow, pressed && styles.pressed]}>
-          <Text style={styles.whyRowText}>Waarom dit nu past</Text><Text style={styles.whyRowArrow}>{whyOpen ? '⌃' : '⌄'}</Text>
-        </Pressable>
-        {whyOpen && (
-          <View style={styles.whyPanel}>
-            <Text style={styles.whyReason}>Bekend · er is in deze proefscène één uur beschikbaar</Text>
-            <Text style={styles.whyReason}>Gekozen · je lokale proefprofiel is {profileLabel.toLowerCase()}</Text>
-            <Text style={styles.whyReason}>Berekend · deze ervaring vraagt weinig voorbereiding</Text>
-            <Text style={styles.whyPrivacy}>Geen agenda, locatie, weer of gezondheidsdata gebruikt.</Text>
-          </View>
-        )}
-        <Pressable onPress={() => setDeclined(true)} style={({ pressed }) => [styles.declineAction, pressed && styles.pressed]}>
-          <Text style={styles.declineActionText}>Niet nu</Text>
-        </Pressable>
-      </View> : (
-        <View style={styles.declinedState}>
-          <Text style={styles.eyebrow}>MOMENTUM BLIJFT STIL</Text>
-          <Text style={styles.declinedTitle}>Prima. Dit moment hoeft niets te worden.</Text>
-          <Text style={styles.heroBody}>Deze afwijzing verandert je blijvende voorkeur niet.</Text>
-          <Pressable onPress={() => setDeclined(false)} style={({ pressed }) => [styles.restoreSuggestion, pressed && styles.pressed]}>
-            <Text style={styles.restoreSuggestionText}>Toon het voorstel opnieuw</Text>
-          </Pressable>
-        </View>
-      )}
-
-      <Pressable onPress={onStart} style={({ pressed }) => [styles.activeIntentCard, pressed && styles.pressed]}>
-        <View style={styles.activeIntentIcon}><Text style={styles.activeIntentIconText}>◷</Text></View>
-        <View style={styles.activeIntentCopy}>
-          <Text style={styles.activeIntentTitle}>Er is tijd ontstaan</Text>
-          <Text style={styles.activeIntentBody}>Vertel Momentum hoeveel ruimte je hebt</Text>
-        </View>
-        <Text style={styles.activeIntentArrow}>→</Text>
-      </Pressable>
-      <Text style={styles.quietNote}>Proefscène · geen agenda of live context gebruikt</Text>
-    </ScrollView>
-  );
-}
-
-function ContextLab({ profile, hasKettlebell, learningCount, resetNotice, onProfile, onEquipment, onReset, onDone }: { profile: ProfilePreset; hasKettlebell: boolean; learningCount: number; resetNotice: boolean; onProfile: (value: ProfilePreset) => void; onEquipment: (value: boolean) => void; onReset: () => void; onDone: () => void }) {
-  return (
-    <ScrollView contentContainerStyle={styles.contextLab} showsVerticalScrollIndicator={false}>
-      <View>
-        <Text style={styles.eyebrow}>LOKALE PROEFSCÈNE</Text>
-        <Text style={styles.promiseTitle}>Laat de beslissing reageren.</Text>
-        <Text style={styles.heroBody}>Dit zijn handmatige testwaarden. Momentum gebruikt hier geen echte agenda, locatie of profielgegevens.</Text>
-      </View>
-      <View style={styles.contextGroup}>
-        <Text style={styles.contextGroupLabel}>PROEFPROFIEL</Text>
-        {(Object.keys(profilePresets) as ProfilePreset[]).map((key) => (
-          <Pressable key={key} onPress={() => onProfile(key)} style={[styles.contextOption, profile === key && styles.choiceSelected]}>
-            <View style={styles.contextOptionCopy}>
-              <Text style={[styles.contextOptionTitle, profile === key && styles.choiceTextSelected]}>{profilePresets[key].label}</Text>
-              <Text style={styles.contextOptionBody}>{profilePresets[key].description}</Text>
+    <ScrollView contentContainerStyle={styles.screenScroll} showsVerticalScrollIndicator={false}>
+      <ScreenHeader eyebrow="GOEDEMORGEN · DOKKUM" title="Vandaag wacht er iets moois op je." subtitle="Eén voorstel voor dit moment." onProfile={onProfile} />
+      {!declined ? (
+        <View style={styles.heroCard}>
+          <ImageBackground source={{ uri: experience.image }} style={styles.heroImage} imageStyle={styles.heroImageStyle}>
+            <View style={styles.imageShade} />
+            <View style={styles.heroTop}><Pill label="NATURE MOMENT" accent={experience.accent} /><Text style={styles.heroTime}>VANAVOND</Text></View>
+            <View style={styles.heroBottom}>
+              <Text style={styles.heroTitle}>{experience.title}</Text>
+              <Text style={styles.heroPromise}>{experience.promise}</Text>
+              <View style={styles.heroFacts}>
+                <MiniFact value={`${experience.duration} min`} label="wandeling" />
+                <MiniFact value={experience.distance ?? 'dichtbij'} label="bereik" />
+                <MiniFact value={experience.effort} label="tempo" />
+              </View>
             </View>
-            <Text style={[styles.check, profile === key && styles.choiceTextSelected]}>{profile === key ? '●' : '○'}</Text>
-          </Pressable>
-        ))}
-      </View>
-      <View style={styles.contextGroup}>
-        <Text style={styles.contextGroupLabel}>BESCHIKBAAR OP WERK</Text>
-        <View style={styles.contextToggleRow}>
-          <Choice label="Kettlebell" selected={hasKettlebell} onPress={() => onEquipment(true)} />
-          <Choice label="Geen materiaal" selected={!hasKettlebell} onPress={() => onEquipment(false)} />
-        </View>
-      </View>
-      <View style={styles.learningNote}>
-        <Text style={styles.learningNoteTitle}>LOKAAL ONTHOUDEN · {learningCount} REFLECTIES</Text>
-        <Text style={styles.learningNoteBody}>Momentum bewaart op dit apparaat alleen je proefprofiel, materiaalkeuze en de verschuiving uit deze reflecties. Geen locatie, agenda of antwoorden.</Text>
-        <Pressable onPress={onReset} style={({ pressed }) => [styles.resetButton, pressed && styles.pressed]}>
-          <Text style={styles.resetButtonText}>Wis lokale leergegevens</Text>
-        </Pressable>
-        {resetNotice && <Text style={styles.resetNotice}>Gewist. De neutrale proefinstellingen zijn hersteld.</Text>}
-      </View>
-      <PrimaryButton label="Gebruik deze proefscène" onPress={onDone} />
-    </ScrollView>
-  );
-}
-
-function TimeChoice({ selected, onSelect, onContinue, onBack }: { selected: string; onSelect: (value: string) => void; onContinue: () => void; onBack: () => void }) {
-  return (
-    <Panel title="Hoeveel tijd kwam er vrij?" subtitle="We beschermen ook tijd om rustig terug te keren." onBack={onBack}>
-      <View style={styles.chipGrid}>
-        {times.map((time) => <Choice key={time} label={time} selected={selected === time} onPress={() => onSelect(time)} />)}
-      </View>
-      <PrimaryButton label="Verder" onPress={onContinue} />
-    </Panel>
-  );
-}
-
-function FeelingChoice({ selected, onSelect, onContinue, onBack }: { selected: Feeling; onSelect: (value: Feeling) => void; onContinue: () => void; onBack: () => void }) {
-  return (
-    <Panel title="Wat zou dit uur de moeite waard maken?" subtitle="Kies een gevoel, geen activiteit." onBack={onBack}>
-      <View style={styles.feelingList}>
-        {feelings.map((item) => (
-          <Pressable key={item.id} onPress={() => onSelect(item.id)} style={[styles.feeling, selected === item.id && styles.choiceSelected]}>
-            <Text style={[styles.feelingSymbol, selected === item.id && styles.choiceTextSelected]}>{item.symbol}</Text>
-            <Text style={[styles.feelingText, selected === item.id && styles.choiceTextSelected]}>{item.label}</Text>
-            <Text style={[styles.check, selected === item.id && styles.choiceTextSelected]}>{selected === item.id ? '●' : '○'}</Text>
-          </Pressable>
-        ))}
-      </View>
-      <PrimaryButton label="Laat mijn voorstel zien" onPress={onContinue} />
-    </Panel>
-  );
-}
-
-function ClarifyChoice({ first, second, onSelect, onBack }: { first: CoreFeeling; second: CoreFeeling; onSelect: (value: CoreFeeling) => void; onBack: () => void }) {
-  return (
-    <Panel title="Twee richtingen passen bijna even goed." subtitle="Eén kleine keuze is eerlijker dan doen alsof Momentum het zeker weet." onBack={onBack}>
-      <Text style={styles.clarifyQuestion}>Wat trekt je nu nét iets meer?</Text>
-      {[first, second].map((feeling) => (
-        <Pressable key={feeling} onPress={() => onSelect(feeling)} style={styles.clarifyOption}>
-          <View style={styles.contextOptionCopy}>
-            <Text style={styles.contextOptionTitle}>{clarificationLabels[feeling].title}</Text>
-            <Text style={styles.contextOptionBody}>{clarificationLabels[feeling].body}</Text>
+          </ImageBackground>
+          <View style={styles.heroActionArea}>
+            <Text style={styles.wonderText}>{experience.wonder}</Text>
+            <PrimaryButton label={experience.cta} onPress={() => onOpen(experience)} />
+            <Pressable onPress={() => setWhyOpen((value) => !value)} style={styles.whyButton}>
+              <Text style={styles.whyButtonText}>Waarom dit nu past</Text><Text style={styles.whyChevron}>{whyOpen ? '⌃' : '⌄'}</Text>
+            </Pressable>
+            {whyOpen && <View style={styles.whyPanel}>{experience.why.map((reason) => <Text key={reason} style={styles.whyReason}>• {reason}</Text>)}<Text style={styles.proofNote}>Proefcontext · geen live agenda of gezondheidsdata gebruikt</Text></View>}
+            <Pressable onPress={() => setDeclined(true)} style={styles.quietAction}><Text style={styles.quietActionText}>Niet nu</Text></Pressable>
           </View>
-          <Text style={styles.clarifyArrow}>›</Text>
-        </Pressable>
-      ))}
-      <Text style={styles.clarifyPrivacy}>Alleen jouw antwoord op dit moment wordt gebruikt.</Text>
-    </Panel>
-  );
-}
-
-function PromiseView({ experience, decision, contextSummary, time, duration, buffer, onAccept, onRedirect, onClose }: { experience: ExperienceContent; decision: DecisionResult; contextSummary: string; time: string; duration: number; buffer: number; onAccept: () => void; onRedirect: () => void; onClose: () => void }) {
-  return (
-    <ScrollView contentContainerStyle={styles.promise} showsVerticalScrollIndicator={false}>
-      <TopAction label="Sluiten" onPress={onClose} />
-      <ExperienceVisual experience={experience} />
-      <Text style={styles.eyebrow}>{experience.eyebrow}</Text>
-      <Text style={styles.promiseTitle}>{experience.title}</Text>
-      <Text style={styles.promiseBody}>{experience.body}</Text>
-      <View style={styles.factRow}>
-        <Fact value={`${duration} min`} label="ervaring" />
-        <Fact value={time} label="beschikbaar" />
-        <Fact value={`${buffer} min`} label="buffer" />
-      </View>
-      <PrimaryButton label={experience.action} onPress={onAccept} />
-      <SecondaryButton label="Iets anders past beter" onPress={onRedirect} />
-      <View style={styles.decisionReceipt}>
-        <Text style={styles.why}>Waarom dit voorstel</Text>
-        <Text style={styles.decisionReason}>{decision.selected.reasons.join(' · ')}</Text>
-        <Text style={styles.decisionMeta}>{contextSummary}</Text>
-        <Text style={styles.decisionMeta}>{decision.considered} kandidaten bekeken · {decision.rejected} niet haalbaar · vertrouwen {decision.confidence === 'high' ? 'hoog' : 'redelijk'}</Text>
-      </View>
-    </ScrollView>
-  );
-}
-
-function ExperienceVisual({ experience }: { experience: ExperienceContent }) {
-  const isStrength = experience === experienceByFeeling.challenge;
-  return (
-    <View style={styles.promiseVisual}>
-      <View style={styles.visualHalo} />
-      <View style={styles.visualFloor} />
-      {isStrength ? (
-        <View style={styles.kettlebellOuter}>
-          <View style={styles.kettlebellHandle} />
-          <View style={styles.kettlebellBody}><View style={styles.kettlebellLight} /></View>
         </View>
       ) : (
-        <View style={styles.experienceGlyph}><Text style={styles.experienceGlyphText}>{experience.visualSymbol}</Text></View>
+        <View style={styles.silentCard}>
+          <Text style={styles.eyebrow}>MOMENTUM BLIJFT STIL</Text>
+          <Text style={styles.silentTitle}>Prima. Dit moment hoeft niets te worden.</Text>
+          <Text style={styles.screenSubtitle}>Je keuze verandert je blijvende voorkeuren niet.</Text>
+          <SecondaryButton label="Toon het voorstel opnieuw" onPress={() => setDeclined(false)} />
+        </View>
       )}
-      <View style={styles.visualCaption}>
-        <Text style={styles.visualCaptionTop}>{experience.visualLabel}</Text>
-        <Text style={styles.visualCaptionBottom}>{experience.visualDetail}</Text>
-      </View>
-    </View>
+      <Pressable onPress={onDiscover} style={styles.spaceCard}>
+        <View style={styles.spaceIcon}><Text style={styles.spaceIconText}>✦</Text></View>
+        <View style={styles.flex}><Text style={styles.spaceTitle}>Er is ruimte ontstaan</Text><Text style={styles.spaceBody}>Vertel wat er veranderde of waar je zin in hebt</Text></View>
+        <Text style={styles.arrow}>→</Text>
+      </Pressable>
+    </ScrollView>
   );
 }
 
-function Prepare({ experience, onStart, onBack }: { experience: ExperienceContent; onStart: () => void; onBack: () => void }) {
+function TodayScreen({ onOpen }: { onOpen: (item: Experience) => void }) {
   return (
-    <View style={styles.prepare}>
-      <TopAction label="Terug" onPress={onBack} />
-      <View>
-        <Text style={styles.eyebrow}>VOORBEREIDEN</Text>
-        <Text style={styles.promiseTitle}>{experience.prepareTitle}</Text>
-        {experience.prepareItems.map((item) => (
-          <View style={styles.checkRow} key={item}><Text style={styles.checkDot}>✓</Text><Text style={styles.checkLabel}>{item}</Text></View>
-        ))}
+    <ScrollView contentContainerStyle={styles.screenScroll} showsVerticalScrollIndicator={false}>
+      <ScreenHeader eyebrow="ZONDAG · 12 JULI" title="Ruimte in je dag." subtitle="Niet om alles te vullen. Alleen om kansen te zien." />
+      <View style={styles.daySummary}><Text style={styles.daySummaryTitle}>Vier mogelijke openingen</Text><Text style={styles.daySummaryBody}>Dit is een lokale proefdag. Jij bepaalt welke tijd echt van jou is.</Text></View>
+      <View style={styles.timeline}>
+        {todayMoments.map((moment, index) => {
+          const item = byId(moment.experienceId);
+          return (
+            <Pressable key={item.id} onPress={() => onOpen(item)} style={styles.timelineRow}>
+              <View style={styles.timelineRail}><View style={[styles.timelineDot, { backgroundColor: item.accent }]} />{index < todayMoments.length - 1 && <View style={styles.timelineLine} />}</View>
+              <View style={styles.timelineContent}>
+                <Text style={styles.timelineTime}>{moment.label} · {moment.time}</Text>
+                <ImageBackground source={{ uri: item.image }} style={styles.dayCardImage} imageStyle={styles.dayCardImageStyle}>
+                  <View style={styles.imageShade} />
+                  <View style={styles.dayCardCopy}>
+                    <Text style={styles.dayCardTitle}>{item.title}</Text>
+                    <Text style={styles.dayCardPromise}>{item.promise}</Text>
+                    <Text style={styles.dayCardMeta}>{item.duration} min · {item.effort}  →</Text>
+                  </View>
+                </ImageBackground>
+              </View>
+            </Pressable>
+          );
+        })}
       </View>
-      <View>
-        <PrimaryButton label="Ik ben klaar" onPress={onStart} />
-        <Text style={styles.quietNote}>Hierna wordt Momentum stil</Text>
-      </View>
-    </View>
+      <View style={styles.quietDay}><Text style={styles.quietDayTitle}>Een volle dag is ook compleet.</Text><Text style={styles.quietDayBody}>Momentum voegt niets toe wanneer er geen echte ruimte is.</Text></View>
+    </ScrollView>
   );
 }
 
-function LocationAssist({ onBack, onContinue }: { onBack: () => void; onContinue: () => void }) {
-  const [status, setStatus] = useState<'idle' | 'loading' | 'denied' | 'error' | 'ready'>('idle');
-  const [approximate, setApproximate] = useState<{ latitude: number; longitude: number } | null>(null);
-
-  const requestApproximateLocation = async () => {
-    if (status === 'loading') return;
-    setStatus('loading');
-    try {
-      const permission = await Location.requestForegroundPermissionsAsync();
-      if (!permission.granted) {
-        setStatus('denied');
-        return;
-      }
-      const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Low });
-      setApproximate({
-        latitude: Math.round(position.coords.latitude * 100) / 100,
-        longitude: Math.round(position.coords.longitude * 100) / 100,
-      });
-      setStatus('ready');
-    } catch {
-      setStatus('error');
-    }
-  };
-
-  const openNearbyGreenSpace = async () => {
-    if (!approximate) return;
-    const query = encodeURIComponent('park or green space');
-    const mapUrl = `http://maps.apple.com/?q=${query}&near=${approximate.latitude},${approximate.longitude}`;
-    await Linking.openURL(mapUrl);
-    onContinue();
-  };
-
+function DiscoverScreen({ onOpen }: { onOpen: (item: Experience) => void }) {
+  const [minutes, setMinutes] = useState(60);
+  const [input, setInput] = useState('');
+  const [mode, setMode] = useState<'idle' | 'result'>('idle');
+  const result = useMemo(() => selectForIntent(input, minutes), [input, minutes]);
+  const surprise = () => { setInput(''); setMode('result'); };
   return (
-    <View style={styles.locationAssist}>
-      <TopAction label="Terug" onPress={onBack} />
-      <View>
-        <Text style={styles.eyebrow}>ALLEEN ALS HET HELPT</Text>
-        <Text style={styles.promiseTitle}>Zoek iets groens dichtbij.</Text>
-        <Text style={styles.heroBody}>Deel eenmalig je globale locatie om Apple Maps rond jouw omgeving te laten zoeken. Momentum bewaart de coördinaten niet.</Text>
-        <View style={styles.permissionCard}>
-          <Text style={styles.permissionCardTitle}>Voorgrond · eenmalig</Text>
-          <Text style={styles.permissionCardBody}>Geen achtergrondtracking, geen routegeschiedenis en geen toegang wanneer je Momentum niet gebruikt.</Text>
+    <ScrollView contentContainerStyle={styles.screenScroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+      <ScreenHeader eyebrow="JIJ GEEFT RICHTING" title="Waar heb je ruimte voor?" subtitle="Zeg het in je eigen woorden. Momentum maakt er geen categorie van." />
+      {mode === 'idle' ? (
+        <View style={styles.intentPanel}>
+          <Text style={styles.fieldLabel}>HOEVEEL TIJD HEB JE?</Text>
+          <View style={styles.chipRow}>{timeOptions.map((option) => <ChoiceChip key={option} label={option < 60 ? `${option} min` : option === 60 ? '1 uur' : '2 uur'} selected={minutes === option} onPress={() => setMinutes(option)} />)}</View>
+          <Text style={styles.fieldLabel}>WAT HEB JE IN GEDACHTEN?</Text>
+          <TextInput
+            accessibilityLabel="Beschrijf waar je ruimte voor hebt"
+            value={input}
+            onChangeText={setInput}
+            placeholder="Bijv. iets met mijn kind, buiten fietsen, koken met wat ik heb…"
+            placeholderTextColor="rgba(174,180,174,0.52)"
+            multiline
+            style={styles.intentInput}
+          />
+          <PrimaryButton label={input.trim() ? 'Vind wat hierbij past' : 'Help me kiezen'} onPress={() => setMode('result')} />
+          <View style={styles.orRow}><View style={styles.orLine} /><Text style={styles.orText}>OF</Text><View style={styles.orLine} /></View>
+          <SecondaryButton label="Verras me binnen deze tijd" onPress={surprise} />
+          <Text style={styles.intentPrivacy}>Voor deze proef wordt je zin alleen lokaal geïnterpreteerd. Er wordt geen chatgeschiedenis gemaakt.</Text>
         </View>
-        {status === 'denied' && <Text style={styles.permissionStatus}>Locatie is niet gedeeld. De ervaring blijft gewoon bruikbaar.</Text>}
-        {status === 'error' && <Text style={styles.permissionStatus}>Locatie ophalen lukte niet. Je kunt zonder kaart verder.</Text>}
-        {status === 'ready' && approximate && <Text style={styles.permissionStatus}>Globale omgeving klaar · afgerond op ongeveer één kilometer.</Text>}
-      </View>
-      <View>
-        {status === 'ready' ? (
-          <PrimaryButton label={Platform.OS === 'ios' ? 'Open Apple Maps' : 'Open Apple Maps op het web'} onPress={openNearbyGreenSpace} />
-        ) : (
-          <PrimaryButton label={status === 'loading' ? 'Globale locatie ophalen…' : 'Gebruik globale locatie'} onPress={requestApproximateLocation} />
-        )}
-        <SecondaryButton label="Verder zonder locatie" onPress={onContinue} />
-      </View>
-    </View>
-  );
-}
-
-function Presence({ experience, seconds, paused, onPause, onStop }: { experience: ExperienceContent; seconds: number; paused: boolean; onPause: () => void; onStop: () => void }) {
-  if (experience.presenceMode === 'quiet') {
-    return (
-      <View style={styles.presence}>
-        <Text style={styles.presenceLabel}>{experience.presenceLabel}</Text>
-        <Text style={[styles.exercise, styles.quietPresenceTitle]}>{experience.presenceTitle}</Text>
-        <Text style={styles.quietPresenceCue}>{experience.presenceCue}</Text>
-        <View style={styles.quietOrb}><Text style={styles.quietOrbSymbol}>{experience.visualSymbol}</Text></View>
-        <PrimaryButton label="Ik ben terug" onPress={onStop} />
-        <Text style={styles.presenceFooter}>Momentum blijft op de achtergrond.</Text>
-      </View>
-    );
-  }
-  return (
-    <View style={styles.presence}>
-      <Text style={styles.presenceLabel}>{experience.presenceLabel}</Text>
-      <Text style={styles.exercise}>{experience.presenceTitle}</Text>
-      <View style={styles.timerRing}>
-        <Text style={styles.timer}>{`00:${String(seconds).padStart(2, '0')}`}</Text>
-        <Text style={styles.timerCaption}>{paused ? 'gepauzeerd' : experience.presenceCue}</Text>
-      </View>
-      <Pressable onPress={onPause} style={styles.pause}><Text style={styles.pauseText}>{paused ? '▶' : 'Ⅱ'}</Text></Pressable>
-      <Pressable onPress={onStop}><Text style={styles.stop}>Stop de ervaring</Text></Pressable>
-      <Text style={styles.presenceFooter}>Momentum wordt stil.</Text>
-    </View>
-  );
-}
-
-function Complete({ experience, onDone }: { experience: ExperienceContent; onDone: (answer: ReflectionAnswer | null) => void }) {
-  const [answer, setAnswer] = useState<ReflectionAnswer | null>(null);
-  return (
-    <View style={styles.complete}>
-      <Text style={styles.completeMark}>✓</Text>
-      <Text style={styles.promiseTitle}>Klaar.</Text>
-      <Text style={styles.heroBody}>{experience.completion}</Text>
-      <View style={styles.reflection}>
-        <Text style={styles.reflectionTitle}>Was dit een goede besteding van je uur?</Text>
-        <View style={styles.reflectionRow}>
-          {(['Nee', 'Een beetje', 'Ja'] as ReflectionAnswer[]).map((item) => <Choice key={item} label={item} selected={answer === item} onPress={() => setAnswer(item)} />)}
+      ) : (
+        <View>
+          <View style={styles.interpretation}><Text style={styles.interpretationLabel}>ZO HEB IK JE MOMENT BEGREPEN</Text><Text style={styles.interpretationText}>{result.interpretedAs} · {minutes} minuten beschikbaar</Text></View>
+          <Text style={styles.sectionLabel}>MIJN BESTE VOORSTEL</Text>
+          <ExperienceTile experience={result.primary} large onPress={() => onOpen(result.primary)} />
+          {result.alternative && <><Text style={styles.sectionLabel}>EEN ECHT ANDERE RICHTING</Text><ExperienceTile experience={result.alternative} onPress={() => onOpen(result.alternative!)} /></>}
+          <SecondaryButton label="Pas mijn woorden aan" onPress={() => setMode('idle')} />
+          <Text style={styles.finiteNote}>Momentum toont bewust geen eindeloze lijst.</Text>
         </View>
-        <Text style={styles.reflectionPrivacy}>Deze keuze past alleen je lokale proefprofiel op dit apparaat aan.</Text>
-      </View>
-      <PrimaryButton label={answer ? 'Afronden' : 'Sla over'} onPress={() => onDone(answer)} />
-    </View>
+      )}
+    </ScrollView>
   );
 }
 
-function Panel({ title, subtitle, onBack, children }: React.PropsWithChildren<{ title: string; subtitle: string; onBack: () => void }>) {
+function LifeBookScreen({ memories, onOpen }: { memories: Memory[]; onOpen: (item: Experience) => void }) {
   return (
-    <View style={styles.panelWrap}>
-      <TopAction label="Terug" onPress={onBack} />
-      <View style={styles.panel}>
-        <Text style={styles.panelTitle}>{title}</Text>
-        <Text style={styles.panelSubtitle}>{subtitle}</Text>
-        {children}
+    <ScrollView contentContainerStyle={styles.screenScroll} showsVerticalScrollIndicator={false}>
+      <ScreenHeader eyebrow="JOUW ERVARINGEN" title="Leefboek" subtitle="Niet wat je volhield, maar wat de moeite waard was." />
+      <View style={styles.lifeSummary}><Text style={styles.lifeSummaryBig}>{memories.length}</Text><View><Text style={styles.lifeSummaryTitle}>bewaarde momenten</Text><Text style={styles.lifeSummaryBody}>Lokaal op dit apparaat in deze proef.</Text></View></View>
+      <Text style={styles.sectionLabel}>JULI</Text>
+      <View style={styles.memoryGrid}>
+        {memories.map((memory) => {
+          const experience = experiences.find((item) => item.title === memory.title) ?? byId('wadden-light');
+          return <Pressable key={memory.id} onPress={() => onOpen(experience)} style={styles.memoryCard}><ImageBackground source={{ uri: memory.image }} style={styles.memoryImage} imageStyle={styles.memoryImageStyle}><View style={styles.imageShade} /><View style={styles.memoryCopy}><Text style={styles.memoryDate}>{memory.date}</Text><Text style={styles.memoryTitle}>{memory.title}</Text><Text style={styles.memoryNote}>{memory.note}</Text></View></ImageBackground></Pressable>;
+        })}
       </View>
+      <View style={styles.learningCard}><Text style={styles.learningTitle}>Een voorzichtig patroon</Text><Text style={styles.learningBody}>Momenten met buitenlucht en een helder einde lijken vaak de moeite waard. Jij kunt dit later bekijken, corrigeren of verwijderen.</Text></View>
+    </ScrollView>
+  );
+}
+
+function PromiseScreen({ experience, onClose, onAccept }: { experience: Experience; onClose: () => void; onAccept: () => void }) {
+  const [whyOpen, setWhyOpen] = useState(false);
+  return (
+    <ScrollView contentContainerStyle={styles.flowScroll} showsVerticalScrollIndicator={false}>
+      <BackButton label="Sluiten" onPress={onClose} />
+      <ImageBackground source={{ uri: experience.image }} style={styles.detailHero} imageStyle={styles.detailHeroImage}><View style={styles.imageShade} /><View style={styles.detailHeroCopy}><Pill label={experience.kind.toUpperCase()} accent={experience.accent} /><Text style={styles.detailTitle}>{experience.title}</Text><Text style={styles.detailPromise}>{experience.promise}</Text></View></ImageBackground>
+      <Text style={styles.wonderHeadline}>Wat je kunt verwachten</Text>
+      <Text style={styles.wonderLarge}>{experience.wonder}</Text>
+      <View style={styles.factStrip}><MiniFact value={`${experience.duration} min`} label="totaal" /><MiniFact value={experience.effort} label="inspanning" /><MiniFact value={experience.timeWindow ?? 'nu mogelijk'} label="moment" /></View>
+      <PrimaryButton label={experience.cta} onPress={onAccept} />
+      <Pressable onPress={() => setWhyOpen((value) => !value)} style={styles.whyButton}><Text style={styles.whyButtonText}>Waarom deze ervaring?</Text><Text style={styles.whyChevron}>{whyOpen ? '⌃' : '⌄'}</Text></Pressable>
+      {whyOpen && <View style={styles.whyPanel}>{experience.why.map((reason) => <Text key={reason} style={styles.whyReason}>• {reason}</Text>)}</View>}
+    </ScrollView>
+  );
+}
+
+function PrepareScreen({ experience, onBack, onStart }: { experience: Experience; onBack: () => void; onStart: () => void }) {
+  return (
+    <ScrollView contentContainerStyle={styles.flowScroll} showsVerticalScrollIndicator={false}>
+      <BackButton label="Terug" onPress={onBack} />
+      <Text style={styles.eyebrow}>PREPARE</Text><Text style={styles.flowTitle}>{experience.prepareTitle}</Text><Text style={styles.screenSubtitle}>Alles wat nodig is. Niets dat je nog laat zoeken.</Text>
+      <View style={styles.prepareCard}>{experience.prepare.map((item, index) => <View key={item} style={styles.prepareRow}><View style={[styles.stepNumber, { borderColor: experience.accent }]}><Text style={styles.stepNumberText}>{index + 1}</Text></View><Text style={styles.prepareText}>{item}</Text></View>)}</View>
+      <View style={styles.commitmentCard}><Text style={styles.commitmentLabel}>TOTALE VERPLICHTING</Text><Text style={styles.commitmentValue}>{experience.duration} minuten · {experience.effort.toLowerCase()}</Text>{experience.distance && <Text style={styles.commitmentBody}>{experience.distance} is meegenomen voordat je begint.</Text>}</View>
+      <PrimaryButton label="Ik ga nu" onPress={onStart} />
+    </ScrollView>
+  );
+}
+
+function PresenceScreen({ experience, onBack, onFinish }: { experience: Experience; onBack: () => void; onFinish: () => void }) {
+  const openHandoff = async () => {
+    const url = Platform.OS === 'ios' ? `maps://?q=${encodeURIComponent(experience.title)}` : `https://maps.apple.com/?q=${encodeURIComponent(experience.title)}`;
+    await Linking.openURL(url).catch(() => undefined);
+  };
+  return (
+    <View style={styles.presenceScreen}>
+      <BackButton label="Voorbereiding" onPress={onBack} />
+      <View style={styles.presenceCenter}>
+        <Text style={styles.eyebrow}>PRESENCE</Text><Text style={styles.presenceTitle}>{experience.presenceTitle}</Text><Text style={styles.presenceCue}>{experience.presenceCue}</Text>
+        <View style={[styles.presenceRing, { borderColor: experience.accent }]}><Text style={styles.presenceMinutes}>{experience.duration}</Text><Text style={styles.presenceUnit}>MINUTEN</Text></View>
+        {experience.presenceMode === 'handoff' && <SecondaryButton label="Open route in Kaarten" onPress={openHandoff} />}
+      </View>
+      <View><PrimaryButton label="Ik ben terug" onPress={onFinish} /><Text style={styles.presenceFooter}>Geniet. Momentum hoeft nu niets meer.</Text></View>
     </View>
   );
 }
 
-function Choice({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
-  return <Pressable onPress={onPress} style={[styles.choice, selected && styles.choiceSelected]}><Text style={[styles.choiceText, selected && styles.choiceTextSelected]}>{label}</Text></Pressable>;
+function RememberScreen({ experience, onSkip, onSave }: { experience: Experience; onSkip: () => void; onSave: (note: string) => void }) {
+  const [note, setNote] = useState('');
+  return (
+    <ScrollView contentContainerStyle={styles.flowScroll} keyboardShouldPersistTaps="handled">
+      <Text style={styles.eyebrow}>MEMORY</Text><Text style={styles.flowTitle}>Wat blijft er over?</Text><Text style={styles.screenSubtitle}>{experience.memoryPrompt}</Text>
+      <ImageBackground source={{ uri: experience.image }} style={styles.memoryPreview} imageStyle={styles.memoryImageStyle}><View style={styles.imageShade} /><Text style={styles.memoryPreviewTitle}>{experience.title}</Text></ImageBackground>
+      <TextInput value={note} onChangeText={setNote} placeholder="Eén zin is genoeg…" placeholderTextColor="rgba(174,180,174,0.52)" multiline style={styles.memoryInput} />
+      <PrimaryButton label="Bewaar in Leefboek" onPress={() => onSave(note)} />
+      <SecondaryButton label="Afronden zonder bewaren" onPress={onSkip} />
+    </ScrollView>
+  );
 }
 
-function PrimaryButton({ label, onPress }: { label: string; onPress: () => void }) {
-  return <Pressable onPress={onPress} style={({ pressed }) => [styles.primary, pressed && styles.pressed]}><Text style={styles.primaryText}>{label}</Text></Pressable>;
+function ProfileScreen({ onClose }: { onClose: () => void }) {
+  return <ScrollView contentContainerStyle={styles.flowScroll}><BackButton label="Sluiten" onPress={onClose} /><Text style={styles.eyebrow}>PROEFCONTEXT</Text><Text style={styles.flowTitle}>Jij houdt de regie.</Text><Text style={styles.screenSubtitle}>De huidige app gebruikt lokale voorbeeldcontext. Echte permissies worden pas gevraagd wanneer ze direct iets opleveren.</Text><View style={styles.profileCard}><ProfileRow label="Profiel" value="Ontdekker" /><ProfileRow label="Materiaal" value="Kettlebell beschikbaar" /><ProfileRow label="Locatie" value="Niet continu gedeeld" /><ProfileRow label="Agenda" value="Niet gekoppeld" /><ProfileRow label="Gezondheid" value="Niet gekoppeld" /></View><View style={styles.learningCard}><Text style={styles.learningTitle}>Wat Momentum later mag leren</Text><Text style={styles.learningBody}>Voorkeuren worden zichtbaar, corrigeerbaar en verwijderbaar. Een enkele afwijzing verandert nooit wie Momentum denkt dat je bent.</Text></View></ScrollView>;
 }
 
-function SecondaryButton({ label, onPress }: { label: string; onPress: () => void }) {
-  return <Pressable onPress={onPress} style={({ pressed }) => [styles.secondary, pressed && styles.pressed]}><Text style={styles.secondaryText}>{label}</Text></Pressable>;
+function BottomNav({ surface, onChange }: { surface: Surface; onChange: (surface: Surface) => void }) {
+  const items: Array<{ id: Surface; label: string; icon: string }> = [
+    { id: 'now', label: 'Nu', icon: '◉' }, { id: 'today', label: 'Vandaag', icon: '☼' },
+    { id: 'discover', label: 'Ontdekken', icon: '✦' }, { id: 'lifebook', label: 'Leefboek', icon: '▣' },
+  ];
+  return <View style={styles.bottomNav}>{items.map((item) => <Pressable key={item.id} onPress={() => onChange(item.id)} style={styles.navItem}><Text style={[styles.navIcon, surface === item.id && styles.navActive]}>{item.icon}</Text><Text style={[styles.navLabel, surface === item.id && styles.navActive]}>{item.label}</Text></Pressable>)}</View>;
 }
 
-function TopAction({ label, onPress }: { label: string; onPress: () => void }) {
-  return <Pressable onPress={onPress} hitSlop={12} style={styles.topAction}><Text style={styles.topActionText}>‹  {label}</Text></Pressable>;
+function ExperienceTile({ experience, large, onPress }: { experience: Experience; large?: boolean; onPress: () => void }) {
+  return <Pressable onPress={onPress} style={styles.experienceTile}><ImageBackground source={{ uri: experience.image }} style={[styles.tileImage, large && styles.tileImageLarge]} imageStyle={styles.tileImageStyle}><View style={styles.imageShade} /><View style={styles.tileCopy}><Pill label={experience.kind.toUpperCase()} accent={experience.accent} /><Text style={styles.tileTitle}>{experience.title}</Text><Text style={styles.tilePromise}>{experience.promise}</Text><Text style={styles.tileMeta}>{experience.duration} min · {experience.effort}  →</Text></View></ImageBackground></Pressable>;
 }
 
-function Fact({ value, label }: { value: string; label: string }) {
-  return <View style={styles.fact}><Text style={styles.factValue}>{value}</Text><Text style={styles.factLabel}>{label}</Text></View>;
-}
-
-const colors = { ink: '#071017', panel: '#0E1A21', bone: '#F3EBDD', muted: '#AAB3AE', gold: '#D8AA68', green: '#91A96D', line: 'rgba(243,235,221,0.14)' };
+function Pill({ label, accent }: { label: string; accent: string }) { return <View style={[styles.pill, { borderColor: accent }]}><View style={[styles.pillDot, { backgroundColor: accent }]} /><Text style={[styles.pillText, { color: accent }]}>{label}</Text></View>; }
+function MiniFact({ value, label }: { value: string; label: string }) { return <View style={styles.miniFact}><Text numberOfLines={1} style={styles.miniFactValue}>{value}</Text><Text style={styles.miniFactLabel}>{label}</Text></View>; }
+function ChoiceChip({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) { return <Pressable onPress={onPress} style={[styles.choiceChip, selected && styles.choiceChipSelected]}><Text style={[styles.choiceChipText, selected && styles.choiceChipTextSelected]}>{label}</Text></Pressable>; }
+function PrimaryButton({ label, onPress }: { label: string; onPress: () => void }) { return <Pressable onPress={onPress} style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}><Text style={styles.primaryButtonText}>{label}</Text><Text style={styles.primaryArrow}>→</Text></Pressable>; }
+function SecondaryButton({ label, onPress }: { label: string; onPress: () => void }) { return <Pressable onPress={onPress} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}><Text style={styles.secondaryButtonText}>{label}</Text></Pressable>; }
+function BackButton({ label, onPress }: { label: string; onPress: () => void }) { return <Pressable onPress={onPress} style={styles.backButton}><Text style={styles.backButtonText}>‹  {label}</Text></Pressable>; }
+function ProfileRow({ label, value }: { label: string; value: string }) { return <View style={styles.profileRow}><Text style={styles.profileLabel}>{label}</Text><Text style={styles.profileValue}>{value}</Text></View>; }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.ink }, safe: { flex: 1, alignItems: 'center' }, flex: { flex: 1 }, appFrame: { flex: 1, width: '100%', maxWidth: 520 },
-  deepField: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: '#071017' }, glow: { position: 'absolute', borderRadius: 999, opacity: 0.3 }, glowGold: { width: 460, height: 460, backgroundColor: '#875A2A', top: -250, right: -220 }, glowGreen: { width: 390, height: 390, backgroundColor: '#2D4937', bottom: -210, left: -190 }, glowBlue: { width: 430, height: 430, backgroundColor: '#142D3A', top: '28%', left: -330, opacity: 0.36 }, glowQuiet: { opacity: 0.065 }, horizon: { position: 'absolute', top: '44%', left: 26, right: 26, height: 1, backgroundColor: 'rgba(216,170,104,0.14)' }, grainLineOne: { position: 'absolute', width: 1, top: 0, bottom: 0, left: '23%', backgroundColor: 'rgba(255,255,255,0.018)' }, grainLineTwo: { position: 'absolute', width: 1, top: 0, bottom: 0, right: '18%', backgroundColor: 'rgba(255,255,255,0.012)' },
-  now: { flexGrow: 1, padding: 22, paddingTop: 18, paddingBottom: 34 }, brandRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }, brand: { color: colors.bone, fontWeight: '700', fontSize: 12, letterSpacing: 3 }, contextPill: { minHeight: 28, borderRadius: 99, borderWidth: 1, borderColor: colors.line, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(7,16,23,0.42)' }, liveDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: colors.green }, scenario: { color: colors.muted, fontSize: 8, letterSpacing: 1.2 }, nowCopy: { marginBottom: 42 }, eyebrow: { color: colors.gold, fontSize: 11, letterSpacing: 2.2, fontWeight: '700', marginBottom: 12 }, heroTitle: { color: colors.bone, fontSize: 50, lineHeight: 53, letterSpacing: -1.8, fontWeight: '300', maxWidth: 380 }, heroBody: { color: colors.muted, fontSize: 17, lineHeight: 25, marginTop: 18, maxWidth: 370 }, contextLine: { flexDirection: 'row', alignItems: 'center', marginTop: 26 }, contextLineText: { color: 'rgba(243,235,221,0.56)', fontSize: 11, letterSpacing: 0.4 }, contextDivider: { width: 22, height: 1, marginHorizontal: 10, backgroundColor: 'rgba(216,170,104,0.36)' }, quietNote: { color: colors.muted, fontSize: 10, textAlign: 'center', marginTop: 12 },
-  nowPromise: { marginTop: 24 }, nowVisual: { height: 214, borderRadius: 28, backgroundColor: '#101A1D', borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', marginBottom: 22 }, nowVisualSymbol: { color: colors.bone, fontSize: 64, fontWeight: '200' }, nowPromiseTitle: { color: colors.bone, fontSize: 38, lineHeight: 43, letterSpacing: -1.15, fontWeight: '300' }, nowFacts: { flexDirection: 'row', justifyContent: 'space-between', gap: 14, borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.line, marginVertical: 20, paddingVertical: 14 }, whyRow: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 4 }, whyRowText: { color: colors.muted, fontSize: 13 }, whyRowArrow: { color: colors.gold, fontSize: 20 }, activeIntentCard: { minHeight: 92, borderRadius: 24, borderWidth: 1, borderColor: 'rgba(216,170,104,0.27)', backgroundColor: 'rgba(7,16,23,0.58)', flexDirection: 'row', alignItems: 'center', padding: 16, marginTop: 12 }, activeIntentIcon: { width: 45, height: 45, borderRadius: 23, borderWidth: 1, borderColor: colors.gold, alignItems: 'center', justifyContent: 'center' }, activeIntentIconText: { color: colors.gold, fontSize: 21 }, activeIntentCopy: { flex: 1, marginHorizontal: 14 }, activeIntentTitle: { color: colors.bone, fontSize: 18, fontWeight: '500' }, activeIntentBody: { color: colors.muted, fontSize: 11, lineHeight: 16, marginTop: 4 }, activeIntentArrow: { color: colors.gold, fontSize: 28 },
-  whyPanel: { borderRadius: 18, borderWidth: 1, borderColor: colors.line, backgroundColor: 'rgba(145,169,109,0.05)', padding: 15, gap: 8 }, whyReason: { color: colors.bone, fontSize: 11, lineHeight: 17 }, whyPrivacy: { color: 'rgba(170,179,174,0.62)', fontSize: 9, lineHeight: 14, marginTop: 3 }, declineAction: { alignSelf: 'center', minHeight: 40, justifyContent: 'center', paddingHorizontal: 18 }, declineActionText: { color: colors.muted, fontSize: 12 }, declinedState: { minHeight: 420, justifyContent: 'center', paddingVertical: 42 }, declinedTitle: { color: colors.bone, fontSize: 38, lineHeight: 44, letterSpacing: -1.1, fontWeight: '300', maxWidth: 390 }, restoreSuggestion: { alignSelf: 'flex-start', minHeight: 42, justifyContent: 'center', marginTop: 22, borderBottomWidth: 1, borderBottomColor: 'rgba(216,170,104,0.48)' }, restoreSuggestionText: { color: colors.gold, fontSize: 12, fontWeight: '700' },
-  contextLab: { flexGrow: 1, padding: 24, paddingBottom: 40, gap: 28 }, contextGroup: { gap: 9 }, contextGroupLabel: { color: colors.gold, fontSize: 9, letterSpacing: 1.5, fontWeight: '700' }, contextOption: { minHeight: 64, borderRadius: 18, borderWidth: 1, borderColor: colors.line, paddingHorizontal: 16, paddingVertical: 12, flexDirection: 'row', alignItems: 'center' }, contextOptionCopy: { flex: 1 }, contextOptionTitle: { color: colors.bone, fontSize: 16 }, contextOptionBody: { color: colors.muted, fontSize: 12, marginTop: 3 }, contextToggleRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 9 }, learningNote: { borderWidth: 1, borderColor: colors.line, backgroundColor: 'rgba(145,169,109,0.06)', borderRadius: 18, padding: 16 }, learningNoteTitle: { color: colors.green, fontSize: 9, letterSpacing: 1.3, fontWeight: '700' }, learningNoteBody: { color: colors.muted, fontSize: 12, lineHeight: 18, marginTop: 7 },
-  panelWrap: { flex: 1, padding: 22 }, panel: { marginTop: 'auto', backgroundColor: 'rgba(14,26,33,0.95)', borderWidth: 1, borderColor: colors.line, borderRadius: 30, padding: 22, gap: 18 }, panelTitle: { color: colors.bone, fontSize: 31, lineHeight: 37, fontWeight: '400', letterSpacing: -0.8 }, panelSubtitle: { color: colors.muted, fontSize: 15, lineHeight: 21 }, chipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 }, choice: { borderWidth: 1, borderColor: colors.line, paddingVertical: 13, paddingHorizontal: 17, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.025)' }, choiceSelected: { borderColor: colors.green, backgroundColor: 'rgba(145,169,109,0.18)' }, choiceText: { color: colors.muted, fontSize: 15 }, choiceTextSelected: { color: colors.bone },
-  feelingList: { gap: 8 }, feeling: { minHeight: 54, borderRadius: 18, borderWidth: 1, borderColor: colors.line, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center' }, feelingSymbol: { color: colors.gold, width: 34, fontSize: 18 }, feelingText: { color: colors.muted, fontSize: 16, flex: 1 }, check: { color: colors.muted, fontSize: 14 },
-  clarifyQuestion: { color: colors.bone, fontSize: 14, marginTop: -2 }, clarifyOption: { minHeight: 70, borderRadius: 20, borderWidth: 1, borderColor: colors.line, paddingHorizontal: 17, paddingVertical: 13, flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.025)' }, clarifyArrow: { color: colors.gold, fontSize: 28, fontWeight: '200', marginLeft: 12 }, clarifyPrivacy: { color: 'rgba(170,179,174,0.62)', fontSize: 10, lineHeight: 15, textAlign: 'center' },
-  primary: { backgroundColor: colors.green, minHeight: 56, borderRadius: 18, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18 }, primaryText: { color: '#0C160E', fontSize: 16, fontWeight: '700' }, secondary: { minHeight: 48, alignItems: 'center', justifyContent: 'center' }, secondaryText: { color: colors.bone, fontSize: 14 }, pressed: { opacity: 0.72, transform: [{ scale: 0.99 }] }, topAction: { alignSelf: 'flex-start', paddingVertical: 8 }, topActionText: { color: colors.muted, fontSize: 14 },
-  promise: { padding: 22, paddingBottom: 40 }, promiseVisual: { height: 250, marginVertical: 14, borderRadius: 32, backgroundColor: '#101A1D', borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }, visualHalo: { position: 'absolute', width: 260, height: 260, borderRadius: 130, backgroundColor: 'rgba(216,170,104,0.17)', top: -72, right: -54 }, visualFloor: { position: 'absolute', height: 110, left: -30, right: -30, bottom: -58, borderRadius: 999, backgroundColor: 'rgba(145,169,109,0.13)', transform: [{ scaleX: 1.35 }] }, kettlebellOuter: { alignItems: 'center', marginTop: 5 }, kettlebellHandle: { width: 88, height: 72, borderRadius: 44, borderWidth: 16, borderColor: '#1B1F1B', marginBottom: -24, shadowColor: '#000', shadowOpacity: 0.5, shadowRadius: 12, shadowOffset: { width: 0, height: 8 } }, kettlebellBody: { width: 132, height: 119, borderRadius: 62, backgroundColor: '#171B18', borderWidth: 1, borderColor: '#3D433A', overflow: 'hidden', shadowColor: '#000', shadowOpacity: 0.55, shadowRadius: 18, shadowOffset: { width: 0, height: 13 } }, kettlebellLight: { width: 42, height: 100, borderRadius: 30, marginLeft: 23, marginTop: 5, backgroundColor: 'rgba(243,235,221,0.055)', transform: [{ rotate: '12deg' }] }, experienceGlyph: { width: 132, height: 132, borderRadius: 66, borderWidth: 1, borderColor: 'rgba(216,170,104,0.4)', backgroundColor: 'rgba(7,16,23,0.5)', alignItems: 'center', justifyContent: 'center' }, experienceGlyphText: { color: colors.bone, fontSize: 52, fontWeight: '200' }, visualCaption: { position: 'absolute', left: 18, bottom: 16 }, visualCaptionTop: { color: colors.gold, fontSize: 9, fontWeight: '700', letterSpacing: 1.5 }, visualCaptionBottom: { color: 'rgba(243,235,221,0.64)', fontSize: 11, marginTop: 3 }, promiseTitle: { color: colors.bone, fontSize: 37, lineHeight: 42, letterSpacing: -1.1, fontWeight: '300' }, promiseBody: { color: colors.muted, fontSize: 16, lineHeight: 24, marginTop: 15 }, factRow: { flexDirection: 'row', borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.line, marginVertical: 24, paddingVertical: 15 }, fact: { flex: 1 }, factValue: { color: colors.bone, fontSize: 17, fontWeight: '600' }, factLabel: { color: colors.muted, fontSize: 11, marginTop: 3 }, decisionReceipt: { marginTop: 10, borderTopWidth: 1, borderColor: colors.line, paddingTop: 15 }, why: { color: colors.gold, fontSize: 10, textAlign: 'center', letterSpacing: 1.1, textTransform: 'uppercase' }, decisionReason: { color: colors.muted, fontSize: 11, lineHeight: 17, textAlign: 'center', marginTop: 7 }, decisionMeta: { color: 'rgba(170,179,174,0.58)', fontSize: 9, textAlign: 'center', marginTop: 8 },
-  prepare: { flex: 1, padding: 24, justifyContent: 'space-between' }, checkRow: { flexDirection: 'row', alignItems: 'center', marginTop: 20 }, checkDot: { color: colors.green, width: 34, fontSize: 19 }, checkLabel: { color: colors.bone, fontSize: 18 },
-  locationAssist: { flex: 1, padding: 24, justifyContent: 'space-between' }, permissionCard: { marginTop: 28, borderWidth: 1, borderColor: colors.line, borderRadius: 20, backgroundColor: 'rgba(216,170,104,0.06)', padding: 17 }, permissionCardTitle: { color: colors.gold, fontSize: 10, letterSpacing: 1.2, fontWeight: '700' }, permissionCardBody: { color: colors.muted, fontSize: 13, lineHeight: 20, marginTop: 8 }, permissionStatus: { color: colors.green, fontSize: 12, lineHeight: 18, marginTop: 16 },
-  presence: { flex: 1, padding: 26, alignItems: 'center', justifyContent: 'center' }, presenceLabel: { color: colors.muted, fontSize: 10, letterSpacing: 2, marginBottom: 16 }, exercise: { color: colors.bone, fontSize: 40, fontWeight: '300', letterSpacing: -1, textAlign: 'center' }, quietPresenceTitle: { fontSize: 34, lineHeight: 41, maxWidth: 390 }, quietPresenceCue: { color: colors.muted, fontSize: 15, lineHeight: 22, textAlign: 'center', maxWidth: 320, marginTop: 18 }, quietOrb: { width: 150, height: 150, borderRadius: 75, borderWidth: 1, borderColor: 'rgba(145,169,109,0.3)', alignItems: 'center', justifyContent: 'center', marginVertical: 48, backgroundColor: 'rgba(145,169,109,0.05)' }, quietOrbSymbol: { color: colors.green, fontSize: 42, fontWeight: '200' }, timerRing: { width: 230, height: 230, borderRadius: 115, borderWidth: 4, borderColor: 'rgba(145,169,109,0.45)', alignItems: 'center', justifyContent: 'center', marginVertical: 48 }, timer: { color: colors.bone, fontSize: 55, fontVariant: ['tabular-nums'], fontWeight: '200' }, timerCaption: { color: colors.muted, fontSize: 12, marginTop: 6, textAlign: 'center', paddingHorizontal: 18 }, pause: { width: 60, height: 60, borderRadius: 30, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' }, pauseText: { color: colors.bone, fontSize: 22 }, stop: { color: colors.muted, fontSize: 12, marginTop: 24 }, presenceFooter: { color: colors.muted, fontSize: 12, position: 'absolute', bottom: 28 },
-  resetButton: { alignSelf: 'flex-start', minHeight: 34, justifyContent: 'center', marginTop: 14, borderBottomWidth: 1, borderBottomColor: 'rgba(216,170,104,0.5)' }, resetButtonText: { color: colors.gold, fontSize: 11, fontWeight: '700' }, resetNotice: { color: colors.green, fontSize: 11, lineHeight: 16, marginTop: 10 },
-  complete: { flex: 1, padding: 26, justifyContent: 'center' }, completeMark: { color: colors.green, fontSize: 44, marginBottom: 20 }, reflection: { marginVertical: 42, paddingTop: 22, borderTopWidth: 1, borderColor: colors.line }, reflectionTitle: { color: colors.bone, fontSize: 17, lineHeight: 24, marginBottom: 18 }, reflectionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 }, reflectionPrivacy: { color: 'rgba(170,179,174,0.65)', fontSize: 10, lineHeight: 15, marginTop: 14 },
+  root: { flex: 1, backgroundColor: colors.ink }, safe: { flex: 1, alignItems: 'center' }, appFrame: { flex: 1, width: '100%', maxWidth: 520 }, flex: { flex: 1 },
+  ambientGold: { position: 'absolute', width: 520, height: 520, borderRadius: 260, backgroundColor: 'rgba(143,93,42,0.19)', top: -350, right: -260 },
+  ambientGreen: { position: 'absolute', width: 500, height: 500, borderRadius: 250, backgroundColor: 'rgba(58,87,66,0.15)', bottom: -330, left: -270 },
+  screenScroll: { padding: 20, paddingTop: 12, paddingBottom: 116 }, flowScroll: { padding: 22, paddingTop: 12, paddingBottom: 48 },
+  header: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 24 }, headerCopy: { flex: 1, paddingRight: 12 },
+  eyebrow: { color: colors.gold, fontSize: 10, letterSpacing: 1.9, fontWeight: '700', marginBottom: 10 },
+  screenTitle: { color: colors.bone, fontSize: 40, lineHeight: 44, letterSpacing: -1.3, fontWeight: '300' }, screenSubtitle: { color: colors.muted, fontSize: 15, lineHeight: 22, marginTop: 10 },
+  avatar: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, borderColor: colors.line, backgroundColor: 'rgba(255,255,255,0.05)', alignItems: 'center', justifyContent: 'center' }, avatarText: { color: colors.bone, fontSize: 15, fontWeight: '700' },
+  heroCard: { borderRadius: 30, overflow: 'hidden', backgroundColor: 'rgba(16,26,29,0.96)', borderWidth: 1, borderColor: colors.line }, heroImage: { height: 390, padding: 18, justifyContent: 'space-between' }, heroImageStyle: { borderTopLeftRadius: 29, borderTopRightRadius: 29 }, imageShade: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: 'rgba(3,8,9,0.36)' },
+  heroTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }, heroTime: { color: colors.bone, fontSize: 10, letterSpacing: 1.4 }, heroBottom: { gap: 11 }, heroTitle: { color: '#FFF9EF', fontSize: 38, lineHeight: 41, fontWeight: '300', letterSpacing: -1.1 }, heroPromise: { color: 'rgba(255,249,239,0.88)', fontSize: 16, lineHeight: 23, maxWidth: 390 }, heroFacts: { flexDirection: 'row', gap: 18, marginTop: 8 },
+  heroActionArea: { padding: 18 }, wonderText: { color: colors.bone, fontSize: 15, lineHeight: 22, marginBottom: 16 },
+  pill: { alignSelf: 'flex-start', borderRadius: 99, borderWidth: 1, backgroundColor: 'rgba(5,10,10,0.56)', paddingHorizontal: 10, paddingVertical: 7, flexDirection: 'row', alignItems: 'center', gap: 7 }, pillDot: { width: 6, height: 6, borderRadius: 3 }, pillText: { fontSize: 9, letterSpacing: 1.2, fontWeight: '700' },
+  miniFact: { minWidth: 70 }, miniFactValue: { color: colors.bone, fontSize: 13, fontWeight: '600' }, miniFactLabel: { color: 'rgba(244,238,227,0.62)', fontSize: 9, marginTop: 3 },
+  primaryButton: { minHeight: 56, borderRadius: 19, backgroundColor: colors.green, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, primaryButtonText: { color: '#10160D', fontSize: 16, fontWeight: '700' }, primaryArrow: { color: '#10160D', fontSize: 22 },
+  secondaryButton: { minHeight: 50, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14 }, secondaryButtonText: { color: colors.bone, fontSize: 14, fontWeight: '600' }, pressed: { opacity: 0.74, transform: [{ scale: 0.992 }] },
+  whyButton: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 4 }, whyButtonText: { color: colors.muted, fontSize: 13 }, whyChevron: { color: colors.gold, fontSize: 18 }, whyPanel: { borderRadius: 18, borderWidth: 1, borderColor: colors.line, backgroundColor: 'rgba(164,197,93,0.06)', padding: 15, gap: 8 }, whyReason: { color: colors.bone, fontSize: 12, lineHeight: 18 }, proofNote: { color: 'rgba(174,180,174,0.58)', fontSize: 9, lineHeight: 14, marginTop: 3 }, quietAction: { minHeight: 38, alignItems: 'center', justifyContent: 'center' }, quietActionText: { color: colors.muted, fontSize: 12 },
+  silentCard: { minHeight: 520, borderRadius: 30, borderWidth: 1, borderColor: colors.line, padding: 24, justifyContent: 'center', backgroundColor: 'rgba(16,26,29,0.6)' }, silentTitle: { color: colors.bone, fontSize: 36, lineHeight: 42, fontWeight: '300' },
+  spaceCard: { marginTop: 16, minHeight: 90, borderRadius: 25, borderWidth: 1, borderColor: 'rgba(217,179,107,0.3)', backgroundColor: 'rgba(16,26,29,0.75)', padding: 16, flexDirection: 'row', alignItems: 'center' }, spaceIcon: { width: 45, height: 45, borderRadius: 23, borderWidth: 1, borderColor: colors.gold, alignItems: 'center', justifyContent: 'center', marginRight: 13 }, spaceIconText: { color: colors.gold, fontSize: 19 }, spaceTitle: { color: colors.bone, fontSize: 17, fontWeight: '600' }, spaceBody: { color: colors.muted, fontSize: 11, lineHeight: 16, marginTop: 3 }, arrow: { color: colors.gold, fontSize: 25 },
+  daySummary: { borderRadius: 22, borderWidth: 1, borderColor: colors.line, backgroundColor: 'rgba(16,26,29,0.78)', padding: 17, marginBottom: 26 }, daySummaryTitle: { color: colors.bone, fontSize: 17 }, daySummaryBody: { color: colors.muted, fontSize: 12, lineHeight: 18, marginTop: 5 }, timeline: { gap: 0 }, timelineRow: { flexDirection: 'row' }, timelineRail: { width: 28, alignItems: 'center' }, timelineDot: { width: 10, height: 10, borderRadius: 5, marginTop: 3 }, timelineLine: { flex: 1, width: 1, backgroundColor: colors.line, marginVertical: 7 }, timelineContent: { flex: 1, paddingBottom: 20 }, timelineTime: { color: colors.gold, fontSize: 9, letterSpacing: 1.3, fontWeight: '700', marginBottom: 9 }, dayCardImage: { minHeight: 190, justifyContent: 'flex-end' }, dayCardImageStyle: { borderRadius: 22 }, dayCardCopy: { padding: 17 }, dayCardTitle: { color: colors.bone, fontSize: 25, lineHeight: 29, fontWeight: '300' }, dayCardPromise: { color: 'rgba(244,238,227,0.8)', fontSize: 12, lineHeight: 17, marginTop: 6, maxWidth: 330 }, dayCardMeta: { color: colors.bone, fontSize: 11, marginTop: 12 }, quietDay: { borderTopWidth: 1, borderColor: colors.line, paddingTop: 20, marginTop: 2 }, quietDayTitle: { color: colors.bone, fontSize: 16 }, quietDayBody: { color: colors.muted, fontSize: 12, lineHeight: 18, marginTop: 5 },
+  intentPanel: { borderRadius: 28, borderWidth: 1, borderColor: colors.line, backgroundColor: 'rgba(16,26,29,0.88)', padding: 20 }, fieldLabel: { color: colors.gold, fontSize: 9, letterSpacing: 1.5, fontWeight: '700', marginTop: 6, marginBottom: 12 }, chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 24 }, choiceChip: { borderRadius: 99, borderWidth: 1, borderColor: colors.line, paddingHorizontal: 15, paddingVertical: 11 }, choiceChipSelected: { borderColor: colors.green, backgroundColor: 'rgba(164,197,93,0.16)' }, choiceChipText: { color: colors.muted, fontSize: 13 }, choiceChipTextSelected: { color: colors.bone }, intentInput: { minHeight: 118, borderRadius: 20, borderWidth: 1, borderColor: colors.line, backgroundColor: 'rgba(4,10,12,0.48)', color: colors.bone, fontSize: 16, lineHeight: 23, padding: 16, textAlignVertical: 'top', marginBottom: 14 }, orRow: { flexDirection: 'row', alignItems: 'center', marginTop: 13 }, orLine: { flex: 1, height: 1, backgroundColor: colors.line }, orText: { color: colors.muted, fontSize: 9, marginHorizontal: 12 }, intentPrivacy: { color: 'rgba(174,180,174,0.6)', fontSize: 10, lineHeight: 15, textAlign: 'center', marginTop: 10 }, interpretation: { borderRadius: 18, borderWidth: 1, borderColor: colors.line, padding: 15, marginBottom: 24 }, interpretationLabel: { color: colors.green, fontSize: 9, letterSpacing: 1.4, fontWeight: '700' }, interpretationText: { color: colors.bone, fontSize: 13, lineHeight: 19, marginTop: 7 }, sectionLabel: { color: colors.gold, fontSize: 9, letterSpacing: 1.5, fontWeight: '700', marginTop: 6, marginBottom: 10 }, experienceTile: { marginBottom: 20 }, tileImage: { minHeight: 210, justifyContent: 'flex-end' }, tileImageLarge: { minHeight: 310 }, tileImageStyle: { borderRadius: 25 }, tileCopy: { padding: 18 }, tileTitle: { color: colors.bone, fontSize: 29, lineHeight: 33, fontWeight: '300', marginTop: 12 }, tilePromise: { color: 'rgba(244,238,227,0.82)', fontSize: 13, lineHeight: 19, marginTop: 7 }, tileMeta: { color: colors.bone, fontSize: 11, marginTop: 14 }, finiteNote: { color: colors.muted, fontSize: 10, textAlign: 'center', marginTop: 2 },
+  lifeSummary: { flexDirection: 'row', alignItems: 'center', borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.line, paddingVertical: 18, marginBottom: 28 }, lifeSummaryBig: { color: colors.green, fontSize: 48, fontWeight: '200', marginRight: 16 }, lifeSummaryTitle: { color: colors.bone, fontSize: 16 }, lifeSummaryBody: { color: colors.muted, fontSize: 11, marginTop: 4 }, memoryGrid: { gap: 14 }, memoryCard: { minHeight: 230 }, memoryImage: { minHeight: 230, justifyContent: 'flex-end' }, memoryImageStyle: { borderRadius: 24 }, memoryCopy: { padding: 18 }, memoryDate: { color: colors.gold, fontSize: 9, letterSpacing: 1.2 }, memoryTitle: { color: colors.bone, fontSize: 27, lineHeight: 31, fontWeight: '300', marginTop: 7 }, memoryNote: { color: 'rgba(244,238,227,0.74)', fontSize: 12, lineHeight: 17, marginTop: 6 }, learningCard: { borderRadius: 22, borderWidth: 1, borderColor: colors.line, backgroundColor: 'rgba(164,197,93,0.06)', padding: 18, marginTop: 22 }, learningTitle: { color: colors.green, fontSize: 14, fontWeight: '700' }, learningBody: { color: colors.muted, fontSize: 12, lineHeight: 19, marginTop: 7 },
+  bottomNav: { position: 'absolute', left: 14, right: 14, bottom: 10, minHeight: 72, borderRadius: 26, borderWidth: 1, borderColor: colors.line, backgroundColor: 'rgba(9,17,20,0.96)', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 6 }, navItem: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 5, minHeight: 62 }, navIcon: { color: colors.muted, fontSize: 18 }, navLabel: { color: colors.muted, fontSize: 10 }, navActive: { color: colors.green },
+  backButton: { alignSelf: 'flex-start', minHeight: 42, justifyContent: 'center', marginBottom: 12 }, backButtonText: { color: colors.muted, fontSize: 14 }, detailHero: { height: 430, justifyContent: 'flex-end', marginHorizontal: -22, marginTop: -66, marginBottom: 24 }, detailHeroImage: { borderBottomLeftRadius: 30, borderBottomRightRadius: 30 }, detailHeroCopy: { padding: 22, paddingTop: 120 }, detailTitle: { color: colors.bone, fontSize: 42, lineHeight: 45, fontWeight: '300', letterSpacing: -1.3, marginTop: 13 }, detailPromise: { color: 'rgba(244,238,227,0.84)', fontSize: 16, lineHeight: 23, marginTop: 10 }, wonderHeadline: { color: colors.gold, fontSize: 10, letterSpacing: 1.4, fontWeight: '700' }, wonderLarge: { color: colors.bone, fontSize: 21, lineHeight: 30, fontWeight: '300', marginTop: 10 }, factStrip: { flexDirection: 'row', gap: 14, borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.line, paddingVertical: 16, marginVertical: 22 },
+  flowTitle: { color: colors.bone, fontSize: 41, lineHeight: 45, fontWeight: '300', letterSpacing: -1.2 }, prepareCard: { borderRadius: 25, borderWidth: 1, borderColor: colors.line, backgroundColor: 'rgba(16,26,29,0.82)', padding: 18, gap: 18, marginVertical: 28 }, prepareRow: { flexDirection: 'row', alignItems: 'center' }, stepNumber: { width: 34, height: 34, borderRadius: 17, borderWidth: 1, alignItems: 'center', justifyContent: 'center', marginRight: 13 }, stepNumberText: { color: colors.bone, fontSize: 12 }, prepareText: { color: colors.bone, fontSize: 16, flex: 1 }, commitmentCard: { borderRadius: 20, borderWidth: 1, borderColor: colors.line, padding: 16, marginBottom: 22 }, commitmentLabel: { color: colors.gold, fontSize: 9, letterSpacing: 1.3, fontWeight: '700' }, commitmentValue: { color: colors.bone, fontSize: 17, marginTop: 7 }, commitmentBody: { color: colors.muted, fontSize: 11, marginTop: 5 },
+  presenceScreen: { flex: 1, padding: 22, paddingTop: 12, paddingBottom: 28, justifyContent: 'space-between' }, presenceCenter: { alignItems: 'center' }, presenceTitle: { color: colors.bone, fontSize: 38, lineHeight: 44, fontWeight: '300', textAlign: 'center' }, presenceCue: { color: colors.muted, fontSize: 15, lineHeight: 22, textAlign: 'center', maxWidth: 330, marginTop: 15 }, presenceRing: { width: 210, height: 210, borderRadius: 105, borderWidth: 3, alignItems: 'center', justifyContent: 'center', marginVertical: 38 }, presenceMinutes: { color: colors.bone, fontSize: 58, fontWeight: '200' }, presenceUnit: { color: colors.muted, fontSize: 9, letterSpacing: 1.5 }, presenceFooter: { color: colors.muted, fontSize: 10, textAlign: 'center', marginTop: 12 },
+  memoryPreview: { minHeight: 280, justifyContent: 'flex-end', marginVertical: 28 }, memoryPreviewTitle: { color: colors.bone, fontSize: 30, fontWeight: '300', padding: 18 }, memoryInput: { minHeight: 120, borderRadius: 20, borderWidth: 1, borderColor: colors.line, color: colors.bone, fontSize: 16, lineHeight: 23, padding: 16, textAlignVertical: 'top', marginBottom: 16, backgroundColor: 'rgba(16,26,29,0.7)' },
+  profileCard: { borderRadius: 24, borderWidth: 1, borderColor: colors.line, marginTop: 28, overflow: 'hidden' }, profileRow: { minHeight: 58, borderBottomWidth: 1, borderBottomColor: colors.line, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, profileLabel: { color: colors.muted, fontSize: 13 }, profileValue: { color: colors.bone, fontSize: 13 },
 });
