@@ -28,7 +28,7 @@ Priority labels:
 - **Soon:** When may Momentum proactively surface a detected moment, and how does the user control that initiative?
 - **Soon:** What confidence or ambiguity threshold requires a clarifying question rather than selection?
 - **Soon:** How many alternatives preserve autonomy without becoming a feed?
-- **Soon:** Is broader exploration part of the MVP or a later conscious-choice surface?
+- **Resolved direction:** Broader exploration is a later conscious-choice surface and does not appear as a feed on `Now`; see `Decisions/ADR-012-discovery-is-intentional-and-separate.md`.
 - **Soon:** Which reasons appear under “Why this fits,” and which remain private?
 
 ## Experience Promises and feelings

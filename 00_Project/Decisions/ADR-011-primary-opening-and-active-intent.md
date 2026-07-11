@@ -21,8 +21,8 @@ When Momentum lacks enough trustworthy context, the primary surface may show a g
 
 ## Consequences
 
-- The current `Now` screen is an incomplete active-entry proof, not the final primary opening.
-- The next structural UI change must invert that hierarchy before adding a larger experience library.
+- The `Now` screen implements one locally ranked primary promise and a secondary active-intent entrance.
+- Richer media and live context remain future layers; the current suggestion is explicitly labelled as a trial scene.
 - “Ik heb tijd nu” remains easy to find but visually secondary.
 - The product still presents one main idea rather than a feed.
 

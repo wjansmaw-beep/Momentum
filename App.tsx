@@ -27,6 +27,7 @@ type Feeling = 'calm' | 'energy' | 'surprise' | 'connection' | 'challenge' | 'ch
 type ProfilePreset = 'explorer' | 'mover' | 'connector';
 type ReflectionAnswer = 'Nee' | 'Een beetje' | 'Ja';
 type PresenceMode = 'guided' | 'quiet';
+type EntryMode = 'passive' | 'active';
 type ExperienceContent = {
   eyebrow: string;
   title: string;
@@ -188,6 +189,7 @@ const safeAffinity = (value: unknown): Record<CoreFeeling, number> => {
 export default function App() {
   const { height: windowHeight } = useWindowDimensions();
   const [stage, setStage] = useState<Stage>('now');
+  const [entryMode, setEntryMode] = useState<EntryMode>('passive');
   const [selectedTime, setSelectedTime] = useState('1 uur');
   const [feeling, setFeeling] = useState<Feeling>('challenge');
   const [profilePreset, setProfilePreset] = useState<ProfilePreset>('explorer');
@@ -209,7 +211,7 @@ export default function App() {
       return result;
     }, emptyAffinityAdjustments());
   }, [affinityAdjustments, profilePreset]);
-  const decision = useMemo(
+  const activeDecision = useMemo(
     () =>
       selectExperience(
         {
@@ -223,6 +225,20 @@ export default function App() {
       ),
     [availableMinutes, effectiveAffinity, feeling, hasKettlebell],
   );
+  const passiveDecision = useMemo(
+    () =>
+      selectExperience(
+        {
+          availableMinutes: 60,
+          setting: 'work',
+          equipment: hasKettlebell ? ['kettlebell'] : [],
+          profileAffinity: effectiveAffinity,
+        },
+        candidateCatalog,
+      ),
+    [effectiveAffinity, hasKettlebell],
+  );
+  const decision = entryMode === 'passive' ? passiveDecision : activeDecision;
   const experience = experienceByCandidateId[decision.selected.id] ?? experienceByFeeling[decision.selected.feeling];
   const experienceMinutes = Math.max(5, Math.min(45, Math.round(availableMinutes * 0.55)));
   const bufferMinutes = availableMinutes - experienceMinutes;
@@ -299,6 +315,7 @@ export default function App() {
     setPaused(false);
     setSelectedTime('1 uur');
     setFeeling('challenge');
+    setEntryMode('passive');
     moveTo('now');
   };
 
@@ -342,7 +359,22 @@ export default function App() {
             },
           ]}
         >
-          {stage === 'now' && <Now onStart={() => moveTo('time')} onContext={() => moveTo('context')} />}
+          {stage === 'now' && (
+            <Now
+              experience={experienceByCandidateId[passiveDecision.selected.id] ?? experienceByFeeling[passiveDecision.selected.feeling]}
+              profileLabel={profilePresets[profilePreset].label}
+              onAccept={() => {
+                setEntryMode('passive');
+                setSelectedTime('1 uur');
+                moveTo('prepare');
+              }}
+              onStart={() => {
+                setEntryMode('active');
+                moveTo('time');
+              }}
+              onContext={() => moveTo('context')}
+            />
+          )}
           {stage === 'context' && (
             <ContextLab
               profile={profilePreset}
@@ -402,7 +434,7 @@ export default function App() {
                 setSeconds(experience.previewSeconds);
                 moveTo(decision.selected.id === 'notice-light' ? 'location' : 'presence');
               }}
-              onBack={() => moveTo('promise')}
+              onBack={() => moveTo(entryMode === 'passive' ? 'now' : 'promise')}
             />
           )}
           {stage === 'location' && (
@@ -444,30 +476,50 @@ function Atmosphere({ stage }: { stage: Stage }) {
   );
 }
 
-function Now({ onStart, onContext }: { onStart: () => void; onContext: () => void }) {
+function Now({ experience, profileLabel, onAccept, onStart, onContext }: { experience: ExperienceContent; profileLabel: string; onAccept: () => void; onStart: () => void; onContext: () => void }) {
   return (
-    <View style={styles.now}>
+    <ScrollView contentContainerStyle={styles.now} showsVerticalScrollIndicator={false}>
       <View style={styles.brandRow}>
         <Text style={styles.brand}>MOMENTUM</Text>
         <Pressable onPress={onContext} style={({ pressed }) => [styles.contextPill, pressed && styles.pressed]}>
           <View style={styles.liveDot} /><Text style={styles.scenario}>LOKAAL MOMENT · WIJZIG</Text>
         </Pressable>
       </View>
-      <View style={styles.nowCopy}>
-        <Text style={styles.eyebrow}>NU</Text>
-        <Text style={styles.heroTitle}>Er is ruimte ontstaan.</Text>
-        <Text style={styles.heroBody}>Vertel alleen hoeveel. Momentum helpt je zien wat dit moment kan worden.</Text>
-        <View style={styles.contextLine}>
-          <Text style={styles.contextLineText}>10 juli</Text>
-          <View style={styles.contextDivider} />
-          <Text style={styles.contextLineText}>Jij houdt de regie</Text>
+
+      <View style={styles.nowPromise}>
+        <View style={styles.nowVisual}>
+          <View style={styles.visualHalo} />
+          <View style={styles.visualFloor} />
+          <Text style={styles.nowVisualSymbol}>{experience.visualSymbol}</Text>
+          <View style={styles.visualCaption}>
+            <Text style={styles.visualCaptionTop}>{experience.visualLabel}</Text>
+            <Text style={styles.visualCaptionBottom}>{experience.visualDetail}</Text>
+          </View>
         </View>
+        <Text style={styles.eyebrow}>EEN VOORSTEL VOOR NU</Text>
+        <Text style={styles.nowPromiseTitle}>{experience.title}</Text>
+        <Text style={styles.promiseBody}>{experience.body}</Text>
+        <View style={styles.nowFacts}>
+          <View><Text style={styles.factValue}>± 30 min</Text><Text style={styles.factLabel}>ervaring</Text></View>
+          <View><Text style={styles.factValue}>weinig</Text><Text style={styles.factLabel}>voorbereiding</Text></View>
+          <View><Text style={styles.factValue}>{profileLabel}</Text><Text style={styles.factLabel}>proefprofiel</Text></View>
+        </View>
+        <PrimaryButton label="Beleef dit" onPress={onAccept} />
+        <Pressable onPress={onContext} style={({ pressed }) => [styles.whyRow, pressed && styles.pressed]}>
+          <Text style={styles.whyRowText}>Waarom dit nu past</Text><Text style={styles.whyRowArrow}>⌄</Text>
+        </Pressable>
       </View>
-      <View>
-        <PrimaryButton label="Ik heb tijd nu" onPress={onStart} />
-        <Text style={styles.quietNote}>Geen agenda of locatie gebruikt</Text>
-      </View>
-    </View>
+
+      <Pressable onPress={onStart} style={({ pressed }) => [styles.activeIntentCard, pressed && styles.pressed]}>
+        <View style={styles.activeIntentIcon}><Text style={styles.activeIntentIconText}>◷</Text></View>
+        <View style={styles.activeIntentCopy}>
+          <Text style={styles.activeIntentTitle}>Er is tijd ontstaan</Text>
+          <Text style={styles.activeIntentBody}>Vertel Momentum hoeveel ruimte je hebt</Text>
+        </View>
+        <Text style={styles.activeIntentArrow}>→</Text>
+      </Pressable>
+      <Text style={styles.quietNote}>Proefscène · geen agenda of live context gebruikt</Text>
+    </ScrollView>
   );
 }
 
@@ -767,7 +819,8 @@ const colors = { ink: '#071017', panel: '#0E1A21', bone: '#F3EBDD', muted: '#AAB
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.ink }, safe: { flex: 1, alignItems: 'center' }, flex: { flex: 1 }, appFrame: { flex: 1, width: '100%', maxWidth: 520 },
   deepField: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: '#071017' }, glow: { position: 'absolute', borderRadius: 999, opacity: 0.3 }, glowGold: { width: 460, height: 460, backgroundColor: '#875A2A', top: -250, right: -220 }, glowGreen: { width: 390, height: 390, backgroundColor: '#2D4937', bottom: -210, left: -190 }, glowBlue: { width: 430, height: 430, backgroundColor: '#142D3A', top: '28%', left: -330, opacity: 0.36 }, glowQuiet: { opacity: 0.065 }, horizon: { position: 'absolute', top: '44%', left: 26, right: 26, height: 1, backgroundColor: 'rgba(216,170,104,0.14)' }, grainLineOne: { position: 'absolute', width: 1, top: 0, bottom: 0, left: '23%', backgroundColor: 'rgba(255,255,255,0.018)' }, grainLineTwo: { position: 'absolute', width: 1, top: 0, bottom: 0, right: '18%', backgroundColor: 'rgba(255,255,255,0.012)' },
-  now: { flex: 1, padding: 26, paddingTop: 20, justifyContent: 'space-between' }, brandRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }, brand: { color: colors.bone, fontWeight: '700', fontSize: 12, letterSpacing: 3 }, contextPill: { minHeight: 28, borderRadius: 99, borderWidth: 1, borderColor: colors.line, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(7,16,23,0.42)' }, liveDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: colors.green }, scenario: { color: colors.muted, fontSize: 8, letterSpacing: 1.2 }, nowCopy: { marginBottom: 42 }, eyebrow: { color: colors.gold, fontSize: 11, letterSpacing: 2.2, fontWeight: '700', marginBottom: 12 }, heroTitle: { color: colors.bone, fontSize: 50, lineHeight: 53, letterSpacing: -1.8, fontWeight: '300', maxWidth: 380 }, heroBody: { color: colors.muted, fontSize: 17, lineHeight: 25, marginTop: 18, maxWidth: 370 }, contextLine: { flexDirection: 'row', alignItems: 'center', marginTop: 26 }, contextLineText: { color: 'rgba(243,235,221,0.56)', fontSize: 11, letterSpacing: 0.4 }, contextDivider: { width: 22, height: 1, marginHorizontal: 10, backgroundColor: 'rgba(216,170,104,0.36)' }, quietNote: { color: colors.muted, fontSize: 11, textAlign: 'center', marginTop: 12 },
+  now: { flexGrow: 1, padding: 22, paddingTop: 18, paddingBottom: 34 }, brandRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }, brand: { color: colors.bone, fontWeight: '700', fontSize: 12, letterSpacing: 3 }, contextPill: { minHeight: 28, borderRadius: 99, borderWidth: 1, borderColor: colors.line, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(7,16,23,0.42)' }, liveDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: colors.green }, scenario: { color: colors.muted, fontSize: 8, letterSpacing: 1.2 }, nowCopy: { marginBottom: 42 }, eyebrow: { color: colors.gold, fontSize: 11, letterSpacing: 2.2, fontWeight: '700', marginBottom: 12 }, heroTitle: { color: colors.bone, fontSize: 50, lineHeight: 53, letterSpacing: -1.8, fontWeight: '300', maxWidth: 380 }, heroBody: { color: colors.muted, fontSize: 17, lineHeight: 25, marginTop: 18, maxWidth: 370 }, contextLine: { flexDirection: 'row', alignItems: 'center', marginTop: 26 }, contextLineText: { color: 'rgba(243,235,221,0.56)', fontSize: 11, letterSpacing: 0.4 }, contextDivider: { width: 22, height: 1, marginHorizontal: 10, backgroundColor: 'rgba(216,170,104,0.36)' }, quietNote: { color: colors.muted, fontSize: 10, textAlign: 'center', marginTop: 12 },
+  nowPromise: { marginTop: 24 }, nowVisual: { height: 214, borderRadius: 28, backgroundColor: '#101A1D', borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', marginBottom: 22 }, nowVisualSymbol: { color: colors.bone, fontSize: 64, fontWeight: '200' }, nowPromiseTitle: { color: colors.bone, fontSize: 38, lineHeight: 43, letterSpacing: -1.15, fontWeight: '300' }, nowFacts: { flexDirection: 'row', justifyContent: 'space-between', gap: 14, borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.line, marginVertical: 20, paddingVertical: 14 }, whyRow: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 4 }, whyRowText: { color: colors.muted, fontSize: 13 }, whyRowArrow: { color: colors.gold, fontSize: 20 }, activeIntentCard: { minHeight: 92, borderRadius: 24, borderWidth: 1, borderColor: 'rgba(216,170,104,0.27)', backgroundColor: 'rgba(7,16,23,0.58)', flexDirection: 'row', alignItems: 'center', padding: 16, marginTop: 12 }, activeIntentIcon: { width: 45, height: 45, borderRadius: 23, borderWidth: 1, borderColor: colors.gold, alignItems: 'center', justifyContent: 'center' }, activeIntentIconText: { color: colors.gold, fontSize: 21 }, activeIntentCopy: { flex: 1, marginHorizontal: 14 }, activeIntentTitle: { color: colors.bone, fontSize: 18, fontWeight: '500' }, activeIntentBody: { color: colors.muted, fontSize: 11, lineHeight: 16, marginTop: 4 }, activeIntentArrow: { color: colors.gold, fontSize: 28 },
   contextLab: { flexGrow: 1, padding: 24, paddingBottom: 40, gap: 28 }, contextGroup: { gap: 9 }, contextGroupLabel: { color: colors.gold, fontSize: 9, letterSpacing: 1.5, fontWeight: '700' }, contextOption: { minHeight: 64, borderRadius: 18, borderWidth: 1, borderColor: colors.line, paddingHorizontal: 16, paddingVertical: 12, flexDirection: 'row', alignItems: 'center' }, contextOptionCopy: { flex: 1 }, contextOptionTitle: { color: colors.bone, fontSize: 16 }, contextOptionBody: { color: colors.muted, fontSize: 12, marginTop: 3 }, contextToggleRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 9 }, learningNote: { borderWidth: 1, borderColor: colors.line, backgroundColor: 'rgba(145,169,109,0.06)', borderRadius: 18, padding: 16 }, learningNoteTitle: { color: colors.green, fontSize: 9, letterSpacing: 1.3, fontWeight: '700' }, learningNoteBody: { color: colors.muted, fontSize: 12, lineHeight: 18, marginTop: 7 },
   panelWrap: { flex: 1, padding: 22 }, panel: { marginTop: 'auto', backgroundColor: 'rgba(14,26,33,0.95)', borderWidth: 1, borderColor: colors.line, borderRadius: 30, padding: 22, gap: 18 }, panelTitle: { color: colors.bone, fontSize: 31, lineHeight: 37, fontWeight: '400', letterSpacing: -0.8 }, panelSubtitle: { color: colors.muted, fontSize: 15, lineHeight: 21 }, chipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 }, choice: { borderWidth: 1, borderColor: colors.line, paddingVertical: 13, paddingHorizontal: 17, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.025)' }, choiceSelected: { borderColor: colors.green, backgroundColor: 'rgba(145,169,109,0.18)' }, choiceText: { color: colors.muted, fontSize: 15 }, choiceTextSelected: { color: colors.bone },
   feelingList: { gap: 8 }, feeling: { minHeight: 54, borderRadius: 18, borderWidth: 1, borderColor: colors.line, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center' }, feelingSymbol: { color: colors.gold, width: 34, fontSize: 18 }, feelingText: { color: colors.muted, fontSize: 16, flex: 1 }, check: { color: colors.muted, fontSize: 14 },
