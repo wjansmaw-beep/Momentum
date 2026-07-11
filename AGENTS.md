@@ -8,7 +8,21 @@ The Founder approved the document foundation on 2026-07-10 and requested the fir
 
 ## Read before acting
 
-For substantive work, read the Constitution, `12_AI_Team/AI_Workflow.md`, and every relevant domain document. Repository documents override prior chat summaries.
+For substantive work, read the Constitution, `12_AI_Team/AI_Workflow.md`, `00_Project/Roadmap.md`, `00_Project/Open_Questions.md`, and every relevant domain document. Repository documents override prior chat summaries.
+
+## Mandatory product preflight
+
+Before proposing or implementing the next product step:
+
+- identify the roadmap phase and deliverable the step advances;
+- check whether an open question or existing decision constrains it;
+- compare the proposal with every relevant approved flow, not only the latest implementation;
+- state any mismatch between repository truth and the current app before extending the app;
+- correct foundational flow mismatches before adding richness on top of them.
+
+The current implementation is evidence, not product truth. A working flow must not silently replace the documented North Star.
+
+Codex must explicitly select the appropriate working role for each substantive task. The Product Guardian role is always performed first; implementation begins only after that role has confirmed alignment or exposed the mismatch to be corrected.
 
 ## Product invariants
 

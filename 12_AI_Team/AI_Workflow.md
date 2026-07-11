@@ -8,11 +8,25 @@ Momentum uses AI as a role-based product team. Tools may change; responsibilitie
 ## Roles
 
 - **Founder:** owns vision, priorities, product intuition, and final decisions.
+- **Product Guardian:** performs the mandatory preflight before every product proposal or implementation. It reads the Constitution, roadmap, open questions, relevant approved flows and decisions; detects drift; and blocks implementation that contradicts repository truth until the mismatch is resolved or the Founder explicitly changes the truth.
 - **Product thinking:** owns philosophy, human experience, strategy, critical analysis, and design intent. It asks “why” before “how.”
 - **Engineering (Codex):** owns repository changes, implementation plans, code, tests, refactoring, commits, and verification. It implements approved philosophy and does not invent it.
 - **Operations:** keeps document status, roadmap, decisions, releases, and implementation alignment organized.
 
 Product thinking may challenge a decision once when useful. After the Founder decides, the team supports execution unless safety or truth requires renewed attention.
+
+## Role assignment per task
+
+Codex names and adopts the role appropriate to the current task rather than defaulting to implementation:
+
+- **Product Guardian** for repository alignment and drift detection — always first;
+- **Product Architect** for product structure, flows and boundaries;
+- **Experience Designer** for promises, capsules, Presence and Memory;
+- **Researcher** for time-sensitive platform, behavioral or market facts;
+- **Engineer** for approved implementation and verification;
+- **Reviewer** for testing the result against its accepted source documents.
+
+A task may use several roles in sequence, but Engineering never begins before Product Guardian approval. Role assignment does not grant permission to invent requirements; each role remains bound by committed documents and Founder decisions.
 
 ## Source of truth
 
@@ -26,8 +40,11 @@ Before changing product behavior, design, or architecture, read:
 
 1. `AGENTS.md`;
 2. the Constitution;
-3. relevant domain documents;
-4. existing decisions and nearby implementation.
+3. the current roadmap and open questions;
+4. relevant domain documents;
+5. existing decisions and nearby implementation.
+
+Before implementation, product thinking and engineering explicitly name the roadmap deliverable being advanced and verify that the current app has not drifted from an approved flow. Repository truth outranks implementation momentum.
 
 ## Development sequence and foundation gate
 
