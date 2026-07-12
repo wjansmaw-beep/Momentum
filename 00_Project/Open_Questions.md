@@ -27,6 +27,7 @@ Priority labels:
 - **Resolved direction:** The first end-to-end blueprint is “I unexpectedly have about an hour.” Its resulting capsule remains context-dependent.
 - **Soon:** When may Momentum proactively surface a detected moment, and how does the user control that initiative?
 - **Soon:** What confidence or ambiguity threshold requires a clarifying question rather than selection?
+- **Resolved prototype direction:** Now, Today, and Discover use one deterministic local decision engine with editable mock context and structured reasons. Production thresholds remain a user-test question; see ADR-016.
 - **Soon:** How many alternatives preserve autonomy without becoming a feed?
 - **Resolved direction:** Broader exploration is a conscious-choice surface and does not appear as a feed on `Now`; see ADR-012 and its four-surface refinement in ADR-014.
 - **Resolved direction:** The primary product surfaces are `Now`, `Today`, `Discover`, and `Life Book`. Today is a finite day rhythm; Discover supports open intent expression.

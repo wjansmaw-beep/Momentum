@@ -66,6 +66,7 @@ The four continuous tracks are Philosophy, Experience, Understanding, and Trust.
 - ranking hypotheses and feedback model;
 - permission-value map and graceful degradation;
 - Living World source-quality model.
+- a shared, transparent local decision prototype used by Now, Today, and Discover before live integrations;
 
 **Definition of Done**
 
