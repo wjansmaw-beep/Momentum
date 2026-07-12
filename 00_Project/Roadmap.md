@@ -79,6 +79,8 @@ The four continuous tracks are Philosophy, Experience, Understanding, and Trust.
 - abstention, correction, and deletion behavior are specified;
 - high-risk inferences are explicitly excluded.
 
+**Implementation note (2026-07-12):** a first device-local personal model now influences Now, Today, and Discover through explicit onboarding choices, reversible feedback, repetition control, and diversity-aware ranking. ADR-018 defines its trust boundary.
+
 ## Phase 4 — Design
 
 **Goal:** translate the approved experience language into a coherent, testable interface.

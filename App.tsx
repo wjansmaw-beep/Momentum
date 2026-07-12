@@ -18,6 +18,7 @@ import {
 import {
   byId,
   Experience,
+  ExperienceKind,
   experiences,
   Surface,
 } from './src/product/experienceModel';
@@ -28,12 +29,23 @@ import {
   DayPart,
   defaultPrototypeContext,
   LocalDecision,
+  PersonalLearningContext,
   profileLabels,
   PrototypeContext,
   PrototypeProfile,
   rankForMoment,
   TodayDecision,
 } from './src/product/localIntelligence';
+import {
+  applyLearning,
+  completeOnboarding,
+  defaultPersonalProfile,
+  experienceKindLabels,
+  initiativeLabels,
+  LearningOutcome,
+  PersonalProfile,
+  resetLearning,
+} from './src/profile/personalModel';
 import {
   composeLiveExperience,
   Coordinates,
@@ -51,6 +63,7 @@ const colors = {
 };
 const memoryKey = 'momentum.memories.v2';
 const contextKey = 'momentum.prototype-context.v1';
+const personalProfileKey = 'momentum.personal-profile.v1';
 const timeOptions = [15, 30, 60, 120];
 const defaultRegion = { coordinates: { latitude: 53.325, longitude: 5.999 }, label: 'Dokkum proefregio' };
 
@@ -62,6 +75,8 @@ export default function App() {
   const [origin, setOrigin] = useState<Surface>('now');
   const [prototypeContext, setPrototypeContext] = useState<PrototypeContext>(defaultPrototypeContext);
   const [contextHydrated, setContextHydrated] = useState(false);
+  const [personalProfile, setPersonalProfile] = useState<PersonalProfile>(defaultPersonalProfile);
+  const [personalHydrated, setPersonalHydrated] = useState(false);
   const [liveWorld, setLiveWorld] = useState<LiveWorldSnapshot | null>(null);
   const [liveLoading, setLiveLoading] = useState(true);
   const [liveMessage, setLiveMessage] = useState('Live bronnen worden gecontroleerd…');
@@ -81,6 +96,9 @@ export default function App() {
     AsyncStorage.getItem(contextKey).then((value) => {
       if (value) setPrototypeContext({ ...defaultPrototypeContext(), ...JSON.parse(value) });
     }).catch(() => undefined).finally(() => setContextHydrated(true));
+    AsyncStorage.getItem(personalProfileKey).then((value) => {
+      if (value) setPersonalProfile({ ...defaultPersonalProfile(), ...JSON.parse(value) });
+    }).catch(() => undefined).finally(() => setPersonalHydrated(true));
     loadLiveWorld(defaultRegion.coordinates, defaultRegion.label)
       .then((snapshot) => { setLiveWorld(snapshot); setLiveMessage('Live bronnen bijgewerkt'); })
       .catch(() => setLiveMessage('Live bronnen konden niet worden bijgewerkt'))
@@ -96,11 +114,22 @@ export default function App() {
     AsyncStorage.setItem(contextKey, JSON.stringify(prototypeContext)).catch(() => undefined);
   }, [contextHydrated, prototypeContext]);
 
+  useEffect(() => {
+    if (!personalHydrated) return;
+    AsyncStorage.setItem(personalProfileKey, JSON.stringify(personalProfile)).catch(() => undefined);
+  }, [personalHydrated, personalProfile]);
+
   const liveExperience = useMemo(() => liveWorld ? composeLiveExperience(liveWorld, prototypeContext) : undefined, [liveWorld, prototypeContext]);
   const candidatePool = useMemo(() => liveExperience ? [liveExperience, ...experiences] : experiences, [liveExperience]);
-  const primaryDecision = useMemo(() => rankForMoment(prototypeContext, '', [], candidatePool), [candidatePool, prototypeContext]);
+  const learningContext = useMemo(() => ({
+    kindAffinity: personalProfile.kindAffinity,
+    blockedExperienceIds: personalProfile.blockedExperienceIds,
+    favoriteExperienceIds: personalProfile.favoriteExperienceIds,
+    recentExperienceIds: personalProfile.recentExperienceIds,
+  }), [personalProfile]);
+  const primaryDecision = useMemo(() => rankForMoment(prototypeContext, '', [], candidatePool, learningContext), [candidatePool, learningContext, prototypeContext]);
   const primaryExperience = primaryDecision.selected?.experience ?? byId('work-reset');
-  const dayDecisions = useMemo(() => buildToday(prototypeContext, liveExperience), [liveExperience, prototypeContext]);
+  const dayDecisions = useMemo(() => buildToday(prototypeContext, liveExperience, learningContext), [learningContext, liveExperience, prototypeContext]);
 
   const refreshLiveWorld = async (coordinates: Coordinates = liveWorld?.coordinates ?? defaultRegion.coordinates, label = liveWorld?.regionLabel ?? defaultRegion.label) => {
     setLiveLoading(true); setLiveMessage('Live bronnen worden gecontroleerd…');
@@ -131,7 +160,7 @@ export default function App() {
   };
 
   const closeFlow = () => setFlowStage(null);
-  const finishExperience = (note: string) => {
+  const finishExperience = (note: string, outcome: LearningOutcome) => {
     const memory: Memory = {
       id: `${selected.id}-${Date.now()}`,
       title: selected.title,
@@ -140,9 +169,24 @@ export default function App() {
       note: note || 'Een moment dat de moeite waard was.',
     };
     setMemories((current) => [memory, ...current.filter((item) => item.id !== selected.id)].slice(0, 12));
+    setPersonalProfile((current) => applyLearning(current, selected, outcome));
     setFlowStage(null);
     setSurface('lifebook');
   };
+
+  const finishOnboarding = (profile: PersonalProfile) => {
+    const completed = completeOnboarding(profile);
+    setPersonalProfile(completed);
+    setPrototypeContext((current) => ({
+      ...current,
+      company: completed.defaultCompany,
+      hasKettlebell: completed.equipment.kettlebell,
+      profile: completed.preferredKinds.includes('connect') ? 'family' : completed.preferredKinds.includes('movement') ? 'mover' : completed.preferredKinds.includes('outside') ? 'explorer' : 'balanced',
+    }));
+  };
+
+  if (!personalHydrated) return <View style={styles.root} />;
+  if (!personalProfile.onboardingComplete) return <OnboardingScreen initial={personalProfile} onComplete={finishOnboarding} />;
 
   return (
     <View style={[styles.root, { minHeight: height }]}>
@@ -153,10 +197,10 @@ export default function App() {
         <View style={styles.appFrame}>
           {flowStage === null && (
             <>
-              {surface === 'now' && <NowScreen experience={primaryExperience} decision={primaryDecision} context={prototypeContext} liveWorld={liveWorld} liveLoading={liveLoading} onOpen={(item, stage) => openExperience(item, 'now', stage)} onProfile={() => setFlowStage('profile')} onDiscover={() => setSurface('discover')} />}
+              {surface === 'now' && <NowScreen firstName={personalProfile.firstName} experience={primaryExperience} decision={primaryDecision} context={prototypeContext} liveWorld={liveWorld} liveLoading={liveLoading} onOpen={(item, stage) => openExperience(item, 'now', stage)} onProfile={() => setFlowStage('profile')} onDiscover={() => setSurface('discover')} onFeedback={(outcome) => setPersonalProfile((current) => applyLearning(current, primaryExperience, outcome))} />}
               {surface === 'today' && <TodayScreen decisions={dayDecisions} onOpen={(item) => openExperience(item, 'today')} />}
-              {surface === 'discover' && <DiscoverScreen context={prototypeContext} candidatePool={candidatePool} onOpen={(item) => openExperience(item, 'discover')} />}
-              {surface === 'lifebook' && <LifeBookScreen memories={memories} onOpen={(item) => openExperience(item, 'lifebook')} />}
+              {surface === 'discover' && <DiscoverScreen context={prototypeContext} candidatePool={candidatePool} learning={learningContext} onOpen={(item) => openExperience(item, 'discover')} />}
+              {surface === 'lifebook' && <LifeBookScreen memories={memories} onOpen={(item) => { setPersonalProfile((current) => applyLearning(current, item, 'repeat')); openExperience(item, 'lifebook'); }} />}
               <BottomNav surface={surface} onChange={setSurface} />
             </>
           )}
@@ -164,11 +208,64 @@ export default function App() {
           {flowStage === 'prepare' && <PrepareScreen experience={selected} onBack={() => setFlowStage('promise')} onStart={() => setFlowStage('presence')} />}
           {flowStage === 'presence' && <PresenceScreen experience={selected} onBack={() => setFlowStage('prepare')} onFinish={() => setFlowStage('remember')} />}
           {flowStage === 'remember' && <RememberScreen experience={selected} onSkip={() => { setFlowStage(null); setSurface(origin); }} onSave={finishExperience} />}
-          {flowStage === 'profile' && <ProfileScreen context={prototypeContext} liveWorld={liveWorld} liveLoading={liveLoading} liveMessage={liveMessage} onChange={setPrototypeContext} onRefresh={() => refreshLiveWorld()} onUseLocation={useApproximateLocation} onClose={closeFlow} />}
+          {flowStage === 'profile' && <ProfileScreen personal={personalProfile} context={prototypeContext} liveWorld={liveWorld} liveLoading={liveLoading} liveMessage={liveMessage} onChange={setPrototypeContext} onPersonalChange={setPersonalProfile} onResetLearning={() => setPersonalProfile((current) => resetLearning(current))} onRedoOnboarding={() => setPersonalProfile((current) => ({ ...current, onboardingComplete: false }))} onRefresh={() => refreshLiveWorld()} onUseLocation={useApproximateLocation} onClose={closeFlow} />}
         </View>
       </SafeAreaView>
     </View>
   );
+}
+
+function OnboardingScreen({ initial, onComplete }: { initial: PersonalProfile; onComplete: (profile: PersonalProfile) => void }) {
+  const [step, setStep] = useState(0);
+  const [draft, setDraft] = useState(initial);
+  const kinds = Object.keys(experienceKindLabels) as ExperienceKind[];
+  const companyOptions: Array<{ id: Company; label: string }> = [
+    { id: 'solo', label: 'Vaak alleen' }, { id: 'together', label: 'Vaak samen' }, { id: 'family', label: 'Vaak met gezin' },
+  ];
+  const next = () => step === 4 ? onComplete(draft) : setStep((value) => value + 1);
+  const canContinue = step !== 1 || draft.preferredKinds.length > 0;
+  return <View style={styles.root}>
+    <StatusBar style="light" />
+    <SafeAreaView style={styles.safe}><View style={styles.appFrame}>
+      <ScrollView contentContainerStyle={styles.onboardingScroll} keyboardShouldPersistTaps="handled">
+        <View style={styles.onboardingProgress}>{[0, 1, 2, 3, 4].map((item) => <View key={item} style={[styles.onboardingProgressPart, item <= step && styles.onboardingProgressActive]} />)}</View>
+        {step === 0 && <>
+          <Text style={styles.eyebrow}>WELKOM BIJ MOMENTUM</Text><Text style={styles.onboardingTitle}>Minder zoeken. Meer beleven.</Text>
+          <Text style={styles.onboardingBody}>Momentum helpt je één passende volgende stap te zien en verdwijnt daarna weer naar de achtergrond. We beginnen zonder agenda, locatie of gezondheidsdata.</Text>
+          <Text style={styles.fieldLabel}>HOE MOGEN WE JE NOEMEN?</Text>
+          <TextInput value={draft.firstName} onChangeText={(firstName) => setDraft({ ...draft, firstName })} placeholder="Je voornaam (optioneel)" placeholderTextColor="rgba(174,180,174,0.52)" style={styles.singleInput} />
+        </>}
+        {step === 1 && <>
+          <Text style={styles.eyebrow}>JOUW RICHTING</Text><Text style={styles.onboardingTitle}>Waar wil je vaker ruimte voor?</Text>
+          <Text style={styles.onboardingBody}>Dit zijn startvoorkeuren, geen hokjes. Kies er gerust meerdere; je kunt alles later wijzigen.</Text>
+          <View style={styles.onboardingChoices}>{kinds.map((kind) => <Pressable key={kind} onPress={() => setDraft({ ...draft, preferredKinds: draft.preferredKinds.includes(kind) ? draft.preferredKinds.filter((item) => item !== kind) : [...draft.preferredKinds, kind] })} style={[styles.onboardingChoice, draft.preferredKinds.includes(kind) && styles.onboardingChoiceSelected]}><Text style={styles.onboardingChoiceTitle}>{experienceKindLabels[kind]}</Text><Text style={styles.profileChoiceMark}>{draft.preferredKinds.includes(kind) ? '●' : '○'}</Text></Pressable>)}</View>
+          <TextInput value={draft.aspiration} onChangeText={(aspiration) => setDraft({ ...draft, aspiration })} placeholder="Bijv. vaker echt iets doen met mijn vrije tijd" placeholderTextColor="rgba(174,180,174,0.52)" style={styles.singleInput} />
+        </>}
+        {step === 2 && <>
+          <Text style={styles.eyebrow}>PRAKTISCHE BASIS</Text><Text style={styles.onboardingTitle}>Wat past meestal bij jouw leven?</Text>
+          <Text style={styles.onboardingBody}>Hiermee voorkomt Momentum voorstellen die praktisch niet uitvoerbaar zijn.</Text>
+          <Text style={styles.fieldLabel}>MET WIE?</Text><View style={styles.chipRow}>{companyOptions.map((item) => <ChoiceChip key={item.id} label={item.label} selected={draft.defaultCompany === item.id} onPress={() => setDraft({ ...draft, defaultCompany: item.id })} />)}</View>
+          <Text style={styles.fieldLabel}>WAT HEB JE BESCHIKBAAR?</Text><View style={styles.chipRow}>
+            <ChoiceChip label="Kettlebell" selected={draft.equipment.kettlebell} onPress={() => setDraft({ ...draft, equipment: { ...draft.equipment, kettlebell: !draft.equipment.kettlebell } })} />
+            <ChoiceChip label="Fiets" selected={draft.equipment.bike} onPress={() => setDraft({ ...draft, equipment: { ...draft.equipment, bike: !draft.equipment.bike } })} />
+            <ChoiceChip label="Auto" selected={draft.equipment.car} onPress={() => setDraft({ ...draft, equipment: { ...draft.equipment, car: !draft.equipment.car } })} />
+          </View>
+        </>}
+        {step === 3 && <>
+          <Text style={styles.eyebrow}>AFSTAND</Text><Text style={styles.onboardingTitle}>Hoe ver mag een mooi moment beginnen?</Text>
+          <Text style={styles.onboardingBody}>Momentum telt reistijd mee. Een bijzondere kans mag verder weg zijn, maar alleen binnen jouw grens.</Text>
+          <View style={styles.onboardingChoices}>{[10, 20, 35, 60].map((minutes) => <Pressable key={minutes} onPress={() => setDraft({ ...draft, maxTravelMinutes: minutes })} style={[styles.onboardingChoice, draft.maxTravelMinutes === minutes && styles.onboardingChoiceSelected]}><Text style={styles.onboardingChoiceTitle}>Maximaal {minutes} minuten reizen</Text><Text style={styles.profileChoiceMark}>{draft.maxTravelMinutes === minutes ? '●' : '○'}</Text></Pressable>)}</View>
+        </>}
+        {step === 4 && <>
+          <Text style={styles.eyebrow}>INITIATIEF</Text><Text style={styles.onboardingTitle}>Wanneer mag Momentum meedenken?</Text>
+          <Text style={styles.onboardingBody}>Je opent altijd zelf de deur. Proactieve meldingen worden pas later gebouwd en vragen dan afzonderlijk toestemming.</Text>
+          <View style={styles.onboardingChoices}>{(Object.keys(initiativeLabels) as PersonalProfile['initiative'][]).map((initiative) => <Pressable key={initiative} onPress={() => setDraft({ ...draft, initiative })} style={[styles.onboardingChoice, draft.initiative === initiative && styles.onboardingChoiceSelected]}><View style={styles.flex}><Text style={styles.onboardingChoiceTitle}>{initiativeLabels[initiative]}</Text>{initiative === 'proactive-later' && <Text style={styles.profileChoiceBody}>Voorkeur onthouden · nog niet actief</Text>}</View><Text style={styles.profileChoiceMark}>{draft.initiative === initiative ? '●' : '○'}</Text></Pressable>)}</View>
+          <View style={styles.trustCard}><Text style={styles.learningTitle}>Jouw profiel blijft van jou</Text><Text style={styles.learningBody}>Je kunt zien wat Momentum leert, signalen wissen en iedere voorkeur aanpassen. “Niet nu” wordt nooit als afwijzing van jou geïnterpreteerd.</Text></View>
+        </>}
+        <View style={styles.onboardingFooter}>{step > 0 && <SecondaryButton label="Terug" onPress={() => setStep((value) => value - 1)} />}<PrimaryButton label={step === 4 ? 'Toon mijn eerste moment' : 'Verder'} onPress={() => canContinue && next()} />{!canContinue && <Text style={styles.validationText}>Kies minimaal één richting om verder te gaan.</Text>}</View>
+      </ScrollView>
+    </View></SafeAreaView>
+  </View>;
 }
 
 function ScreenHeader({ eyebrow, title, subtitle, onProfile }: { eyebrow?: string; title: string; subtitle?: string; onProfile?: () => void }) {
@@ -184,12 +281,12 @@ function ScreenHeader({ eyebrow, title, subtitle, onProfile }: { eyebrow?: strin
   );
 }
 
-function NowScreen({ experience, decision, context, liveWorld, liveLoading, onOpen, onProfile, onDiscover }: { experience: Experience; decision: LocalDecision; context: PrototypeContext; liveWorld: LiveWorldSnapshot | null; liveLoading: boolean; onOpen: (item: Experience, stage?: FlowStage) => void; onProfile: () => void; onDiscover: () => void }) {
+function NowScreen({ firstName, experience, decision, context, liveWorld, liveLoading, onOpen, onProfile, onDiscover, onFeedback }: { firstName: string; experience: Experience; decision: LocalDecision; context: PrototypeContext; liveWorld: LiveWorldSnapshot | null; liveLoading: boolean; onOpen: (item: Experience, stage?: FlowStage) => void; onProfile: () => void; onDiscover: () => void; onFeedback: (outcome: LearningOutcome) => void }) {
   const [declined, setDeclined] = useState(false);
   const [whyOpen, setWhyOpen] = useState(false);
   return (
     <ScrollView contentContainerStyle={styles.screenScroll} showsVerticalScrollIndicator={false}>
-      <ScreenHeader eyebrow={`${dayPartLabels[context.dayPart].toUpperCase()} · LOKALE PROEFCONTEXT`} title="Vandaag wacht er iets moois op je." subtitle="Eén voorstel voor dit moment." onProfile={onProfile} />
+      <ScreenHeader eyebrow={`${dayPartLabels[context.dayPart].toUpperCase()}${firstName ? ` · ${firstName.toUpperCase()}` : ''}`} title="Vandaag wacht er iets moois op je." subtitle="Eén voorstel voor dit moment." onProfile={onProfile} />
       <LiveWorldBar snapshot={liveWorld} loading={liveLoading} />
       {!declined ? (
         <View style={styles.heroCard}>
@@ -213,7 +310,8 @@ function NowScreen({ experience, decision, context, liveWorld, liveLoading, onOp
               <Text style={styles.whyButtonText}>Waarom dit nu past</Text><Text style={styles.whyChevron}>{whyOpen ? '⌃' : '⌄'}</Text>
             </Pressable>
             {whyOpen && <View style={styles.whyPanel}>{decision.selected?.reasons.map((reason) => <Text key={reason.text} style={styles.whyReason}>{reason.certainty === 'chosen' ? 'Gekozen' : 'Berekend'} · {reason.text}</Text>)}<Text style={styles.proofNote}>Vertrouwen {decision.confidence} · {decision.rejected} niet-passende kandidaten verwijderd · geen live agenda, weer of gezondheidsdata gebruikt</Text></View>}
-            <Pressable onPress={() => setDeclined(true)} style={styles.quietAction}><Text style={styles.quietActionText}>Niet nu</Text></Pressable>
+            <Pressable onPress={() => { onFeedback('not-now'); setDeclined(true); }} style={styles.quietAction}><Text style={styles.quietActionText}>Niet nu</Text></Pressable>
+            <Pressable onPress={() => { onFeedback('not-for-me'); setDeclined(true); }} style={styles.quietAction}><Text style={styles.quietCorrection}>Dit past niet bij mij</Text></Pressable>
           </View>
         </View>
       ) : (
@@ -264,11 +362,11 @@ function TodayScreen({ decisions, onOpen }: { decisions: TodayDecision[]; onOpen
   );
 }
 
-function DiscoverScreen({ context, candidatePool, onOpen }: { context: PrototypeContext; candidatePool: Experience[]; onOpen: (item: Experience) => void }) {
+function DiscoverScreen({ context, candidatePool, learning, onOpen }: { context: PrototypeContext; candidatePool: Experience[]; learning: PersonalLearningContext; onOpen: (item: Experience) => void }) {
   const [minutes, setMinutes] = useState(60);
   const [input, setInput] = useState('');
   const [mode, setMode] = useState<'idle' | 'result'>('idle');
-  const result = useMemo(() => rankForMoment({ ...context, availableMinutes: minutes }, input, [], candidatePool), [candidatePool, context, input, minutes]);
+  const result = useMemo(() => rankForMoment({ ...context, availableMinutes: minutes }, input, [], candidatePool, learning), [candidatePool, context, input, learning, minutes]);
   const primary = result.selected?.experience;
   const alternative = result.alternative?.experience;
   const surprise = () => { setInput(''); setMode('result'); };
@@ -431,27 +529,46 @@ function PresenceScreen({ experience, onBack, onFinish }: { experience: Experien
   );
 }
 
-function RememberScreen({ experience, onSkip, onSave }: { experience: Experience; onSkip: () => void; onSave: (note: string) => void }) {
+function RememberScreen({ experience, onSkip, onSave }: { experience: Experience; onSkip: () => void; onSave: (note: string, outcome: LearningOutcome) => void }) {
   const [note, setNote] = useState('');
   return (
     <ScrollView contentContainerStyle={styles.flowScroll} keyboardShouldPersistTaps="handled">
       <Text style={styles.eyebrow}>MEMORY</Text><Text style={styles.flowTitle}>Wat blijft er over?</Text><Text style={styles.screenSubtitle}>{experience.memoryPrompt}</Text>
       <ImageBackground source={{ uri: experience.image }} style={styles.memoryPreview} imageStyle={styles.memoryImageStyle}><View style={styles.imageShade} /><Text style={styles.memoryPreviewTitle}>{experience.title}</Text></ImageBackground>
       <TextInput value={note} onChangeText={setNote} placeholder="Eén zin is genoeg…" placeholderTextColor="rgba(174,180,174,0.52)" multiline style={styles.memoryInput} />
-      <PrimaryButton label="Bewaar in Leefboek" onPress={() => onSave(note)} />
+      <PrimaryButton label="Dit was de moeite waard" onPress={() => onSave(note, 'worth-it')} />
+      <SecondaryButton label="Bewaar zonder mijn profiel te veranderen" onPress={() => onSave(note, 'neutral')} />
       <SecondaryButton label="Afronden zonder bewaren" onPress={onSkip} />
     </ScrollView>
   );
 }
 
-function ProfileScreen({ context, liveWorld, liveLoading, liveMessage, onChange, onRefresh, onUseLocation, onClose }: { context: PrototypeContext; liveWorld: LiveWorldSnapshot | null; liveLoading: boolean; liveMessage: string; onChange: (context: PrototypeContext) => void; onRefresh: () => void; onUseLocation: () => void; onClose: () => void }) {
+function ProfileScreen({ personal, context, liveWorld, liveLoading, liveMessage, onChange, onPersonalChange, onResetLearning, onRedoOnboarding, onRefresh, onUseLocation, onClose }: { personal: PersonalProfile; context: PrototypeContext; liveWorld: LiveWorldSnapshot | null; liveLoading: boolean; liveMessage: string; onChange: (context: PrototypeContext) => void; onPersonalChange: (profile: PersonalProfile) => void; onResetLearning: () => void; onRedoOnboarding: () => void; onRefresh: () => void; onUseLocation: () => void; onClose: () => void }) {
   const dayParts: DayPart[] = ['morning', 'midday', 'afternoon', 'evening'];
   const profiles: PrototypeProfile[] = ['balanced', 'explorer', 'mover', 'family'];
   const companies: Array<{ id: Company; label: string }> = [{ id: 'solo', label: 'Alleen' }, { id: 'together', label: 'Samen' }, { id: 'family', label: 'Met gezin' }];
   return <ScrollView contentContainerStyle={styles.flowScroll}>
     <BackButton label="Sluiten" onPress={onClose} />
-    <Text style={styles.eyebrow}>BEWERKBARE PROEFCONTEXT</Text><Text style={styles.flowTitle}>Laat Momentum anders denken.</Text>
-    <Text style={styles.screenSubtitle}>Wijzig één waarde, sluit dit scherm en zie Nu, Vandaag en Ontdekken opnieuw selecteren. Dit zijn geen echte Apple-gegevens.</Text>
+    <Text style={styles.eyebrow}>JOUW MOMENTUM</Text><Text style={styles.flowTitle}>Jij houdt de regie.</Text>
+    <Text style={styles.screenSubtitle}>Bekijk wat Momentum gebruikt, pas het aan of wis wat het heeft geleerd. Alles hieronder blijft lokaal op dit apparaat.</Text>
+    <View style={styles.personalCard}>
+      <ProfileRow label="Naam" value={personal.firstName || 'Niet ingevuld'} />
+      <ProfileRow label="Meer ruimte voor" value={personal.aspiration || 'Nog niet benoemd'} />
+      <ProfileRow label="Initiatief" value={initiativeLabels[personal.initiative]} />
+      <ProfileRow label="Reisbereidheid" value={`maximaal ${personal.maxTravelMinutes} min`} />
+    </View>
+    <Text style={styles.fieldLabel}>ZELF GEKOZEN VOORKEUREN</Text>
+    <View style={styles.chipRow}>{(Object.keys(experienceKindLabels) as ExperienceKind[]).map((kind) => <ChoiceChip key={kind} label={experienceKindLabels[kind]} selected={personal.preferredKinds.includes(kind)} onPress={() => onPersonalChange({ ...personal, preferredKinds: personal.preferredKinds.includes(kind) ? personal.preferredKinds.filter((item) => item !== kind) : [...personal.preferredKinds, kind] })} />)}</View>
+    <Text style={styles.fieldLabel}>WAT MOMENTUM HEEFT GELEERD</Text>
+    <View style={styles.learningCard}>
+      <Text style={styles.learningTitle}>{personal.learningEvents.length ? `${personal.learningEvents.length} expliciete signalen` : 'Nog geen duurzaam leersignaal'}</Text>
+      <Text style={styles.learningBody}>{personal.learningEvents[0]?.explanation ?? '“Niet nu” verandert niets. Pas als jij iets de moeite waard noemt, opnieuw kiest of expliciet afwijst, leert Momentum.'}</Text>
+      {personal.learningEvents.slice(1, 4).map((event) => <Text key={event.id} style={styles.learningEvent}>• {event.explanation}</Text>)}
+    </View>
+    <SecondaryButton label="Wis alleen wat Momentum heeft geleerd" onPress={onResetLearning} />
+    <SecondaryButton label="Doorloop mijn startkeuzes opnieuw" onPress={onRedoOnboarding} />
+    <Text style={styles.fieldLabel}>TESTCONTEXT</Text>
+    <Text style={styles.screenSubtitle}>Deze waarden simuleren voorlopig context die later alleen met jouw toestemming uit apparaatbronnen kan komen.</Text>
     <Text style={styles.fieldLabel}>MOMENT VAN DE DAG</Text><View style={styles.chipRow}>{dayParts.map((item) => <ChoiceChip key={item} label={dayPartLabels[item]} selected={context.dayPart === item} onPress={() => onChange({ ...context, dayPart: item })} />)}</View>
     <Text style={styles.fieldLabel}>PROEFPROFIEL</Text>
     <View style={styles.profileChoiceList}>{profiles.map((item) => <Pressable key={item} onPress={() => onChange({ ...context, profile: item })} style={[styles.profileChoice, context.profile === item && styles.profileChoiceSelected]}><View style={styles.flex}><Text style={styles.profileChoiceTitle}>{profileLabels[item].title}</Text><Text style={styles.profileChoiceBody}>{profileLabels[item].body}</Text></View><Text style={styles.profileChoiceMark}>{context.profile === item ? '●' : '○'}</Text></Pressable>)}</View>
@@ -466,7 +583,7 @@ function ProfileScreen({ context, liveWorld, liveLoading, liveMessage, onChange,
       <Text style={styles.sourcePrivacy}>Globale locatie wordt alleen na jouw tik opgevraagd en afgerond voordat bronnen worden benaderd.</Text>
     </View>
     <View style={styles.futureSources}><Text style={styles.fieldLabel}>VOLGENDE LIVE BRONNEN</Text>{futureSourceRegistry.map((source) => <View key={source.id} style={styles.futureSourceRow}><Text style={styles.futureSourceLabel}>{source.label}</Text><Text style={styles.futureSourceState}>GEPLAND</Text></View>)}</View>
-    <View style={styles.learningCard}><Text style={styles.learningTitle}>Transparante lokale proef</Text><Text style={styles.learningBody}>De engine filtert eerst op tijd, gezelschap en materiaal. Daarna vergelijkt hij moment, profiel, intentie en voorbereiding. Echte context komt pas later via afzonderlijke toestemming.</Text></View>
+    <View style={styles.learningCard}><Text style={styles.learningTitle}>Transparante lokale selectie</Text><Text style={styles.learningBody}>Momentum filtert eerst op tijd, gezelschap en materiaal. Daarna wegen moment, jouw eigen woorden, bevestigde voorkeuren, actuele bronnen en voldoende afwisseling mee.</Text></View>
     <PrimaryButton label="Gebruik deze proefcontext" onPress={onClose} />
   </ScrollView>;
 }
@@ -503,6 +620,23 @@ function ProfileRow({ label, value }: { label: string; value: string }) { return
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.ink }, safe: { flex: 1, alignItems: 'center' }, appFrame: { flex: 1, width: '100%', maxWidth: 520 }, flex: { flex: 1 },
+  onboardingScroll: { flexGrow: 1, padding: 24, paddingTop: 18, paddingBottom: 42 },
+  onboardingProgress: { flexDirection: 'row', gap: 6, marginBottom: 48 },
+  onboardingProgressPart: { height: 3, flex: 1, borderRadius: 2, backgroundColor: 'rgba(244,238,227,0.12)' },
+  onboardingProgressActive: { backgroundColor: colors.green },
+  onboardingTitle: { color: colors.bone, fontSize: 44, lineHeight: 48, letterSpacing: -1.4, fontWeight: '300', maxWidth: 430 },
+  onboardingBody: { color: colors.muted, fontSize: 16, lineHeight: 24, marginTop: 18, marginBottom: 32, maxWidth: 430 },
+  singleInput: { minHeight: 56, borderRadius: 18, borderWidth: 1, borderColor: colors.line, backgroundColor: 'rgba(16,26,29,0.76)', color: colors.bone, fontSize: 16, paddingHorizontal: 16, marginBottom: 18 },
+  onboardingChoices: { gap: 9, marginBottom: 24 },
+  onboardingChoice: { minHeight: 60, borderRadius: 18, borderWidth: 1, borderColor: colors.line, backgroundColor: 'rgba(16,26,29,0.62)', paddingHorizontal: 17, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  onboardingChoiceSelected: { borderColor: colors.green, backgroundColor: 'rgba(164,197,93,0.12)' },
+  onboardingChoiceTitle: { color: colors.bone, fontSize: 15, fontWeight: '600' },
+  onboardingFooter: { marginTop: 'auto', paddingTop: 24 },
+  trustCard: { borderRadius: 22, borderWidth: 1, borderColor: 'rgba(164,197,93,0.28)', backgroundColor: 'rgba(164,197,93,0.06)', padding: 18, marginTop: 8 },
+  validationText: { color: colors.gold, fontSize: 11, textAlign: 'center', marginTop: 10 },
+  quietCorrection: { color: 'rgba(217,179,107,0.8)', fontSize: 11 },
+  personalCard: { borderRadius: 24, borderWidth: 1, borderColor: colors.line, overflow: 'hidden', marginTop: 24, marginBottom: 26 },
+  learningEvent: { color: colors.muted, fontSize: 10, lineHeight: 16, marginTop: 9 },
   ambientGold: { position: 'absolute', width: 520, height: 520, borderRadius: 260, backgroundColor: 'rgba(143,93,42,0.19)', top: -350, right: -260 },
   ambientGreen: { position: 'absolute', width: 500, height: 500, borderRadius: 250, backgroundColor: 'rgba(58,87,66,0.15)', bottom: -330, left: -270 },
   screenScroll: { padding: 20, paddingTop: 12, paddingBottom: 116 }, flowScroll: { padding: 22, paddingTop: 12, paddingBottom: 48 },

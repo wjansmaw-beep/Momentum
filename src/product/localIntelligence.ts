@@ -22,6 +22,13 @@ export type LocalDecision = {
   rejected: number;
 };
 
+export type PersonalLearningContext = {
+  kindAffinity: Partial<Record<ExperienceKind, number>>;
+  blockedExperienceIds: string[];
+  favoriteExperienceIds: string[];
+  recentExperienceIds: string[];
+};
+
 export const dayPartLabels: Record<DayPart, string> = {
   morning: 'Ochtend', midday: 'Middag', afternoon: 'Namiddag', evening: 'Avond',
 };
@@ -56,10 +63,11 @@ const equipmentAllowed = (experience: Experience, context: PrototypeContext) =>
 const companyAllowed = (experience: Experience, context: PrototypeContext) =>
   experience.company.includes(context.company);
 
-export function rankForMoment(context: PrototypeContext, intentText = '', excludedIds: string[] = [], candidatePool: Experience[] = experiences): LocalDecision {
+export function rankForMoment(context: PrototypeContext, intentText = '', excludedIds: string[] = [], candidatePool: Experience[] = experiences, learning?: PersonalLearningContext): LocalDecision {
   const intent = intentText.toLocaleLowerCase('nl-NL').trim();
   const feasible = candidatePool.filter((experience) =>
     !excludedIds.includes(experience.id)
+    && !learning?.blockedExperienceIds.includes(experience.id)
     && experience.duration + 5 <= context.availableMinutes
     && equipmentAllowed(experience, context)
     && companyAllowed(experience, context));
@@ -98,6 +106,16 @@ export function rankForMoment(context: PrototypeContext, intentText = '', exclud
     }
     if (experience.prepare.length <= 4) score += 5;
 
+    const learnedAffinity = learning?.kindAffinity[experience.kind] ?? 0;
+    score += learnedAffinity * 45;
+    if (learnedAffinity >= 0.15) reasons.push({ certainty: 'chosen', text: 'sluit aan bij voorkeuren die jij zelf bevestigde' });
+    if (learning?.favoriteExperienceIds.includes(experience.id)) {
+      score += 8;
+      reasons.push({ certainty: 'chosen', text: 'je koos eerder bewust voor nog eens doen' });
+    }
+    const recentIndex = learning?.recentExperienceIds.indexOf(experience.id) ?? -1;
+    if (recentIndex >= 0) score -= Math.max(5, 18 - recentIndex * 3);
+
     return { experience, score: Math.round(score), reasons: reasons.slice(0, 3) };
   }).sort((a, b) => b.score - a.score || a.experience.id.localeCompare(b.experience.id));
 
@@ -113,7 +131,7 @@ export function rankForMoment(context: PrototypeContext, intentText = '', exclud
 
 export type TodayDecision = { dayPart: DayPart; label: string; time: string; result: RankedExperience };
 
-export function buildToday(context: PrototypeContext, liveExperience?: Experience): TodayDecision[] {
+export function buildToday(context: PrototypeContext, liveExperience?: Experience, learning?: PersonalLearningContext): TodayDecision[] {
   const windows: Array<{ dayPart: DayPart; label: string; time: string; minutes: number }> = [
     { dayPart: 'morning', label: 'OCHTEND', time: '07:30 – 09:00', minutes: 45 },
     { dayPart: 'midday', label: 'MIDDAG', time: '12:20 – 13:30', minutes: 30 },
@@ -123,7 +141,7 @@ export function buildToday(context: PrototypeContext, liveExperience?: Experienc
   const used: string[] = [];
   const candidatePool = liveExperience ? [liveExperience, ...experiences] : experiences;
   return windows.flatMap((window) => {
-    const decision = rankForMoment({ ...context, dayPart: window.dayPart, availableMinutes: window.minutes }, '', used, candidatePool);
+    const decision = rankForMoment({ ...context, dayPart: window.dayPart, availableMinutes: window.minutes }, '', used, candidatePool, learning);
     if (!decision.selected) return [];
     used.push(decision.selected.experience.id);
     return [{ ...window, result: decision.selected }];

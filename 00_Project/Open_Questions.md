@@ -3,6 +3,16 @@
 Status: Operational, living document  
 Version: 1.0
 
+## Resolved direction — personal model (2026-07-12)
+
+- The smallest useful onboarding is permission-free and asks only consciously chosen preferences and practical constraints.
+- Learned signals are shown in Profile and can be reset independently of memories.
+- A situational decline (`Not now`) never changes durable preference.
+- Only explicit corrections and explicit positive reflection may affect future ranking.
+- Repetition penalties remain necessary even when an experience scores highly.
+
+The exact wording, accessibility validation, and migration to native Apple capabilities remain open implementation questions.
+
 ## How to use this document
 
 This file records consequential questions without silently deciding them. When resolved, move the decision into a dated decision record, link it here, and update affected documents.
