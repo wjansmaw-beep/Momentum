@@ -8,6 +8,28 @@ export type CapsuleStep = {
   seconds?: number;
 };
 
+export type LiveEvidence = {
+  label: string;
+  sourceName: string;
+  sourceUrl: string;
+  observedAt: string;
+  retrievedAt: string;
+  expiresAt: string;
+  certainty: 'forecast' | 'observation';
+};
+
+export type RoutePlan = {
+  mode: 'walking' | 'cycling';
+  destinationName: string;
+  destination?: { latitude: number; longitude: number };
+  source?: { latitude: number; longitude: number };
+  outboundMinutes: number;
+  experienceMinutes: number;
+  returnMinutes: number;
+  bufferMinutes: number;
+  natureGuard: string;
+};
+
 export type Experience = {
   id: string;
   kind: ExperienceKind;
@@ -31,6 +53,8 @@ export type Experience = {
   memoryPrompt: string;
   keywords: string[];
   company: Array<'solo' | 'together' | 'family'>;
+  liveEvidence?: LiveEvidence[];
+  routePlan?: RoutePlan;
 };
 
 export const experiences: Experience[] = [

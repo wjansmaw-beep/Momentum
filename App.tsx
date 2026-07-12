@@ -1,5 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Location from 'expo-location';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ImageBackground,
@@ -33,6 +34,13 @@ import {
   rankForMoment,
   TodayDecision,
 } from './src/product/localIntelligence';
+import {
+  composeLiveExperience,
+  Coordinates,
+  futureSourceRegistry,
+  LiveWorldSnapshot,
+  loadLiveWorld,
+} from './src/liveworld/liveWorld';
 
 type FlowStage = 'promise' | 'prepare' | 'presence' | 'remember' | 'profile' | null;
 type Memory = { id: string; title: string; date: string; image: string; note: string };
@@ -44,6 +52,7 @@ const colors = {
 const memoryKey = 'momentum.memories.v2';
 const contextKey = 'momentum.prototype-context.v1';
 const timeOptions = [15, 30, 60, 120];
+const defaultRegion = { coordinates: { latitude: 53.325, longitude: 5.999 }, label: 'Dokkum proefregio' };
 
 export default function App() {
   const { height } = useWindowDimensions();
@@ -53,6 +62,9 @@ export default function App() {
   const [origin, setOrigin] = useState<Surface>('now');
   const [prototypeContext, setPrototypeContext] = useState<PrototypeContext>(defaultPrototypeContext);
   const [contextHydrated, setContextHydrated] = useState(false);
+  const [liveWorld, setLiveWorld] = useState<LiveWorldSnapshot | null>(null);
+  const [liveLoading, setLiveLoading] = useState(true);
+  const [liveMessage, setLiveMessage] = useState('Live bronnen worden gecontroleerd…');
   const [memories, setMemories] = useState<Memory[]>([
     { id: 'seed-1', title: 'Licht boven het Wad', date: '8 juli', image: byId('wadden-light').image, note: 'De lucht werd stiller dan verwacht.' },
     { id: 'seed-2', title: 'Een sterk halfuur', date: '5 juli', image: byId('kettlebell-focus').image, note: 'Kort, scherp en precies genoeg.' },
@@ -69,6 +81,10 @@ export default function App() {
     AsyncStorage.getItem(contextKey).then((value) => {
       if (value) setPrototypeContext({ ...defaultPrototypeContext(), ...JSON.parse(value) });
     }).catch(() => undefined).finally(() => setContextHydrated(true));
+    loadLiveWorld(defaultRegion.coordinates, defaultRegion.label)
+      .then((snapshot) => { setLiveWorld(snapshot); setLiveMessage('Live bronnen bijgewerkt'); })
+      .catch(() => setLiveMessage('Live bronnen konden niet worden bijgewerkt'))
+      .finally(() => setLiveLoading(false));
   }, []);
 
   useEffect(() => {
@@ -80,9 +96,33 @@ export default function App() {
     AsyncStorage.setItem(contextKey, JSON.stringify(prototypeContext)).catch(() => undefined);
   }, [contextHydrated, prototypeContext]);
 
-  const primaryDecision = useMemo(() => rankForMoment(prototypeContext), [prototypeContext]);
+  const liveExperience = useMemo(() => liveWorld ? composeLiveExperience(liveWorld, prototypeContext) : undefined, [liveWorld, prototypeContext]);
+  const candidatePool = useMemo(() => liveExperience ? [liveExperience, ...experiences] : experiences, [liveExperience]);
+  const primaryDecision = useMemo(() => rankForMoment(prototypeContext, '', [], candidatePool), [candidatePool, prototypeContext]);
   const primaryExperience = primaryDecision.selected?.experience ?? byId('work-reset');
-  const dayDecisions = useMemo(() => buildToday(prototypeContext), [prototypeContext]);
+  const dayDecisions = useMemo(() => buildToday(prototypeContext, liveExperience), [liveExperience, prototypeContext]);
+
+  const refreshLiveWorld = async (coordinates: Coordinates = liveWorld?.coordinates ?? defaultRegion.coordinates, label = liveWorld?.regionLabel ?? defaultRegion.label) => {
+    setLiveLoading(true); setLiveMessage('Live bronnen worden gecontroleerd…');
+    try {
+      const snapshot = await loadLiveWorld(coordinates, label);
+      setLiveWorld(snapshot); setLiveMessage('Live bronnen bijgewerkt');
+    } catch {
+      setLiveMessage('Live bronnen konden niet worden bijgewerkt');
+    } finally { setLiveLoading(false); }
+  };
+
+  const useApproximateLocation = async () => {
+    setLiveLoading(true); setLiveMessage('Toestemming voor globale omgeving wordt gevraagd…');
+    try {
+      const permission = await Location.requestForegroundPermissionsAsync();
+      if (permission.status !== 'granted') { setLiveMessage('Locatie niet gedeeld · Dokkum proefregio blijft actief'); return; }
+      const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Low });
+      const coordinates = { latitude: Number(position.coords.latitude.toFixed(2)), longitude: Number(position.coords.longitude.toFixed(2)) };
+      await refreshLiveWorld(coordinates, 'Jouw globale omgeving');
+    } catch { setLiveMessage('Globale locatie kon niet worden gebruikt'); }
+    finally { setLiveLoading(false); }
+  };
 
   const openExperience = (experience: Experience, from: Surface, stage: FlowStage = 'promise') => {
     setSelected(experience);
@@ -113,9 +153,9 @@ export default function App() {
         <View style={styles.appFrame}>
           {flowStage === null && (
             <>
-              {surface === 'now' && <NowScreen experience={primaryExperience} decision={primaryDecision} context={prototypeContext} onOpen={(item, stage) => openExperience(item, 'now', stage)} onProfile={() => setFlowStage('profile')} onDiscover={() => setSurface('discover')} />}
+              {surface === 'now' && <NowScreen experience={primaryExperience} decision={primaryDecision} context={prototypeContext} liveWorld={liveWorld} liveLoading={liveLoading} onOpen={(item, stage) => openExperience(item, 'now', stage)} onProfile={() => setFlowStage('profile')} onDiscover={() => setSurface('discover')} />}
               {surface === 'today' && <TodayScreen decisions={dayDecisions} onOpen={(item) => openExperience(item, 'today')} />}
-              {surface === 'discover' && <DiscoverScreen context={prototypeContext} onOpen={(item) => openExperience(item, 'discover')} />}
+              {surface === 'discover' && <DiscoverScreen context={prototypeContext} candidatePool={candidatePool} onOpen={(item) => openExperience(item, 'discover')} />}
               {surface === 'lifebook' && <LifeBookScreen memories={memories} onOpen={(item) => openExperience(item, 'lifebook')} />}
               <BottomNav surface={surface} onChange={setSurface} />
             </>
@@ -124,7 +164,7 @@ export default function App() {
           {flowStage === 'prepare' && <PrepareScreen experience={selected} onBack={() => setFlowStage('promise')} onStart={() => setFlowStage('presence')} />}
           {flowStage === 'presence' && <PresenceScreen experience={selected} onBack={() => setFlowStage('prepare')} onFinish={() => setFlowStage('remember')} />}
           {flowStage === 'remember' && <RememberScreen experience={selected} onSkip={() => { setFlowStage(null); setSurface(origin); }} onSave={finishExperience} />}
-          {flowStage === 'profile' && <ProfileScreen context={prototypeContext} onChange={setPrototypeContext} onClose={closeFlow} />}
+          {flowStage === 'profile' && <ProfileScreen context={prototypeContext} liveWorld={liveWorld} liveLoading={liveLoading} liveMessage={liveMessage} onChange={setPrototypeContext} onRefresh={() => refreshLiveWorld()} onUseLocation={useApproximateLocation} onClose={closeFlow} />}
         </View>
       </SafeAreaView>
     </View>
@@ -144,12 +184,13 @@ function ScreenHeader({ eyebrow, title, subtitle, onProfile }: { eyebrow?: strin
   );
 }
 
-function NowScreen({ experience, decision, context, onOpen, onProfile, onDiscover }: { experience: Experience; decision: LocalDecision; context: PrototypeContext; onOpen: (item: Experience, stage?: FlowStage) => void; onProfile: () => void; onDiscover: () => void }) {
+function NowScreen({ experience, decision, context, liveWorld, liveLoading, onOpen, onProfile, onDiscover }: { experience: Experience; decision: LocalDecision; context: PrototypeContext; liveWorld: LiveWorldSnapshot | null; liveLoading: boolean; onOpen: (item: Experience, stage?: FlowStage) => void; onProfile: () => void; onDiscover: () => void }) {
   const [declined, setDeclined] = useState(false);
   const [whyOpen, setWhyOpen] = useState(false);
   return (
     <ScrollView contentContainerStyle={styles.screenScroll} showsVerticalScrollIndicator={false}>
       <ScreenHeader eyebrow={`${dayPartLabels[context.dayPart].toUpperCase()} · LOKALE PROEFCONTEXT`} title="Vandaag wacht er iets moois op je." subtitle="Eén voorstel voor dit moment." onProfile={onProfile} />
+      <LiveWorldBar snapshot={liveWorld} loading={liveLoading} />
       {!declined ? (
         <View style={styles.heroCard}>
           <ImageBackground source={{ uri: experience.image }} style={styles.heroImage} imageStyle={styles.heroImageStyle}>
@@ -223,11 +264,11 @@ function TodayScreen({ decisions, onOpen }: { decisions: TodayDecision[]; onOpen
   );
 }
 
-function DiscoverScreen({ context, onOpen }: { context: PrototypeContext; onOpen: (item: Experience) => void }) {
+function DiscoverScreen({ context, candidatePool, onOpen }: { context: PrototypeContext; candidatePool: Experience[]; onOpen: (item: Experience) => void }) {
   const [minutes, setMinutes] = useState(60);
   const [input, setInput] = useState('');
   const [mode, setMode] = useState<'idle' | 'result'>('idle');
-  const result = useMemo(() => rankForMoment({ ...context, availableMinutes: minutes }, input), [context, input, minutes]);
+  const result = useMemo(() => rankForMoment({ ...context, availableMinutes: minutes }, input, [], candidatePool), [candidatePool, context, input, minutes]);
   const primary = result.selected?.experience;
   const alternative = result.alternative?.experience;
   const surprise = () => { setInput(''); setMode('result'); };
@@ -295,6 +336,11 @@ function PromiseScreen({ experience, onClose, onAccept }: { experience: Experien
       <Text style={styles.wonderHeadline}>Wat je kunt verwachten</Text>
       <Text style={styles.wonderLarge}>{experience.wonder}</Text>
       <View style={styles.factStrip}><MiniFact value={`${experience.duration} min`} label="totaal" /><MiniFact value={experience.effort} label="inspanning" /><MiniFact value={experience.timeWindow ?? 'nu mogelijk'} label="moment" /></View>
+      {experience.liveEvidence?.length ? <View style={styles.liveEvidenceCard}>
+        <Text style={styles.liveEvidenceTitle}>LIVE WORLD · BRONBEWIJS</Text>
+        {experience.liveEvidence.map((evidence) => <View key={`${evidence.sourceName}-${evidence.label}`} style={styles.liveEvidenceRow}><View style={styles.liveEvidenceDot} /><View style={styles.flex}><Text style={styles.liveEvidenceLabel}>{evidence.label}</Text><Text style={styles.liveEvidenceMeta}>{evidence.certainty === 'observation' ? 'Waarneming' : 'Voorspelling'} · {evidence.sourceName} · vervalt automatisch</Text></View></View>)}
+        <Text style={styles.liveEvidenceCaution}>Een natuurwaarneming is nooit een garantie dat het dier nog aanwezig is.</Text>
+      </View> : null}
       <PrimaryButton label={experience.cta} onPress={onAccept} />
       <Pressable onPress={() => setWhyOpen((value) => !value)} style={styles.whyButton}><Text style={styles.whyButtonText}>Waarom deze ervaring?</Text><Text style={styles.whyChevron}>{whyOpen ? '⌃' : '⌄'}</Text></Pressable>
       {whyOpen && <View style={styles.whyPanel}>{experience.why.map((reason) => <Text key={reason} style={styles.whyReason}>• {reason}</Text>)}</View>}
@@ -308,6 +354,11 @@ function PrepareScreen({ experience, onBack, onStart }: { experience: Experience
       <BackButton label="Terug" onPress={onBack} />
       <Text style={styles.eyebrow}>PREPARE</Text><Text style={styles.flowTitle}>{experience.prepareTitle}</Text><Text style={styles.screenSubtitle}>Alles wat nodig is. Niets dat je nog laat zoeken.</Text>
       <View style={styles.prepareCard}>{experience.prepare.map((item, index) => <View key={item} style={styles.prepareRow}><View style={[styles.stepNumber, { borderColor: experience.accent }]}><Text style={styles.stepNumberText}>{index + 1}</Text></View><Text style={styles.prepareText}>{item}</Text></View>)}</View>
+      {experience.routePlan && <View style={styles.routePlanCard}>
+        <Text style={styles.liveEvidenceTitle}>ROUTE COMPOSER</Text><Text style={styles.routePlanTitle}>{experience.routePlan.destinationName}</Text>
+        <View style={styles.routeBudget}><MiniFact value={`${experience.routePlan.outboundMinutes} min`} label="heen" /><MiniFact value={`${experience.routePlan.experienceMinutes} min`} label="beleven" /><MiniFact value={`${experience.routePlan.returnMinutes} min`} label="terug" /><MiniFact value={`${experience.routePlan.bufferMinutes} min`} label="buffer" /></View>
+        <Text style={styles.routeGuard}>{experience.routePlan.natureGuard}</Text>
+      </View>}
       <View style={styles.commitmentCard}><Text style={styles.commitmentLabel}>TOTALE VERPLICHTING</Text><Text style={styles.commitmentValue}>{experience.duration} minuten · {experience.effort.toLowerCase()}</Text>{experience.distance && <Text style={styles.commitmentBody}>{experience.distance} is meegenomen voordat je begint.</Text>}</View>
       <PrimaryButton label="Ik ga nu" onPress={onStart} />
     </ScrollView>
@@ -333,7 +384,12 @@ function PresenceScreen({ experience, onBack, onFinish }: { experience: Experien
   }, [remaining, timerRunning]);
 
   const openHandoff = async () => {
-    const url = Platform.OS === 'ios' ? `maps://?q=${encodeURIComponent(experience.title)}` : `https://maps.apple.com/?q=${encodeURIComponent(experience.title)}`;
+    const plan = experience.routePlan;
+    const source = plan?.source ? `${plan.source.latitude},${plan.source.longitude}` : undefined;
+    const destination = plan?.destination ? `${plan.destination.latitude},${plan.destination.longitude}` : plan?.destinationName ?? experience.title;
+    const params = new URLSearchParams({ destination, mode: plan?.mode ?? 'walking' });
+    if (source) params.set('source', source);
+    const url = `https://maps.apple.com/directions?${params.toString()}`;
     await Linking.openURL(url).catch(() => undefined);
   };
   const next = () => {
@@ -388,7 +444,7 @@ function RememberScreen({ experience, onSkip, onSave }: { experience: Experience
   );
 }
 
-function ProfileScreen({ context, onChange, onClose }: { context: PrototypeContext; onChange: (context: PrototypeContext) => void; onClose: () => void }) {
+function ProfileScreen({ context, liveWorld, liveLoading, liveMessage, onChange, onRefresh, onUseLocation, onClose }: { context: PrototypeContext; liveWorld: LiveWorldSnapshot | null; liveLoading: boolean; liveMessage: string; onChange: (context: PrototypeContext) => void; onRefresh: () => void; onUseLocation: () => void; onClose: () => void }) {
   const dayParts: DayPart[] = ['morning', 'midday', 'afternoon', 'evening'];
   const profiles: PrototypeProfile[] = ['balanced', 'explorer', 'mover', 'family'];
   const companies: Array<{ id: Company; label: string }> = [{ id: 'solo', label: 'Alleen' }, { id: 'together', label: 'Samen' }, { id: 'family', label: 'Met gezin' }];
@@ -402,9 +458,27 @@ function ProfileScreen({ context, onChange, onClose }: { context: PrototypeConte
     <Text style={styles.fieldLabel}>MET WIE?</Text><View style={styles.chipRow}>{companies.map((item) => <ChoiceChip key={item.id} label={item.label} selected={context.company === item.id} onPress={() => onChange({ ...context, company: item.id })} />)}</View>
     <Text style={styles.fieldLabel}>BESCHIKBAAR MATERIAAL</Text><View style={styles.chipRow}><ChoiceChip label="Kettlebell" selected={context.hasKettlebell} onPress={() => onChange({ ...context, hasKettlebell: !context.hasKettlebell })} /><ChoiceChip label="Geen trainingsmateriaal" selected={!context.hasKettlebell} onPress={() => onChange({ ...context, hasKettlebell: false })} /></View>
     <View style={styles.profileCard}><ProfileRow label="Locatie" value="Niet gekoppeld" /><ProfileRow label="Agenda" value="Niet gekoppeld" /><ProfileRow label="Weer" value="Niet gekoppeld" /><ProfileRow label="Gezondheid" value="Niet gekoppeld" /></View>
+    <View style={styles.liveControlCard}>
+      <Text style={styles.liveEvidenceTitle}>LIVE WORLD · {liveWorld?.regionLabel ?? defaultRegion.label}</Text>
+      <Text style={styles.liveControlMessage}>{liveMessage}</Text>
+      {(liveWorld?.sources ?? []).map((source) => <View key={source.id} style={styles.sourceRow}><View style={[styles.sourceState, source.state === 'live' ? styles.sourceLive : source.state === 'error' ? styles.sourceError : styles.sourceWaiting]} /><View style={styles.flex}><Text style={styles.sourceName}>{source.name}</Text><Text style={styles.sourceDetail}>{source.detail}</Text></View></View>)}
+      <View style={styles.liveControlActions}><SecondaryButton label={liveLoading ? 'Bezig met vernieuwen…' : 'Vernieuw live bronnen'} onPress={onRefresh} /><SecondaryButton label="Gebruik mijn globale omgeving" onPress={onUseLocation} /></View>
+      <Text style={styles.sourcePrivacy}>Globale locatie wordt alleen na jouw tik opgevraagd en afgerond voordat bronnen worden benaderd.</Text>
+    </View>
+    <View style={styles.futureSources}><Text style={styles.fieldLabel}>VOLGENDE LIVE BRONNEN</Text>{futureSourceRegistry.map((source) => <View key={source.id} style={styles.futureSourceRow}><Text style={styles.futureSourceLabel}>{source.label}</Text><Text style={styles.futureSourceState}>GEPLAND</Text></View>)}</View>
     <View style={styles.learningCard}><Text style={styles.learningTitle}>Transparante lokale proef</Text><Text style={styles.learningBody}>De engine filtert eerst op tijd, gezelschap en materiaal. Daarna vergelijkt hij moment, profiel, intentie en voorbereiding. Echte context komt pas later via afzonderlijke toestemming.</Text></View>
     <PrimaryButton label="Gebruik deze proefcontext" onPress={onClose} />
   </ScrollView>;
+}
+
+function LiveWorldBar({ snapshot, loading }: { snapshot: LiveWorldSnapshot | null; loading: boolean }) {
+  const weather = snapshot?.weather;
+  const liveCount = snapshot?.sources.filter((source) => source.state === 'live').length ?? 0;
+  return <View style={styles.liveWorldBar}>
+    <View style={[styles.sourceState, liveCount ? styles.sourceLive : styles.sourceWaiting]} />
+    <View style={styles.flex}><Text style={styles.liveWorldBarTitle}>{loading ? 'Live World wordt bijgewerkt' : `${liveCount} live bron${liveCount === 1 ? '' : 'nen'} · ${snapshot?.regionLabel ?? defaultRegion.label}`}</Text><Text style={styles.liveWorldBarDetail}>{weather ? `${Math.round(weather.temperature)}°C · wind ${Math.round(weather.windSpeed)} km/u · zicht ${Math.round(weather.visibilityMeters / 1000)} km` : 'Evergreen ervaringen blijven beschikbaar'}</Text></View>
+    <Text style={styles.liveWorldMark}>◎</Text>
+  </View>;
 }
 
 function BottomNav({ surface, onChange }: { surface: Surface; onChange: (surface: Surface) => void }) {
@@ -439,6 +513,7 @@ const styles = StyleSheet.create({
   heroCard: { borderRadius: 30, overflow: 'hidden', backgroundColor: 'rgba(16,26,29,0.96)', borderWidth: 1, borderColor: colors.line }, heroImage: { height: 390, padding: 18, justifyContent: 'space-between' }, heroImageStyle: { borderTopLeftRadius: 29, borderTopRightRadius: 29 }, imageShade: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: 'rgba(3,8,9,0.36)' },
   heroTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }, heroTime: { color: colors.bone, fontSize: 10, letterSpacing: 1.4 }, heroBottom: { gap: 11 }, heroTitle: { color: '#FFF9EF', fontSize: 38, lineHeight: 41, fontWeight: '300', letterSpacing: -1.1 }, heroPromise: { color: 'rgba(255,249,239,0.88)', fontSize: 16, lineHeight: 23, maxWidth: 390 }, heroFacts: { flexDirection: 'row', gap: 18, marginTop: 8 },
   heroActionArea: { padding: 18 }, wonderText: { color: colors.bone, fontSize: 15, lineHeight: 22, marginBottom: 16 },
+  liveWorldBar: { minHeight: 64, borderRadius: 20, borderWidth: 1, borderColor: colors.line, backgroundColor: 'rgba(16,26,29,0.72)', paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 11, marginBottom: 14 }, liveWorldBarTitle: { color: colors.bone, fontSize: 12, fontWeight: '600' }, liveWorldBarDetail: { color: colors.muted, fontSize: 10, marginTop: 3 }, liveWorldMark: { color: colors.green, fontSize: 22 },
   pill: { alignSelf: 'flex-start', borderRadius: 99, borderWidth: 1, backgroundColor: 'rgba(5,10,10,0.56)', paddingHorizontal: 10, paddingVertical: 7, flexDirection: 'row', alignItems: 'center', gap: 7 }, pillDot: { width: 6, height: 6, borderRadius: 3 }, pillText: { fontSize: 9, letterSpacing: 1.2, fontWeight: '700' },
   miniFact: { minWidth: 70 }, miniFactValue: { color: colors.bone, fontSize: 13, fontWeight: '600' }, miniFactLabel: { color: 'rgba(244,238,227,0.62)', fontSize: 9, marginTop: 3 },
   primaryButton: { minHeight: 56, borderRadius: 19, backgroundColor: colors.green, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, primaryButtonText: { color: '#10160D', fontSize: 16, fontWeight: '700' }, primaryArrow: { color: '#10160D', fontSize: 22 },
@@ -451,7 +526,9 @@ const styles = StyleSheet.create({
   lifeSummary: { flexDirection: 'row', alignItems: 'center', borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.line, paddingVertical: 18, marginBottom: 28 }, lifeSummaryBig: { color: colors.green, fontSize: 48, fontWeight: '200', marginRight: 16 }, lifeSummaryTitle: { color: colors.bone, fontSize: 16 }, lifeSummaryBody: { color: colors.muted, fontSize: 11, marginTop: 4 }, memoryGrid: { gap: 14 }, memoryCard: { minHeight: 230 }, memoryImage: { minHeight: 230, justifyContent: 'flex-end' }, memoryImageStyle: { borderRadius: 24 }, memoryCopy: { padding: 18 }, memoryDate: { color: colors.gold, fontSize: 9, letterSpacing: 1.2 }, memoryTitle: { color: colors.bone, fontSize: 27, lineHeight: 31, fontWeight: '300', marginTop: 7 }, memoryNote: { color: 'rgba(244,238,227,0.74)', fontSize: 12, lineHeight: 17, marginTop: 6 }, learningCard: { borderRadius: 22, borderWidth: 1, borderColor: colors.line, backgroundColor: 'rgba(164,197,93,0.06)', padding: 18, marginTop: 22 }, learningTitle: { color: colors.green, fontSize: 14, fontWeight: '700' }, learningBody: { color: colors.muted, fontSize: 12, lineHeight: 19, marginTop: 7 },
   bottomNav: { position: 'absolute', left: 14, right: 14, bottom: 10, minHeight: 72, borderRadius: 26, borderWidth: 1, borderColor: colors.line, backgroundColor: 'rgba(9,17,20,0.96)', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 6 }, navItem: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 5, minHeight: 62 }, navIcon: { color: colors.muted, fontSize: 18 }, navLabel: { color: colors.muted, fontSize: 10 }, navActive: { color: colors.green },
   backButton: { alignSelf: 'flex-start', minHeight: 42, justifyContent: 'center', marginBottom: 12 }, backButtonText: { color: colors.muted, fontSize: 14 }, detailHero: { height: 430, justifyContent: 'flex-end', marginHorizontal: -22, marginTop: -66, marginBottom: 24 }, detailHeroImage: { borderBottomLeftRadius: 30, borderBottomRightRadius: 30 }, detailHeroCopy: { padding: 22, paddingTop: 120 }, detailTitle: { color: colors.bone, fontSize: 42, lineHeight: 45, fontWeight: '300', letterSpacing: -1.3, marginTop: 13 }, detailPromise: { color: 'rgba(244,238,227,0.84)', fontSize: 16, lineHeight: 23, marginTop: 10 }, wonderHeadline: { color: colors.gold, fontSize: 10, letterSpacing: 1.4, fontWeight: '700' }, wonderLarge: { color: colors.bone, fontSize: 21, lineHeight: 30, fontWeight: '300', marginTop: 10 }, factStrip: { flexDirection: 'row', gap: 14, borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.line, paddingVertical: 16, marginVertical: 22 },
+  liveEvidenceCard: { borderRadius: 22, borderWidth: 1, borderColor: 'rgba(164,197,93,0.32)', backgroundColor: 'rgba(164,197,93,0.06)', padding: 16, gap: 12, marginBottom: 20 }, liveEvidenceTitle: { color: colors.green, fontSize: 9, letterSpacing: 1.35, fontWeight: '700' }, liveEvidenceRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 }, liveEvidenceDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.green, marginTop: 5 }, liveEvidenceLabel: { color: colors.bone, fontSize: 12, lineHeight: 17 }, liveEvidenceMeta: { color: colors.muted, fontSize: 9, marginTop: 3 }, liveEvidenceCaution: { color: colors.gold, fontSize: 10, lineHeight: 15, borderTopWidth: 1, borderTopColor: colors.line, paddingTop: 10 },
   flowTitle: { color: colors.bone, fontSize: 41, lineHeight: 45, fontWeight: '300', letterSpacing: -1.2 }, prepareCard: { borderRadius: 25, borderWidth: 1, borderColor: colors.line, backgroundColor: 'rgba(16,26,29,0.82)', padding: 18, gap: 18, marginVertical: 28 }, prepareRow: { flexDirection: 'row', alignItems: 'center' }, stepNumber: { width: 34, height: 34, borderRadius: 17, borderWidth: 1, alignItems: 'center', justifyContent: 'center', marginRight: 13 }, stepNumberText: { color: colors.bone, fontSize: 12 }, prepareText: { color: colors.bone, fontSize: 16, flex: 1 }, commitmentCard: { borderRadius: 20, borderWidth: 1, borderColor: colors.line, padding: 16, marginBottom: 22 }, commitmentLabel: { color: colors.gold, fontSize: 9, letterSpacing: 1.3, fontWeight: '700' }, commitmentValue: { color: colors.bone, fontSize: 17, marginTop: 7 }, commitmentBody: { color: colors.muted, fontSize: 11, marginTop: 5 },
+  routePlanCard: { borderRadius: 22, borderWidth: 1, borderColor: 'rgba(217,179,107,0.35)', backgroundColor: 'rgba(217,179,107,0.05)', padding: 16, marginBottom: 20 }, routePlanTitle: { color: colors.bone, fontSize: 20, lineHeight: 25, marginTop: 8 }, routeBudget: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 16 }, routeGuard: { color: colors.muted, fontSize: 11, lineHeight: 17, marginTop: 14, borderTopWidth: 1, borderTopColor: colors.line, paddingTop: 12 },
   presenceScreen: { flex: 1, padding: 22, paddingTop: 12, paddingBottom: 24 }, presenceTitle: { color: colors.bone, fontSize: 38, lineHeight: 43, fontWeight: '300', textAlign: 'center' }, presenceCue: { color: colors.muted, fontSize: 16, lineHeight: 24, textAlign: 'center', maxWidth: 370, marginTop: 18 }, presenceUnit: { color: colors.muted, fontSize: 9, letterSpacing: 1.5 }, presenceFooter: { color: colors.muted, fontSize: 10, lineHeight: 15, textAlign: 'center', marginTop: 10 },
   capsuleProgress: { flexDirection: 'row', gap: 5, marginBottom: 12 }, capsuleProgressPart: { height: 3, flex: 1, borderRadius: 2, backgroundColor: 'rgba(244,238,227,0.12)' },
   capsuleStep: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 18 }, capsuleStepCount: { color: colors.muted, fontSize: 11, marginBottom: 14 },
@@ -461,4 +538,5 @@ const styles = StyleSheet.create({
   memoryPreview: { minHeight: 280, justifyContent: 'flex-end', marginVertical: 28 }, memoryPreviewTitle: { color: colors.bone, fontSize: 30, fontWeight: '300', padding: 18 }, memoryInput: { minHeight: 120, borderRadius: 20, borderWidth: 1, borderColor: colors.line, color: colors.bone, fontSize: 16, lineHeight: 23, padding: 16, textAlignVertical: 'top', marginBottom: 16, backgroundColor: 'rgba(16,26,29,0.7)' },
   profileCard: { borderRadius: 24, borderWidth: 1, borderColor: colors.line, marginTop: 28, overflow: 'hidden' }, profileRow: { minHeight: 58, borderBottomWidth: 1, borderBottomColor: colors.line, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, profileLabel: { color: colors.muted, fontSize: 13 }, profileValue: { color: colors.bone, fontSize: 13 },
   profileChoiceList: { gap: 8, marginBottom: 24 }, profileChoice: { minHeight: 64, borderRadius: 18, borderWidth: 1, borderColor: colors.line, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 11 }, profileChoiceSelected: { borderColor: colors.green, backgroundColor: 'rgba(164,197,93,0.12)' }, profileChoiceTitle: { color: colors.bone, fontSize: 15, fontWeight: '600' }, profileChoiceBody: { color: colors.muted, fontSize: 11, marginTop: 4 }, profileChoiceMark: { color: colors.green, fontSize: 14, marginLeft: 12 },
+  liveControlCard: { borderRadius: 24, borderWidth: 1, borderColor: 'rgba(164,197,93,0.3)', backgroundColor: 'rgba(164,197,93,0.05)', padding: 17, marginTop: 22 }, liveControlMessage: { color: colors.muted, fontSize: 11, marginTop: 6, marginBottom: 14 }, sourceRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginTop: 11 }, sourceState: { width: 8, height: 8, borderRadius: 4, marginTop: 4 }, sourceLive: { backgroundColor: colors.green }, sourceError: { backgroundColor: '#C56F61' }, sourceWaiting: { backgroundColor: colors.gold }, sourceName: { color: colors.bone, fontSize: 12, fontWeight: '600' }, sourceDetail: { color: colors.muted, fontSize: 10, lineHeight: 15, marginTop: 2 }, liveControlActions: { marginTop: 12 }, sourcePrivacy: { color: 'rgba(174,180,174,0.6)', fontSize: 9, lineHeight: 14, textAlign: 'center' }, futureSources: { marginTop: 24 }, futureSourceRow: { minHeight: 42, borderBottomWidth: 1, borderBottomColor: colors.line, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, futureSourceLabel: { color: colors.muted, fontSize: 12 }, futureSourceState: { color: colors.gold, fontSize: 8, letterSpacing: 1.2, fontWeight: '700' },
 });

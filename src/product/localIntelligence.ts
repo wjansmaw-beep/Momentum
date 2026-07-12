@@ -56,16 +56,16 @@ const equipmentAllowed = (experience: Experience, context: PrototypeContext) =>
 const companyAllowed = (experience: Experience, context: PrototypeContext) =>
   experience.company.includes(context.company);
 
-export function rankForMoment(context: PrototypeContext, intentText = '', excludedIds: string[] = []): LocalDecision {
+export function rankForMoment(context: PrototypeContext, intentText = '', excludedIds: string[] = [], candidatePool: Experience[] = experiences): LocalDecision {
   const intent = intentText.toLocaleLowerCase('nl-NL').trim();
-  const feasible = experiences.filter((experience) =>
+  const feasible = candidatePool.filter((experience) =>
     !excludedIds.includes(experience.id)
     && experience.duration + 5 <= context.availableMinutes
     && equipmentAllowed(experience, context)
     && companyAllowed(experience, context));
 
   if (!feasible.length) {
-    return { confidence: 'low', considered: experiences.length, rejected: experiences.length };
+    return { confidence: 'low', considered: candidatePool.length, rejected: candidatePool.length };
   }
 
   const ranked = feasible.map<RankedExperience>((experience) => {
@@ -92,6 +92,10 @@ export function rankForMoment(context: PrototypeContext, intentText = '', exclud
     reasons.push({ certainty: 'calculated', text: `past met buffer binnen ${context.availableMinutes} minuten` });
 
     if (context.company !== 'solo') reasons.push({ certainty: 'chosen', text: `geschikt voor ${context.company === 'family' ? 'gezin' : 'samen'}` });
+    if (experience.liveEvidence?.length) {
+      score += 24;
+      reasons.unshift({ certainty: 'calculated', text: 'actuele brongegevens maken dit moment onderscheidend' });
+    }
     if (experience.prepare.length <= 4) score += 5;
 
     return { experience, score: Math.round(score), reasons: reasons.slice(0, 3) };
@@ -102,14 +106,14 @@ export function rankForMoment(context: PrototypeContext, intentText = '', exclud
   return {
     selected: ranked[0], alternative,
     confidence: margin >= 18 ? 'high' : margin >= 7 ? 'medium' : 'low',
-    considered: experiences.length,
-    rejected: experiences.length - feasible.length,
+    considered: candidatePool.length,
+    rejected: candidatePool.length - feasible.length,
   };
 }
 
 export type TodayDecision = { dayPart: DayPart; label: string; time: string; result: RankedExperience };
 
-export function buildToday(context: PrototypeContext): TodayDecision[] {
+export function buildToday(context: PrototypeContext, liveExperience?: Experience): TodayDecision[] {
   const windows: Array<{ dayPart: DayPart; label: string; time: string; minutes: number }> = [
     { dayPart: 'morning', label: 'OCHTEND', time: '07:30 – 09:00', minutes: 45 },
     { dayPart: 'midday', label: 'MIDDAG', time: '12:20 – 13:30', minutes: 30 },
@@ -117,8 +121,9 @@ export function buildToday(context: PrototypeContext): TodayDecision[] {
     { dayPart: 'evening', label: 'AVOND', time: '19:30 – 21:00', minutes: 75 },
   ];
   const used: string[] = [];
+  const candidatePool = liveExperience ? [liveExperience, ...experiences] : experiences;
   return windows.flatMap((window) => {
-    const decision = rankForMoment({ ...context, dayPart: window.dayPart, availableMinutes: window.minutes }, '', used);
+    const decision = rankForMoment({ ...context, dayPart: window.dayPart, availableMinutes: window.minutes }, '', used, candidatePool);
     if (!decision.selected) return [];
     used.push(decision.selected.experience.id);
     return [{ ...window, result: decision.selected }];

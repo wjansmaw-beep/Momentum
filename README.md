@@ -1,8 +1,8 @@
 # Momentum
 
-Momentum is a companion for living: it uses context to help people notice, choose, begin, experience, and remember meaningful moments—while spending less time on their phone.
+Momentum is a companion for living: it uses context to help people notice, choose, begin, experience, and remember meaningful moments while spending less time on their phone.
 
-The document foundation is established and the Founder approved the first bounded application prototype on 2026-07-10.
+> Understanding -> Wonder -> Momentum -> Presence -> Memory
 
 ## Start here
 
@@ -11,19 +11,26 @@ The document foundation is established and the Founder approved the first bounde
 3. [`02_Experience/Experience_Loop.md`](02_Experience/Experience_Loop.md)
 4. [`12_AI_Team/AI_Workflow.md`](12_AI_Team/AI_Workflow.md)
 
-> Understanding → Wonder → Momentum → Presence → Memory
+See [`AGENTS.md`](AGENTS.md) for repository-wide rules.
 
-See [`AGENTS.md`](AGENTS.md) for repository-wide rules and the current implementation boundary.
+## Current prototype
 
-## First application prototype
+The Expo/React Native prototype implements four connected surfaces:
 
-The Expo/React Native prototype implements:
+> Now / Today / Discover -> Experience Promise -> preparation -> Presence -> optional Memory
 
-> Now → active time → desired outcome → Experience Promise → correction → preparation → Presence → optional reflection
+Now, Today, and Discover share a transparent local decision engine. Complete staged Capsules cover food, workouts, quiet experiences, family activities, learning, and route handoffs.
 
-It uses local scenario content only. No Apple, calendar, health, location, weather, backend, account, or generative-AI integration is present.
+The first Living World slice uses:
 
-After installing dependencies:
+- live Open-Meteo weather, wind, visibility, sunrise, and sunset for a bounded region;
+- optional recent public eBird observations when a token is configured;
+- a Nature Guard, sourced dynamic Experience Promise, time-budgeted route request, Apple Maps handoff, and Memory boundary;
+- honest evergreen fallback when a source is unavailable.
+
+Calendar, HealthKit, background location, accounts, and generative AI are not connected. Foreground approximate location is requested only after the user explicitly asks for nearby live context.
+
+## Run
 
 ```text
 npm install
@@ -31,4 +38,12 @@ npm run typecheck
 npm start
 ```
 
-See [`00_Project/Decisions/ADR-001-foundation-approved.md`](00_Project/Decisions/ADR-001-foundation-approved.md) for the approved scope.
+## Optional eBird source
+
+Create an uncommitted `.env.local` file:
+
+```text
+EXPO_PUBLIC_EBIRD_API_KEY=your_token_here
+```
+
+Restart Expo after changing the environment. `EXPO_PUBLIC_` variables are bundled into the client, so this is suitable only for the current development proof. Production must use a secure server-side adapter and never commit a token.
