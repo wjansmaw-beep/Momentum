@@ -40,6 +40,7 @@ The four continuous tracks are Philosophy, Experience, Understanding, and Trust.
 - Experience Capsule patterns;
 - North Star UI narrative;
 - representative end-to-end experience blueprints.
+- a reusable staged Capsule Content Contract with complete representative food, workout, quiet, and handoff plans;
 
 **Definition of Done**
 

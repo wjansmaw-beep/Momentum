@@ -41,7 +41,7 @@ Priority labels:
 
 ## Experience Capsules
 
-- **Now:** Which first capsule best tests the selected Human Moment without making that activity the product starting point?
+- **Resolved prototype direction:** A complete shake and kettlebell workout test the staged Capsule runner; quiet and route experiences use the same contract without making either activity the product starting point. See ADR-015.
 - **Soon:** At what precise point does Momentum hand off to Maps rather than remain active?
 - **Soon:** When is a Live Activity genuinely useful instead of extra screen presence?
 - **Soon:** How does Momentum resume after a handoff without falsely assuming completion?
