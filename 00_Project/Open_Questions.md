@@ -86,6 +86,8 @@ Priority labels:
 
 ## Living World
 
+- **Resolved direction:** Momentum is globally usable; Dokkum is only the first validation region. Source coverage degrades independently and cached context is regional, stale-labelled, and barred from generating new live claims. See ADR-023.
+
 - **Resolved first slice:** Dokkum and the surrounding northern region form the initial prototype region. Weather/light is the first public live adapter; eBird is optional when a token is configured. See ADR-017.
 - **Soon:** How fresh must each type of live claim be?
 - **Soon:** Who is responsible for licensing, attribution, correction, and removal?

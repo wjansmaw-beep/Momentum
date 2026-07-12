@@ -7,6 +7,8 @@ Version: 1.0
 
 Momentum can add new live content without turning the app into a collection of special-case integrations. Sources do not create cards directly. They publish narrow signals that Understanding may combine into a Human Moment, candidate ranking, Experience Promise, and Capsule.
 
+Momentum is global while source coverage is regional. Adapters report unsupported or unavailable coverage independently; no adapter may make the product assume a specific country, city, language, or timezone.
+
 ## Source families
 
 ### Personal context sources
@@ -47,6 +49,8 @@ Source adapter
 No source may bypass feasibility, autonomy, Nature Guard, or the user's blocked preferences.
 
 Fast sources publish the first snapshot without waiting for slower discovery sources. Slow sources enrich the snapshot independently; their loading or failure may never hold weather, air, marine context, the evergreen library, or active intent hostage.
+
+Snapshots may be cached in approximate regional cells for fast/offline opening. Restored values are always stale until refreshed and cannot generate new live claims.
 
 ## First implementations
 

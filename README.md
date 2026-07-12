@@ -2,6 +2,8 @@
 
 Momentum is a companion for living: it uses context to help people notice, choose, begin, experience, and remember meaningful moments while spending less time on their phone.
 
+The product architecture is global. Dokkum is the first validation region; source adapters, regional cache cells, dates, and graceful fallbacks do not assume one permanent city or country.
+
 > Understanding -> Wonder -> Momentum -> Presence -> Memory
 
 ## Start here

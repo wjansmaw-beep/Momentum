@@ -4,7 +4,7 @@ import { PrototypeContext } from '../product/localIntelligence';
 declare const process: { env: { EXPO_PUBLIC_EBIRD_API_KEY?: string } };
 
 export type Coordinates = { latitude: number; longitude: number };
-export type SourceState = 'live' | 'loading' | 'not-configured' | 'error';
+export type SourceState = 'live' | 'loading' | 'stale' | 'not-configured' | 'error';
 export type SourceReceipt = { id: string; name: string; state: SourceState; detail: string; url: string };
 
 export type WeatherSignal = {
@@ -60,6 +60,8 @@ export type LiveWorldSnapshot = {
   nearbyPlaces: NearbyPlace[];
   sources: SourceReceipt[];
 };
+
+const snapshotFresh = (snapshot: LiveWorldSnapshot, maxMinutes: number) => Date.now() - new Date(snapshot.retrievedAt).getTime() <= maxMinutes * 60000;
 
 type OpenMeteoResponse = {
   current?: { time: string; temperature_2m: number; wind_speed_10m: number; visibility: number; weather_code: number };
@@ -261,7 +263,7 @@ const weatherSuitableForOutside = (weather?: WeatherSignal) =>
 const formatClock = (value: string) => value ? new Date(value).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' }) : 'onbekend';
 
 export function composeLiveExperience(snapshot: LiveWorldSnapshot, context: PrototypeContext): Experience | undefined {
-  if (!weatherSuitableForOutside(snapshot.weather) || (snapshot.airQuality?.europeanAqi ?? 0) > 80) return undefined;
+  if (!snapshotFresh(snapshot, 180) || !weatherSuitableForOutside(snapshot.weather) || (snapshot.airQuality?.europeanAqi ?? 0) > 80) return undefined;
   const base = byId('wadden-light');
   const bird = snapshot.birdObservations.find((item) => item.publicLocation);
   const weather = snapshot.weather!;
@@ -317,7 +319,7 @@ const distanceKm = (a: Coordinates, b: Coordinates) => {
 };
 
 export function composeNearbyPlaceExperience(snapshot: LiveWorldSnapshot, context: PrototypeContext): Experience | undefined {
-  if (context.availableMinutes < 45) return undefined;
+  if (!snapshotFresh(snapshot, 360) || context.availableMinutes < 45) return undefined;
   const place = snapshot.nearbyPlaces.filter((item) => item.openingState === 'open').sort((a, b) => distanceKm(snapshot.coordinates, a) - distanceKm(snapshot.coordinates, b))[0];
   if (!place) return undefined;
   const routeDistance = distanceKm(snapshot.coordinates, place);

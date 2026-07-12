@@ -61,6 +61,7 @@ import {
   formatWindow,
   loadCalendarContext,
 } from './src/context/calendarContext';
+import { clearLiveWorldCache, loadLiveWorldCache, saveLiveWorldCache, snapshotAgeMinutes } from './src/liveworld/liveCache';
 
 type FlowStage = 'promise' | 'prepare' | 'presence' | 'remember' | 'profile' | null;
 type Memory = { id: string; title: string; date: string; image: string; note: string };
@@ -109,12 +110,13 @@ export default function App() {
     AsyncStorage.getItem(personalProfileKey).then((value) => {
       if (value) setPersonalProfile({ ...defaultPersonalProfile(), ...JSON.parse(value) });
     }).catch(() => undefined).finally(() => setPersonalHydrated(true));
-    loadLiveWorld(defaultRegion.coordinates, defaultRegion.label)
-      .then((snapshot) => {
-        setLiveWorld(snapshot); setLiveLoading(false); setLiveMessage('Snelle live bronnen bijgewerkt · plaatsen volgen');
-        loadPlaceContext(snapshot).then((enhanced) => { setLiveWorld(enhanced); setLiveMessage('Live bronnen bijgewerkt'); }).catch(() => undefined);
-      })
-      .catch(() => { setLiveLoading(false); setLiveMessage('Live bronnen konden niet worden bijgewerkt'); });
+    loadLiveWorldCache(defaultRegion.coordinates).then((cached) => {
+      if (cached) { setLiveWorld(cached); setLiveMessage(`Eerdere regionale context · ${Math.round(snapshotAgeMinutes(cached))} min oud`); }
+      return loadLiveWorld(defaultRegion.coordinates, defaultRegion.label);
+    }).then((snapshot) => {
+      setLiveWorld(snapshot); setLiveLoading(false); setLiveMessage('Snelle live bronnen bijgewerkt · plaatsen volgen'); saveLiveWorldCache(snapshot).catch(() => undefined);
+      loadPlaceContext(snapshot).then((enhanced) => { setLiveWorld(enhanced); setLiveMessage('Live bronnen bijgewerkt'); saveLiveWorldCache(enhanced).catch(() => undefined); }).catch(() => undefined);
+    }).catch(() => { setLiveLoading(false); setLiveMessage('Live bronnen konden niet worden bijgewerkt'); });
     loadCalendarContext(false).then(setCalendarContext).catch(() => undefined);
   }, []);
 
@@ -157,8 +159,8 @@ export default function App() {
     setLiveLoading(true); setLiveMessage('Live bronnen worden gecontroleerd…');
     try {
       const snapshot = await loadLiveWorld(coordinates, label);
-      setLiveWorld(snapshot); setLiveMessage('Snelle live bronnen bijgewerkt · plaatsen volgen');
-      loadPlaceContext(snapshot).then((enhanced) => { setLiveWorld(enhanced); setLiveMessage('Live bronnen bijgewerkt'); }).catch(() => undefined);
+      setLiveWorld(snapshot); setLiveMessage('Snelle live bronnen bijgewerkt · plaatsen volgen'); saveLiveWorldCache(snapshot).catch(() => undefined);
+      loadPlaceContext(snapshot).then((enhanced) => { setLiveWorld(enhanced); setLiveMessage('Live bronnen bijgewerkt'); saveLiveWorldCache(enhanced).catch(() => undefined); }).catch(() => undefined);
     } catch {
       setLiveMessage('Live bronnen konden niet worden bijgewerkt');
     } finally { setLiveLoading(false); }
@@ -231,7 +233,7 @@ export default function App() {
           {flowStage === 'prepare' && <PrepareScreen experience={selected} onBack={() => setFlowStage('promise')} onStart={() => setFlowStage('presence')} />}
           {flowStage === 'presence' && <PresenceScreen experience={selected} onBack={() => setFlowStage('prepare')} onFinish={() => setFlowStage('remember')} />}
           {flowStage === 'remember' && <RememberScreen experience={selected} onSkip={() => { setFlowStage(null); setSurface(origin); }} onSave={finishExperience} />}
-          {flowStage === 'profile' && <ProfileScreen personal={personalProfile} context={prototypeContext} calendar={calendarContext} calendarLoading={calendarLoading} liveWorld={liveWorld} liveLoading={liveLoading} liveMessage={liveMessage} onChange={setPrototypeContext} onPersonalChange={setPersonalProfile} onResetLearning={() => setPersonalProfile((current) => resetLearning(current))} onRedoOnboarding={() => setPersonalProfile((current) => ({ ...current, onboardingComplete: false }))} onConnectCalendar={connectCalendar} onRefresh={() => refreshLiveWorld()} onUseLocation={useApproximateLocation} onClose={closeFlow} />}
+          {flowStage === 'profile' && <ProfileScreen personal={personalProfile} context={prototypeContext} calendar={calendarContext} calendarLoading={calendarLoading} liveWorld={liveWorld} liveLoading={liveLoading} liveMessage={liveMessage} onChange={setPrototypeContext} onPersonalChange={setPersonalProfile} onResetLearning={() => setPersonalProfile((current) => resetLearning(current))} onRedoOnboarding={() => setPersonalProfile((current) => ({ ...current, onboardingComplete: false }))} onClearLiveCache={() => { clearLiveWorldCache().catch(() => undefined); setLiveMessage('Regionale live cache gewist'); }} onConnectCalendar={connectCalendar} onRefresh={() => refreshLiveWorld()} onUseLocation={useApproximateLocation} onClose={closeFlow} />}
         </View>
       </SafeAreaView>
     </View>
@@ -356,9 +358,10 @@ function NowScreen({ firstName, experience, decision, context, calendar, liveWor
 }
 
 function TodayScreen({ decisions, calendar, onOpen }: { decisions: TodayDecision[]; calendar: CalendarContextSnapshot; onOpen: (item: Experience) => void }) {
+  const localDate = new Intl.DateTimeFormat('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date()).toLocaleUpperCase('nl-NL');
   return (
     <ScrollView contentContainerStyle={styles.screenScroll} showsVerticalScrollIndicator={false}>
-      <ScreenHeader eyebrow="ZONDAG · 12 JULI" title="Ruimte in je dag." subtitle="Niet om alles te vullen. Alleen om kansen te zien." />
+      <ScreenHeader eyebrow={localDate} title="Ruimte in je dag." subtitle="Niet om alles te vullen. Alleen om kansen te zien." />
       {calendar.state === 'live' && <View style={styles.calendarWindows}><Text style={styles.liveEvidenceTitle}>VRIJE VENSTERS UIT AGENDA</Text>{calendar.freeWindows.slice(0, 3).map((window) => <Text key={window.start} style={styles.calendarWindowText}>◷  {formatWindow(window)}</Text>)}</View>}
       <View style={styles.daySummary}><Text style={styles.daySummaryTitle}>{decisions.length} mogelijke openingen</Text><Text style={styles.daySummaryBody}>Elke opening komt uit dezelfde lokale selectie als Nu. Jij bepaalt welke tijd echt van jou is.</Text></View>
       <View style={styles.timeline}>
@@ -568,7 +571,7 @@ function RememberScreen({ experience, onSkip, onSave }: { experience: Experience
   );
 }
 
-function ProfileScreen({ personal, context, calendar, calendarLoading, liveWorld, liveLoading, liveMessage, onChange, onPersonalChange, onResetLearning, onRedoOnboarding, onConnectCalendar, onRefresh, onUseLocation, onClose }: { personal: PersonalProfile; context: PrototypeContext; calendar: CalendarContextSnapshot; calendarLoading: boolean; liveWorld: LiveWorldSnapshot | null; liveLoading: boolean; liveMessage: string; onChange: (context: PrototypeContext) => void; onPersonalChange: (profile: PersonalProfile) => void; onResetLearning: () => void; onRedoOnboarding: () => void; onConnectCalendar: () => void; onRefresh: () => void; onUseLocation: () => void; onClose: () => void }) {
+function ProfileScreen({ personal, context, calendar, calendarLoading, liveWorld, liveLoading, liveMessage, onChange, onPersonalChange, onResetLearning, onRedoOnboarding, onClearLiveCache, onConnectCalendar, onRefresh, onUseLocation, onClose }: { personal: PersonalProfile; context: PrototypeContext; calendar: CalendarContextSnapshot; calendarLoading: boolean; liveWorld: LiveWorldSnapshot | null; liveLoading: boolean; liveMessage: string; onChange: (context: PrototypeContext) => void; onPersonalChange: (profile: PersonalProfile) => void; onResetLearning: () => void; onRedoOnboarding: () => void; onClearLiveCache: () => void; onConnectCalendar: () => void; onRefresh: () => void; onUseLocation: () => void; onClose: () => void }) {
   const dayParts: DayPart[] = ['morning', 'midday', 'afternoon', 'evening'];
   const profiles: PrototypeProfile[] = ['balanced', 'explorer', 'mover', 'family'];
   const companies: Array<{ id: Company; label: string }> = [{ id: 'solo', label: 'Alleen' }, { id: 'together', label: 'Samen' }, { id: 'family', label: 'Met gezin' }];
@@ -611,7 +614,7 @@ function ProfileScreen({ personal, context, calendar, calendarLoading, liveWorld
       <Text style={styles.liveEvidenceTitle}>LIVE WORLD · {liveWorld?.regionLabel ?? defaultRegion.label}</Text>
       <Text style={styles.liveControlMessage}>{liveMessage}</Text>
       {(liveWorld?.sources ?? []).map((source) => <View key={source.id} style={styles.sourceRow}><View style={[styles.sourceState, source.state === 'live' ? styles.sourceLive : source.state === 'error' ? styles.sourceError : styles.sourceWaiting]} /><View style={styles.flex}><Text style={styles.sourceName}>{source.name}</Text><Text style={styles.sourceDetail}>{source.detail}</Text></View></View>)}
-      <View style={styles.liveControlActions}><SecondaryButton label={liveLoading ? 'Bezig met vernieuwen…' : 'Vernieuw live bronnen'} onPress={onRefresh} /><SecondaryButton label="Gebruik mijn globale omgeving" onPress={onUseLocation} /></View>
+      <View style={styles.liveControlActions}><SecondaryButton label={liveLoading ? 'Bezig met vernieuwen…' : 'Vernieuw live bronnen'} onPress={onRefresh} /><SecondaryButton label="Gebruik mijn globale omgeving" onPress={onUseLocation} /><SecondaryButton label="Wis regionale live cache" onPress={onClearLiveCache} /></View>
       <Text style={styles.sourcePrivacy}>Globale locatie wordt alleen na jouw tik opgevraagd en afgerond voordat bronnen worden benaderd.</Text>
     </View>
     <View style={styles.futureSources}><Text style={styles.fieldLabel}>VOLGENDE LIVE BRONNEN</Text>{futureSourceRegistry.map((source) => <View key={source.id} style={styles.futureSourceRow}><Text style={styles.futureSourceLabel}>{source.label}</Text><Text style={styles.futureSourceState}>GEPLAND</Text></View>)}</View>
@@ -624,9 +627,10 @@ function LiveWorldBar({ snapshot, loading }: { snapshot: LiveWorldSnapshot | nul
   const weather = snapshot?.weather;
   const air = snapshot?.airQuality;
   const liveCount = snapshot?.sources.filter((source) => source.state === 'live').length ?? 0;
+  const staleCount = snapshot?.sources.filter((source) => source.state === 'stale').length ?? 0;
   return <View style={styles.liveWorldBar}>
     <View style={[styles.sourceState, liveCount ? styles.sourceLive : styles.sourceWaiting]} />
-    <View style={styles.flex}><Text style={styles.liveWorldBarTitle}>{loading ? 'Live World wordt bijgewerkt' : `${liveCount} live bron${liveCount === 1 ? '' : 'nen'} · ${snapshot?.regionLabel ?? defaultRegion.label}`}</Text><Text style={styles.liveWorldBarDetail}>{weather ? `${Math.round(weather.temperature)}°C · wind ${Math.round(weather.windSpeed)} km/u · zicht ${Math.round(weather.visibilityMeters / 1000)} km${air ? ` · luchtindex ${Math.round(air.europeanAqi)}` : ''}` : 'Evergreen ervaringen blijven beschikbaar'}</Text></View>
+    <View style={styles.flex}><Text style={styles.liveWorldBarTitle}>{loading && !snapshot ? 'Live World wordt bijgewerkt' : liveCount ? `${liveCount} live bron${liveCount === 1 ? '' : 'nen'} · ${snapshot?.regionLabel ?? defaultRegion.label}` : staleCount ? `Eerdere context · ${snapshot?.regionLabel ?? 'regio'}` : `Evergreen · ${snapshot?.regionLabel ?? 'jouw regio'}`}</Text><Text style={styles.liveWorldBarDetail}>{weather ? `${Math.round(weather.temperature)}°C · wind ${Math.round(weather.windSpeed)} km/u · zicht ${Math.round(weather.visibilityMeters / 1000)} km${air ? ` · luchtindex ${Math.round(air.europeanAqi)}` : ''}` : 'Evergreen ervaringen blijven beschikbaar'}</Text></View>
     <Text style={styles.liveWorldMark}>◎</Text>
   </View>;
 }
