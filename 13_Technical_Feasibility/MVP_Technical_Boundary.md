@@ -90,9 +90,9 @@ This experiment proves calendar value; it does not authorize general life infere
 
 Defer until a visible health/fitness experience justifies the access and App Store eligibility has been reviewed. Start with explicit capacity input.
 
-### WeatherKit and Living World
+### Weather and first Living World slice
 
-Defer live claims until source provenance, freshness, attribution, and secure service/native integration are designed. Early prototypes use clearly labelled scenario data.
+The Founder lifted the first Living World gate on 2026-07-12. Public weather/light data and optional token-based eBird observations may now be integrated through the approved Live Source Contract and Nature Guard. Missing sources must degrade to evergreen content. Broader events, tides, crowds, openings, and closures remain gated per source.
 
 ### Live Activities and widgets
 

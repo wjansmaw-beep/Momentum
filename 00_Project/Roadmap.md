@@ -175,6 +175,8 @@ The four continuous tracks are Philosophy, Experience, Understanding, and Trust.
 
 **Deliverables**
 
+- first bounded-region live weather/light adapter and optional recent-bird adapter;
+- Opportunity and Route Composer with provenance, expiry, sensitivity guard, and Maps handoff;
 - bounded regional source pilots;
 - cultural and natural opportunity ingestion;
 - licensing, moderation, freshness, and fragile-location protection;

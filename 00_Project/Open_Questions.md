@@ -76,7 +76,7 @@ Priority labels:
 
 ## Living World
 
-- **Soon:** Which bounded region and sources are suitable for the first pilot?
+- **Resolved first slice:** Dokkum and the surrounding northern region form the initial prototype region. Weather/light is the first public live adapter; eBird is optional when a token is configured. See ADR-017.
 - **Soon:** How fresh must each type of live claim be?
 - **Soon:** Who is responsible for licensing, attribution, correction, and removal?
 - **Soon:** How are sensitive wildlife and fragile places protected?
