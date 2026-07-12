@@ -286,19 +286,62 @@ function PrepareScreen({ experience, onBack, onStart }: { experience: Experience
 }
 
 function PresenceScreen({ experience, onBack, onFinish }: { experience: Experience; onBack: () => void; onFinish: () => void }) {
+  const [stepIndex, setStepIndex] = useState(0);
+  const [remaining, setRemaining] = useState(experience.steps[0]?.seconds ?? 0);
+  const [timerRunning, setTimerRunning] = useState(false);
+  const current = experience.steps[stepIndex] ?? { title: experience.presenceTitle, instruction: experience.presenceCue };
+  const isLast = stepIndex >= experience.steps.length - 1;
+
+  useEffect(() => {
+    setRemaining(current.seconds ?? 0);
+    setTimerRunning(false);
+  }, [current.seconds, stepIndex]);
+
+  useEffect(() => {
+    if (!timerRunning || remaining <= 0) return;
+    const timer = setInterval(() => setRemaining((value) => Math.max(0, value - 1)), 1000);
+    return () => clearInterval(timer);
+  }, [remaining, timerRunning]);
+
   const openHandoff = async () => {
     const url = Platform.OS === 'ios' ? `maps://?q=${encodeURIComponent(experience.title)}` : `https://maps.apple.com/?q=${encodeURIComponent(experience.title)}`;
     await Linking.openURL(url).catch(() => undefined);
   };
+  const next = () => {
+    if (isLast) onFinish();
+    else setStepIndex((value) => value + 1);
+  };
+  const formatTime = (seconds: number) => `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
   return (
     <View style={styles.presenceScreen}>
       <BackButton label="Voorbereiding" onPress={onBack} />
-      <View style={styles.presenceCenter}>
-        <Text style={styles.eyebrow}>PRESENCE</Text><Text style={styles.presenceTitle}>{experience.presenceTitle}</Text><Text style={styles.presenceCue}>{experience.presenceCue}</Text>
-        <View style={[styles.presenceRing, { borderColor: experience.accent }]}><Text style={styles.presenceMinutes}>{experience.duration}</Text><Text style={styles.presenceUnit}>MINUTEN</Text></View>
-        {experience.presenceMode === 'handoff' && <SecondaryButton label="Open route in Kaarten" onPress={openHandoff} />}
+      <View style={styles.capsuleProgress}>
+        {experience.steps.map((_, index) => <View key={index} style={[styles.capsuleProgressPart, index <= stepIndex && { backgroundColor: experience.accent }]} />)}
       </View>
-      <View><PrimaryButton label="Ik ben terug" onPress={onFinish} /><Text style={styles.presenceFooter}>Geniet. Momentum hoeft nu niets meer.</Text></View>
+      <ScrollView contentContainerStyle={styles.capsuleStep} showsVerticalScrollIndicator={false}>
+        <Text style={styles.eyebrow}>{experience.presenceMode === 'handoff' ? 'ROUTE & PRESENCE' : experience.presenceMode === 'quiet' ? 'QUIET GUIDE' : 'STAP VOOR STAP'}</Text>
+        <Text style={styles.capsuleStepCount}>Stap {stepIndex + 1} van {experience.steps.length}</Text>
+        <Text style={styles.presenceTitle}>{current.title}</Text>
+        {current.meta && <View style={[styles.stepMetaPill, { borderColor: experience.accent }]}><Text style={styles.stepMetaText}>{current.meta}</Text></View>}
+        <Text style={styles.presenceCue}>{current.instruction}</Text>
+        {current.seconds ? (
+          <View style={[styles.stepTimer, { borderColor: experience.accent }]}>
+            <Text style={styles.stepTimerValue}>{formatTime(remaining)}</Text>
+            <Text style={styles.presenceUnit}>{remaining === 0 ? 'KLAAR' : timerRunning ? 'LOOPT' : 'KLAAR OM TE STARTEN'}</Text>
+            <Pressable onPress={() => remaining > 0 && setTimerRunning((value) => !value)} style={styles.timerControl}>
+              <Text style={styles.timerControlText}>{remaining === 0 ? '✓' : timerRunning ? 'Pauze' : 'Start timer'}</Text>
+            </Pressable>
+          </View>
+        ) : (
+          <View style={[styles.quietStepOrb, { borderColor: experience.accent }]}><Text style={[styles.quietStepSymbol, { color: experience.accent }]}>{experience.presenceMode === 'quiet' ? '◌' : experience.presenceMode === 'handoff' ? '↗' : '·'}</Text></View>
+        )}
+        {experience.presenceMode === 'handoff' && stepIndex === 0 && <SecondaryButton label="Open route in Kaarten" onPress={openHandoff} />}
+      </ScrollView>
+      <View>
+        <PrimaryButton label={isLast ? 'Ervaring afronden' : 'Volgende stap'} onPress={next} />
+        {stepIndex > 0 && <SecondaryButton label="Vorige stap" onPress={() => setStepIndex((value) => Math.max(0, value - 1))} />}
+        <Text style={styles.presenceFooter}>{experience.presenceMode === 'quiet' ? 'Gebruik alleen de aanwijzing die helpt. Leg daarna je telefoon weg.' : 'Alleen de huidige stap vraagt aandacht.'}</Text>
+      </View>
     </View>
   );
 }
@@ -365,7 +408,12 @@ const styles = StyleSheet.create({
   bottomNav: { position: 'absolute', left: 14, right: 14, bottom: 10, minHeight: 72, borderRadius: 26, borderWidth: 1, borderColor: colors.line, backgroundColor: 'rgba(9,17,20,0.96)', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 6 }, navItem: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 5, minHeight: 62 }, navIcon: { color: colors.muted, fontSize: 18 }, navLabel: { color: colors.muted, fontSize: 10 }, navActive: { color: colors.green },
   backButton: { alignSelf: 'flex-start', minHeight: 42, justifyContent: 'center', marginBottom: 12 }, backButtonText: { color: colors.muted, fontSize: 14 }, detailHero: { height: 430, justifyContent: 'flex-end', marginHorizontal: -22, marginTop: -66, marginBottom: 24 }, detailHeroImage: { borderBottomLeftRadius: 30, borderBottomRightRadius: 30 }, detailHeroCopy: { padding: 22, paddingTop: 120 }, detailTitle: { color: colors.bone, fontSize: 42, lineHeight: 45, fontWeight: '300', letterSpacing: -1.3, marginTop: 13 }, detailPromise: { color: 'rgba(244,238,227,0.84)', fontSize: 16, lineHeight: 23, marginTop: 10 }, wonderHeadline: { color: colors.gold, fontSize: 10, letterSpacing: 1.4, fontWeight: '700' }, wonderLarge: { color: colors.bone, fontSize: 21, lineHeight: 30, fontWeight: '300', marginTop: 10 }, factStrip: { flexDirection: 'row', gap: 14, borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.line, paddingVertical: 16, marginVertical: 22 },
   flowTitle: { color: colors.bone, fontSize: 41, lineHeight: 45, fontWeight: '300', letterSpacing: -1.2 }, prepareCard: { borderRadius: 25, borderWidth: 1, borderColor: colors.line, backgroundColor: 'rgba(16,26,29,0.82)', padding: 18, gap: 18, marginVertical: 28 }, prepareRow: { flexDirection: 'row', alignItems: 'center' }, stepNumber: { width: 34, height: 34, borderRadius: 17, borderWidth: 1, alignItems: 'center', justifyContent: 'center', marginRight: 13 }, stepNumberText: { color: colors.bone, fontSize: 12 }, prepareText: { color: colors.bone, fontSize: 16, flex: 1 }, commitmentCard: { borderRadius: 20, borderWidth: 1, borderColor: colors.line, padding: 16, marginBottom: 22 }, commitmentLabel: { color: colors.gold, fontSize: 9, letterSpacing: 1.3, fontWeight: '700' }, commitmentValue: { color: colors.bone, fontSize: 17, marginTop: 7 }, commitmentBody: { color: colors.muted, fontSize: 11, marginTop: 5 },
-  presenceScreen: { flex: 1, padding: 22, paddingTop: 12, paddingBottom: 28, justifyContent: 'space-between' }, presenceCenter: { alignItems: 'center' }, presenceTitle: { color: colors.bone, fontSize: 38, lineHeight: 44, fontWeight: '300', textAlign: 'center' }, presenceCue: { color: colors.muted, fontSize: 15, lineHeight: 22, textAlign: 'center', maxWidth: 330, marginTop: 15 }, presenceRing: { width: 210, height: 210, borderRadius: 105, borderWidth: 3, alignItems: 'center', justifyContent: 'center', marginVertical: 38 }, presenceMinutes: { color: colors.bone, fontSize: 58, fontWeight: '200' }, presenceUnit: { color: colors.muted, fontSize: 9, letterSpacing: 1.5 }, presenceFooter: { color: colors.muted, fontSize: 10, textAlign: 'center', marginTop: 12 },
+  presenceScreen: { flex: 1, padding: 22, paddingTop: 12, paddingBottom: 24 }, presenceTitle: { color: colors.bone, fontSize: 38, lineHeight: 43, fontWeight: '300', textAlign: 'center' }, presenceCue: { color: colors.muted, fontSize: 16, lineHeight: 24, textAlign: 'center', maxWidth: 370, marginTop: 18 }, presenceUnit: { color: colors.muted, fontSize: 9, letterSpacing: 1.5 }, presenceFooter: { color: colors.muted, fontSize: 10, lineHeight: 15, textAlign: 'center', marginTop: 10 },
+  capsuleProgress: { flexDirection: 'row', gap: 5, marginBottom: 12 }, capsuleProgressPart: { height: 3, flex: 1, borderRadius: 2, backgroundColor: 'rgba(244,238,227,0.12)' },
+  capsuleStep: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 18 }, capsuleStepCount: { color: colors.muted, fontSize: 11, marginBottom: 14 },
+  stepMetaPill: { borderWidth: 1, borderRadius: 99, paddingHorizontal: 13, paddingVertical: 8, marginTop: 18 }, stepMetaText: { color: colors.bone, fontSize: 11, fontWeight: '600' },
+  stepTimer: { width: 205, height: 205, borderRadius: 103, borderWidth: 3, alignItems: 'center', justifyContent: 'center', marginTop: 32 }, stepTimerValue: { color: colors.bone, fontSize: 48, fontWeight: '200', fontVariant: ['tabular-nums'] }, timerControl: { marginTop: 13, minHeight: 35, paddingHorizontal: 16, borderRadius: 18, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' }, timerControlText: { color: colors.bone, fontSize: 11, fontWeight: '700' },
+  quietStepOrb: { width: 130, height: 130, borderRadius: 65, borderWidth: 2, alignItems: 'center', justifyContent: 'center', marginTop: 34 }, quietStepSymbol: { fontSize: 42, fontWeight: '200' },
   memoryPreview: { minHeight: 280, justifyContent: 'flex-end', marginVertical: 28 }, memoryPreviewTitle: { color: colors.bone, fontSize: 30, fontWeight: '300', padding: 18 }, memoryInput: { minHeight: 120, borderRadius: 20, borderWidth: 1, borderColor: colors.line, color: colors.bone, fontSize: 16, lineHeight: 23, padding: 16, textAlignVertical: 'top', marginBottom: 16, backgroundColor: 'rgba(16,26,29,0.7)' },
   profileCard: { borderRadius: 24, borderWidth: 1, borderColor: colors.line, marginTop: 28, overflow: 'hidden' }, profileRow: { minHeight: 58, borderBottomWidth: 1, borderBottomColor: colors.line, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, profileLabel: { color: colors.muted, fontSize: 13 }, profileValue: { color: colors.bone, fontSize: 13 },
 });
