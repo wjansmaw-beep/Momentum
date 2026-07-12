@@ -28,11 +28,23 @@ export type BirdObservation = {
   publicLocation: boolean;
 };
 
+export type MarineSignal = {
+  waveHeight: number;
+  wavePeriod: number;
+  seaLevelHeight: number;
+  currentVelocity: number;
+  currentDirection: number;
+  trend: 'rising' | 'falling' | 'steady' | 'unknown';
+  observedAt: string;
+  modelLocation: Coordinates;
+};
+
 export type LiveWorldSnapshot = {
   regionLabel: string;
   coordinates: Coordinates;
   retrievedAt: string;
   weather?: WeatherSignal;
+  marine?: MarineSignal;
   birdObservations: BirdObservation[];
   sources: SourceReceipt[];
 };
@@ -45,6 +57,12 @@ type OpenMeteoResponse = {
 type EbirdObservation = {
   comName?: string; sciName?: string; obsDt?: string; lat?: number; lng?: number;
   locName?: string; locId?: string; locationPrivate?: boolean;
+};
+
+type MarineResponse = {
+  latitude?: number; longitude?: number;
+  current?: { time: string; wave_height?: number; wave_period?: number; sea_level_height_msl?: number; ocean_current_velocity?: number; ocean_current_direction?: number };
+  hourly?: { time?: string[]; sea_level_height_msl?: Array<number | null> };
 };
 
 const isoInHours = (hours: number) => new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
@@ -109,11 +127,47 @@ async function loadBirds(coordinates: Coordinates): Promise<{ observations: Bird
   }
 }
 
+const inNorthernCoastalPilot = (coordinates: Coordinates) => coordinates.latitude >= 52.9 && coordinates.latitude <= 53.7 && coordinates.longitude >= 4.5 && coordinates.longitude <= 7.5;
+
+async function loadMarine(coordinates: Coordinates): Promise<{ signal?: MarineSignal; receipt: SourceReceipt }> {
+  if (!inNorthernCoastalPilot(coordinates)) return { receipt: { id: 'open-meteo-marine', name: 'Open-Meteo Marine', state: 'not-configured', detail: 'Buiten de noordelijke kustproefregio', url: 'https://open-meteo.com/en/docs/marine-weather-api' } };
+  // Bounded public-water reference near the Wadden coast; never an inferred wildlife location.
+  const modelPoint = { latitude: 53.45, longitude: 6.1 };
+  const params = new URLSearchParams({
+    latitude: String(modelPoint.latitude), longitude: String(modelPoint.longitude),
+    current: 'wave_height,wave_period,sea_level_height_msl,ocean_current_velocity,ocean_current_direction',
+    hourly: 'sea_level_height_msl', forecast_hours: '6', timezone: 'auto', cell_selection: 'sea',
+  });
+  const url = `https://marine-api.open-meteo.com/v1/marine?${params.toString()}`;
+  try {
+    const response = await safeFetch(url);
+    const data = await response.json() as MarineResponse;
+    const current = data.current;
+    if (!current || typeof current.wave_height !== 'number' || typeof current.sea_level_height_msl !== 'number') throw new Error('Geen bruikbaar marien modelpunt');
+    const levels = (data.hourly?.sea_level_height_msl ?? []).filter((value): value is number => typeof value === 'number');
+    const delta = levels.length >= 2 ? levels[Math.min(2, levels.length - 1)] - levels[0] : 0;
+    const trend: MarineSignal['trend'] = levels.length < 2 ? 'unknown' : delta > 0.05 ? 'rising' : delta < -0.05 ? 'falling' : 'steady';
+    return {
+      signal: {
+        waveHeight: current.wave_height, wavePeriod: current.wave_period ?? 0,
+        seaLevelHeight: current.sea_level_height_msl,
+        currentVelocity: current.ocean_current_velocity ?? 0,
+        currentDirection: current.ocean_current_direction ?? 0,
+        trend, observedAt: current.time,
+        modelLocation: { latitude: data.latitude ?? modelPoint.latitude, longitude: data.longitude ?? modelPoint.longitude },
+      },
+      receipt: { id: 'open-meteo-marine', name: 'Open-Meteo Marine', state: 'live', detail: 'Golf, stroming en modelwaterstand opgehaald', url: 'https://open-meteo.com/en/docs/marine-weather-api' },
+    };
+  } catch (error) {
+    return { receipt: { id: 'open-meteo-marine', name: 'Open-Meteo Marine', state: 'error', detail: error instanceof Error ? error.message : 'Marien model niet bereikbaar', url: 'https://open-meteo.com/en/docs/marine-weather-api' } };
+  }
+}
+
 export async function loadLiveWorld(coordinates: Coordinates, regionLabel: string): Promise<LiveWorldSnapshot> {
-  const [weather, birds] = await Promise.all([loadWeather(coordinates), loadBirds(coordinates)]);
+  const [weather, birds, marine] = await Promise.all([loadWeather(coordinates), loadBirds(coordinates), loadMarine(coordinates)]);
   return {
-    regionLabel, coordinates, retrievedAt: new Date().toISOString(), weather: weather.signal,
-    birdObservations: birds.observations, sources: [weather.receipt, birds.receipt],
+    regionLabel, coordinates, retrievedAt: new Date().toISOString(), weather: weather.signal, marine: marine.signal,
+    birdObservations: birds.observations, sources: [weather.receipt, marine.receipt, birds.receipt],
   };
 }
 
@@ -127,10 +181,12 @@ export function composeLiveExperience(snapshot: LiveWorldSnapshot, context: Prot
   const base = byId('wadden-light');
   const bird = snapshot.birdObservations.find((item) => item.publicLocation);
   const weather = snapshot.weather!;
+  const marine = snapshot.marine;
   const retrievedAt = snapshot.retrievedAt;
   const evidence: LiveEvidence[] = [
     { label: `${weather.temperature}°C · wind ${Math.round(weather.windSpeed)} km/u · zicht ${Math.round(weather.visibilityMeters / 1000)} km`, sourceName: 'Open-Meteo', sourceUrl: 'https://open-meteo.com/', observedAt: weather.observedAt, retrievedAt, expiresAt: isoInHours(2), certainty: 'forecast' },
   ];
+  if (marine) evidence.push({ label: `Modelwaterstand ${marine.trend === 'rising' ? 'stijgend' : marine.trend === 'falling' ? 'dalend' : marine.trend === 'steady' ? 'vrijwel gelijk' : 'onbekend'} · golf ${marine.waveHeight.toFixed(1)} m`, sourceName: 'Open-Meteo Marine', sourceUrl: 'https://open-meteo.com/en/docs/marine-weather-api', observedAt: marine.observedAt, retrievedAt, expiresAt: isoInHours(3), certainty: 'forecast' });
   const routePlan: RoutePlan = {
     mode: 'walking', destinationName: bird?.locationName ?? `natuurgebied bij ${snapshot.regionLabel}`,
     destination: bird ? { latitude: bird.latitude, longitude: bird.longitude } : undefined,
@@ -153,7 +209,7 @@ export function composeLiveExperience(snapshot: LiveWorldSnapshot, context: Prot
     duration: routePlan.outboundMinutes + routePlan.experienceMinutes + routePlan.returnMinutes + routePlan.bufferMinutes,
     distance: bird ? `route naar ${bird.locationName}` : 'route wordt in Kaarten bepaald',
     timeWindow: `voor zonsondergang ${formatClock(weather.sunset)}`,
-    why: [bird ? 'recente openbare natuurwaarneming' : 'actueel zicht en bruikbare wind', 'past binnen de gekozen tijd', 'route en terugkeerbuffer voorbereid'],
+    why: [bird ? 'recente openbare natuurwaarneming' : 'actueel zicht en bruikbare wind', marine ? 'marien model als extra kustcontext' : 'past binnen de gekozen tijd', 'route en terugkeerbuffer voorbereid'],
     prepare: bird ? ['Verrekijker', 'Water en passende kleding', 'Blijf op openbare paden', 'Waarneming is niet gegarandeerd'] : ['Water en passende kleding', 'Controleer toegang in Kaarten', 'Blijf op openbare paden', 'Vertrek alleen als omstandigheden goed voelen'],
     steps: [
       { title: 'Controleer het routevoorstel', instruction: routePlan.natureGuard, meta: `${routePlan.outboundMinutes} min heen · ${routePlan.bufferMinutes} min buffer` },
@@ -166,7 +222,7 @@ export function composeLiveExperience(snapshot: LiveWorldSnapshot, context: Prot
 }
 
 export const futureSourceRegistry = [
-  { id: 'tides', label: 'Getijden', state: 'planned' },
+  { id: 'tides', label: 'Officiële lokale getijdenstations', state: 'planned' },
   { id: 'seasonal-nature', label: 'Bloei, trek en seizoenen', state: 'planned' },
   { id: 'events', label: 'Evenementen, markten en cultuur', state: 'planned' },
   { id: 'opening-hours', label: 'Openingstijden', state: 'planned' },

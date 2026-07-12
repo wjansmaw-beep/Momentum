@@ -24,6 +24,7 @@ Now, Today, and Discover share a transparent local decision engine. Complete sta
 The first Living World slice uses:
 
 - live Open-Meteo weather, wind, visibility, sunrise, and sunset for a bounded region;
+- bounded Open-Meteo Marine model context for waves, current, and sea-level trend, never presented as navigation or a safety guarantee;
 - optional recent public eBird observations when a token is configured;
 - a Nature Guard, sourced dynamic Experience Promise, time-budgeted route request, Apple Maps handoff, and Memory boundary;
 - honest evergreen fallback when a source is unavailable.

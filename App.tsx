@@ -457,7 +457,7 @@ function PromiseScreen({ experience, onClose, onAccept }: { experience: Experien
       {experience.liveEvidence?.length ? <View style={styles.liveEvidenceCard}>
         <Text style={styles.liveEvidenceTitle}>LIVE WORLD · BRONBEWIJS</Text>
         {experience.liveEvidence.map((evidence) => <View key={`${evidence.sourceName}-${evidence.label}`} style={styles.liveEvidenceRow}><View style={styles.liveEvidenceDot} /><View style={styles.flex}><Text style={styles.liveEvidenceLabel}>{evidence.label}</Text><Text style={styles.liveEvidenceMeta}>{evidence.certainty === 'observation' ? 'Waarneming' : 'Voorspelling'} · {evidence.sourceName} · vervalt automatisch</Text></View></View>)}
-        <Text style={styles.liveEvidenceCaution}>Een natuurwaarneming is nooit een garantie dat het dier nog aanwezig is.</Text>
+        <Text style={styles.liveEvidenceCaution}>Waarnemingen zijn geen garantie. Mariene modeldata is niet geschikt voor kustnavigatie en vervangt nooit lokale waarschuwingen.</Text>
       </View> : null}
       <PrimaryButton label={experience.cta} onPress={onAccept} />
       <Pressable onPress={() => setWhyOpen((value) => !value)} style={styles.whyButton}><Text style={styles.whyButtonText}>Waarom deze ervaring?</Text><Text style={styles.whyChevron}>{whyOpen ? '⌃' : '⌄'}</Text></Pressable>

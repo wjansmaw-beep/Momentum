@@ -51,6 +51,7 @@ No source may bypass feasibility, autonomy, Nature Guard, or the user's blocked 
 - Open-Meteo: live weather, wind, visibility, sunrise, and sunset.
 - eBird: optional recent public observations with Nature Guard.
 - Calendar: device-local free windows derived from timed busy intervals.
+- Open-Meteo Marine: bounded model context for waves, current, and sea-level trend; explicitly not navigation or a safety verdict.
 
 ## Next source order
 
