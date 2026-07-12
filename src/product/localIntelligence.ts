@@ -130,14 +130,24 @@ export function rankForMoment(context: PrototypeContext, intentText = '', exclud
 }
 
 export type TodayDecision = { dayPart: DayPart; label: string; time: string; result: RankedExperience };
+export type AvailabilityWindow = { start: string; end: string; minutes: number };
 
-export function buildToday(context: PrototypeContext, liveExperience?: Experience, learning?: PersonalLearningContext): TodayDecision[] {
-  const windows: Array<{ dayPart: DayPart; label: string; time: string; minutes: number }> = [
+const dayPartForHour = (hour: number): DayPart => hour < 10 ? 'morning' : hour < 14 ? 'midday' : hour < 18 ? 'afternoon' : 'evening';
+const clock = (date: Date) => date.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
+
+export function buildToday(context: PrototypeContext, liveExperience?: Experience, learning?: PersonalLearningContext, availability?: AvailabilityWindow[]): TodayDecision[] {
+  const fallbackWindows: Array<{ dayPart: DayPart; label: string; time: string; minutes: number }> = [
     { dayPart: 'morning', label: 'OCHTEND', time: '07:30 – 09:00', minutes: 45 },
     { dayPart: 'midday', label: 'MIDDAG', time: '12:20 – 13:30', minutes: 30 },
     { dayPart: 'afternoon', label: 'EIND VAN DE MIDDAG', time: '16:00 – 18:00', minutes: 60 },
     { dayPart: 'evening', label: 'AVOND', time: '19:30 – 21:00', minutes: 75 },
   ];
+  const today = new Date().toDateString();
+  const calendarWindows = (availability ?? []).filter((window) => new Date(window.start).toDateString() === today).slice(0, 4).map((window) => {
+    const start = new Date(window.start); const end = new Date(window.end);
+    return { dayPart: dayPartForHour(start.getHours()), label: `${dayPartLabels[dayPartForHour(start.getHours())].toUpperCase()} · AGENDA`, time: `${clock(start)} – ${clock(end)}`, minutes: Math.min(120, window.minutes) };
+  });
+  const windows = calendarWindows.length ? calendarWindows : fallbackWindows;
   const used: string[] = [];
   const candidatePool = liveExperience ? [liveExperience, ...experiences] : experiences;
   return windows.flatMap((window) => {

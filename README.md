@@ -28,7 +28,9 @@ The first Living World slice uses:
 - a Nature Guard, sourced dynamic Experience Promise, time-budgeted route request, Apple Maps handoff, and Memory boundary;
 - honest evergreen fallback when a source is unavailable.
 
-Calendar, HealthKit, background location, accounts, and generative AI are not connected. Foreground approximate location is requested only after the user explicitly asks for nearby live context.
+Calendar is the first private context source. In an iOS development build, the user can connect it from Profile; Momentum derives free windows locally and immediately discards titles, notes, locations, attendees, and identifiers. The web preview and Expo Go retain manual time input because real Calendar access is unavailable there.
+
+HealthKit, background location, accounts, and generative AI are not connected. Foreground approximate location is requested only after the user explicitly asks for nearby live context.
 
 ## Run
 
@@ -36,6 +38,12 @@ Calendar, HealthKit, background location, accounts, and generative AI are not co
 npm install
 npm run typecheck
 npm start
+```
+
+Real Calendar access requires a fresh development build after installing `expo-calendar`:
+
+```text
+npx eas build --profile development --platform ios
 ```
 
 ## Optional eBird source

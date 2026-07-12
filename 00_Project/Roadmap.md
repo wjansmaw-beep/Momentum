@@ -129,6 +129,8 @@ The four continuous tracks are Philosophy, Experience, Understanding, and Trust.
 - privacy boundaries and data lifetimes are implementable;
 - the vertical slice can be built without speculative engines.
 
+**Implementation note (2026-07-12):** the first private Apple context slice is implemented with `expo-calendar`: progressive permission, local free-window calculation, no event-content retention, manual fallback, and development-build boundary. See ADR-019.
+
 ## Phase 6 — First Product / MVP
 
 **Goal:** prove that one contextual promise can move real users into a worthwhile experience.

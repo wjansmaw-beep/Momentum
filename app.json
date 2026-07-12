@@ -14,6 +14,12 @@
           "isAndroidBackgroundLocationEnabled": false,
           "isAndroidForegroundServiceEnabled": false
         }
+      ],
+      [
+        "expo-calendar",
+        {
+          "calendarPermission": "Momentum gebruikt lokaal alleen de tijden van afspraken om vrije momenten te herkennen. Titels, deelnemers en notities worden niet gebruikt."
+        }
       ]
     ],
     "ios": {
