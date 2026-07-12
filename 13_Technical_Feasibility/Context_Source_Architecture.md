@@ -46,17 +46,21 @@ Source adapter
 
 No source may bypass feasibility, autonomy, Nature Guard, or the user's blocked preferences.
 
+Fast sources publish the first snapshot without waiting for slower discovery sources. Slow sources enrich the snapshot independently; their loading or failure may never hold weather, air, marine context, the evergreen library, or active intent hostage.
+
 ## First implementations
 
 - Open-Meteo: live weather, wind, visibility, sunrise, and sunset.
 - eBird: optional recent public observations with Nature Guard.
 - Calendar: device-local free windows derived from timed busy intervals.
 - Open-Meteo Marine: bounded model context for waves, current, and sea-level trend; explicitly not navigation or a safety verdict.
+- OpenStreetMap/Overpass: nearby public-place leads with conservative opening-hour interpretation and mandatory local verification.
+- Open-Meteo Air Quality: European AQI and seasonal pollen as non-medical environmental context.
 
 ## Next source order
 
 1. tides and water safety for the bounded northern region;
-2. opening hours and closures for route feasibility;
+2. direct operator opening hours and authoritative closures to corroborate public place data;
 3. curated events and cultural moments;
 4. seasonal bloom and migration signals;
 5. crowds only if a credible, licensed source exists.

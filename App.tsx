@@ -48,10 +48,12 @@ import {
 } from './src/profile/personalModel';
 import {
   composeLiveExperience,
+  composeNearbyPlaceExperience,
   Coordinates,
   futureSourceRegistry,
   LiveWorldSnapshot,
   loadLiveWorld,
+  loadPlaceContext,
 } from './src/liveworld/liveWorld';
 import {
   CalendarContextSnapshot,
@@ -108,9 +110,11 @@ export default function App() {
       if (value) setPersonalProfile({ ...defaultPersonalProfile(), ...JSON.parse(value) });
     }).catch(() => undefined).finally(() => setPersonalHydrated(true));
     loadLiveWorld(defaultRegion.coordinates, defaultRegion.label)
-      .then((snapshot) => { setLiveWorld(snapshot); setLiveMessage('Live bronnen bijgewerkt'); })
-      .catch(() => setLiveMessage('Live bronnen konden niet worden bijgewerkt'))
-      .finally(() => setLiveLoading(false));
+      .then((snapshot) => {
+        setLiveWorld(snapshot); setLiveLoading(false); setLiveMessage('Snelle live bronnen bijgewerkt · plaatsen volgen');
+        loadPlaceContext(snapshot).then((enhanced) => { setLiveWorld(enhanced); setLiveMessage('Live bronnen bijgewerkt'); }).catch(() => undefined);
+      })
+      .catch(() => { setLiveLoading(false); setLiveMessage('Live bronnen konden niet worden bijgewerkt'); });
     loadCalendarContext(false).then(setCalendarContext).catch(() => undefined);
   }, []);
 
@@ -131,8 +135,8 @@ export default function App() {
   const effectiveContext = useMemo(() => calendarContext.state === 'live' && calendarContext.currentFreeMinutes
     ? { ...prototypeContext, availableMinutes: Math.max(15, Math.min(120, calendarContext.currentFreeMinutes)) }
     : prototypeContext, [calendarContext.currentFreeMinutes, calendarContext.state, prototypeContext]);
-  const liveExperience = useMemo(() => liveWorld ? composeLiveExperience(liveWorld, effectiveContext) : undefined, [effectiveContext, liveWorld]);
-  const candidatePool = useMemo(() => liveExperience ? [liveExperience, ...experiences] : experiences, [liveExperience]);
+  const liveExperiences = useMemo(() => liveWorld ? [composeLiveExperience(liveWorld, effectiveContext), composeNearbyPlaceExperience(liveWorld, effectiveContext)].filter((item): item is Experience => Boolean(item)) : [], [effectiveContext, liveWorld]);
+  const candidatePool = useMemo(() => [...liveExperiences, ...experiences], [liveExperiences]);
   const learningContext = useMemo(() => ({
     kindAffinity: personalProfile.kindAffinity,
     blockedExperienceIds: personalProfile.blockedExperienceIds,
@@ -141,7 +145,7 @@ export default function App() {
   }), [personalProfile]);
   const primaryDecision = useMemo(() => rankForMoment(effectiveContext, '', [], candidatePool, learningContext), [candidatePool, effectiveContext, learningContext]);
   const primaryExperience = primaryDecision.selected?.experience ?? byId('work-reset');
-  const dayDecisions = useMemo(() => buildToday(effectiveContext, liveExperience, learningContext, calendarContext.state === 'live' ? calendarContext.freeWindows : undefined), [calendarContext.freeWindows, calendarContext.state, effectiveContext, learningContext, liveExperience]);
+  const dayDecisions = useMemo(() => buildToday(effectiveContext, liveExperiences, learningContext, calendarContext.state === 'live' ? calendarContext.freeWindows : undefined), [calendarContext.freeWindows, calendarContext.state, effectiveContext, learningContext, liveExperiences]);
 
   const connectCalendar = async () => {
     setCalendarLoading(true);
@@ -153,7 +157,8 @@ export default function App() {
     setLiveLoading(true); setLiveMessage('Live bronnen worden gecontroleerd…');
     try {
       const snapshot = await loadLiveWorld(coordinates, label);
-      setLiveWorld(snapshot); setLiveMessage('Live bronnen bijgewerkt');
+      setLiveWorld(snapshot); setLiveMessage('Snelle live bronnen bijgewerkt · plaatsen volgen');
+      loadPlaceContext(snapshot).then((enhanced) => { setLiveWorld(enhanced); setLiveMessage('Live bronnen bijgewerkt'); }).catch(() => undefined);
     } catch {
       setLiveMessage('Live bronnen konden niet worden bijgewerkt');
     } finally { setLiveLoading(false); }
@@ -617,10 +622,11 @@ function ProfileScreen({ personal, context, calendar, calendarLoading, liveWorld
 
 function LiveWorldBar({ snapshot, loading }: { snapshot: LiveWorldSnapshot | null; loading: boolean }) {
   const weather = snapshot?.weather;
+  const air = snapshot?.airQuality;
   const liveCount = snapshot?.sources.filter((source) => source.state === 'live').length ?? 0;
   return <View style={styles.liveWorldBar}>
     <View style={[styles.sourceState, liveCount ? styles.sourceLive : styles.sourceWaiting]} />
-    <View style={styles.flex}><Text style={styles.liveWorldBarTitle}>{loading ? 'Live World wordt bijgewerkt' : `${liveCount} live bron${liveCount === 1 ? '' : 'nen'} · ${snapshot?.regionLabel ?? defaultRegion.label}`}</Text><Text style={styles.liveWorldBarDetail}>{weather ? `${Math.round(weather.temperature)}°C · wind ${Math.round(weather.windSpeed)} km/u · zicht ${Math.round(weather.visibilityMeters / 1000)} km` : 'Evergreen ervaringen blijven beschikbaar'}</Text></View>
+    <View style={styles.flex}><Text style={styles.liveWorldBarTitle}>{loading ? 'Live World wordt bijgewerkt' : `${liveCount} live bron${liveCount === 1 ? '' : 'nen'} · ${snapshot?.regionLabel ?? defaultRegion.label}`}</Text><Text style={styles.liveWorldBarDetail}>{weather ? `${Math.round(weather.temperature)}°C · wind ${Math.round(weather.windSpeed)} km/u · zicht ${Math.round(weather.visibilityMeters / 1000)} km${air ? ` · luchtindex ${Math.round(air.europeanAqi)}` : ''}` : 'Evergreen ervaringen blijven beschikbaar'}</Text></View>
     <Text style={styles.liveWorldMark}>◎</Text>
   </View>;
 }

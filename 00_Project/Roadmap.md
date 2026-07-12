@@ -196,6 +196,8 @@ The four continuous tracks are Philosophy, Experience, Understanding, and Trust.
 
 **Implementation note (2026-07-12):** marine model context is now live for the northern coastal pilot with explicit coastal-accuracy and non-navigation boundaries. An official Rijkswaterstaat realtime adapter remains deferred until its direct reuse contract is verified; see ADR-020.
 
+**Implementation note (2026-07-12):** nearby public places with conservatively interpreted opening hours and non-medical air-quality/pollen context now join the same source contract. See ADR-021 and ADR-022.
+
 ## Advancement rule
 
 A phase may begin discovery before the prior phase is fully complete, but implementation may not use unresolved foundational questions as silent assumptions. Founder approval is required to lift the no-application-code gate.

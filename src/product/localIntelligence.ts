@@ -135,7 +135,7 @@ export type AvailabilityWindow = { start: string; end: string; minutes: number }
 const dayPartForHour = (hour: number): DayPart => hour < 10 ? 'morning' : hour < 14 ? 'midday' : hour < 18 ? 'afternoon' : 'evening';
 const clock = (date: Date) => date.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
 
-export function buildToday(context: PrototypeContext, liveExperience?: Experience, learning?: PersonalLearningContext, availability?: AvailabilityWindow[]): TodayDecision[] {
+export function buildToday(context: PrototypeContext, liveExperiences: Experience[] = [], learning?: PersonalLearningContext, availability?: AvailabilityWindow[]): TodayDecision[] {
   const fallbackWindows: Array<{ dayPart: DayPart; label: string; time: string; minutes: number }> = [
     { dayPart: 'morning', label: 'OCHTEND', time: '07:30 – 09:00', minutes: 45 },
     { dayPart: 'midday', label: 'MIDDAG', time: '12:20 – 13:30', minutes: 30 },
@@ -149,7 +149,7 @@ export function buildToday(context: PrototypeContext, liveExperience?: Experienc
   });
   const windows = calendarWindows.length ? calendarWindows : fallbackWindows;
   const used: string[] = [];
-  const candidatePool = liveExperience ? [liveExperience, ...experiences] : experiences;
+  const candidatePool = [...liveExperiences, ...experiences];
   return windows.flatMap((window) => {
     const decision = rankForMoment({ ...context, dayPart: window.dayPart, availableMinutes: window.minutes }, '', used, candidatePool, learning);
     if (!decision.selected) return [];
