@@ -67,6 +67,17 @@ Priority labels:
 - **Soon:** How long are moment-level signals retained?
 - **Later:** Does a Life view exist, and how can it celebrate lived experience without becoming a performance dashboard?
 
+## Direction, meaning, and guided learning
+
+- **Resolved direction:** Momentum distinguishes near intentions, growth directions, and meaning anchors. They guide but never command selection, and remain visible, reversible, and user-controlled; see ADR-025.
+- **Resolved direction:** learning can be a source-grounded layer inside place, nature, culture, workout, recipe, and other Capsules. “Read a book” is one possible experience, not the definition of learning.
+- **Soon:** What is the smallest onboarding or later conversation that can invite direction without asking someone to define their life purpose?
+- **Soon:** Where can users review, pause, edit, and delete each direction horizon without adding a fifth primary surface?
+- **Soon:** Which information types may be generated from sources, which require editorial review, and how is that distinction shown without clutter?
+- **Soon:** How many guide moments can a route contain before learning begins to compete with Presence or safety?
+- **Soon:** How should Momentum detect progress without converting goals into streaks, quotas, or identity judgments?
+- **Later:** Can users choose a deeper guide mode for history, nature, culture, food, or training while the default remains quiet?
+
 ## Trust, onboarding, and permissions
 
 - **Now:** What useful experience can Momentum provide before any optional permission is granted?

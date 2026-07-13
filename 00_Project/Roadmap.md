@@ -41,6 +41,7 @@ The four continuous tracks are Philosophy, Experience, Understanding, and Trust.
 - North Star UI narrative;
 - representative end-to-end experience blueprints.
 - a reusable staged Capsule Content Contract with complete representative food, workout, quiet, and handoff plans;
+- a Meaning Thread and Guided Learning contract for place, nature, workout, food, culture, and interest-led experiences;
 
 **Definition of Done**
 
@@ -66,6 +67,8 @@ The four continuous tracks are Philosophy, Experience, Understanding, and Trust.
 - ranking hypotheses and feedback model;
 - permission-value map and graceful degradation;
 - Living World source-quality model.
+- separate, reversible context for near intentions, growth directions, and user-confirmed meaning anchors;
+- information provenance for editorial knowledge, live facts, curator knowledge, and generated synthesis;
 - a shared, transparent local decision prototype used by Now, Today, and Discover before live integrations;
 
 **Definition of Done**
@@ -165,6 +168,7 @@ The four continuous tracks are Philosophy, Experience, Understanding, and Trust.
 - repetition and diversity controls;
 - user-facing corrections and explanation;
 - evaluation for relevance, novelty, trust, and unintended bias.
+- user-controlled review of near intentions, growth directions, and meaning anchors without goal pressure;
 
 **Definition of Done**
 

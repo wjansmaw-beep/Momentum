@@ -21,6 +21,7 @@ Each Capsule provides:
 - preparation list;
 - ordered executable steps;
 - optional step metadata such as ingredients, repetitions, rounds, duration, or cue;
+- optional situated insight with provenance when it deepens the current action or observation;
 - handoff destination when another capability is better;
 - completion and Memory language.
 
@@ -44,10 +45,9 @@ For walking, cycling, places, and events. Explain why Maps, Calendar, or another
 - **Workout:** equipment and limitations before start; warm-up, exercises, repetitions or intervals, rest, and finish.
 - **Restoration:** non-medical expectation; minimal rhythm or timer; silence is a valid step.
 - **Family:** simple shared rules; child-appropriate autonomy; no need to document completion.
-- **Learning:** one focus question; bounded reading or making; one optional takeaway.
-- **Routes:** safety and feasibility before departure; trusted navigation handoff; no distracting parallel guidance.
+- **Learning:** one relevant idea, one thing to notice, apply, or do, and one optional takeaway; reading is only one possible form.
+- **Routes:** safety and feasibility before departure; trusted navigation handoff; at most a few safe, sourced place or nature guide moments and no distracting parallel guidance.
 
 ## Quality test
 
 A Capsule is complete when a person can finish without returning to search, yet spends no more attention on Momentum than the experience genuinely requires.
-
