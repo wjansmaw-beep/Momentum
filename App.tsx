@@ -62,6 +62,7 @@ import {
   loadCalendarContext,
 } from './src/context/calendarContext';
 import { clearLiveWorldCache, loadLiveWorldCache, saveLiveWorldCache, snapshotAgeMinutes } from './src/liveworld/liveCache';
+import { createWorldContext, ResolvedContentCatalog, resolveContentCatalog } from './src/content/contentCatalog';
 
 type FlowStage = 'promise' | 'prepare' | 'presence' | 'remember' | 'profile' | null;
 type Memory = { id: string; title: string; date: string; image: string; note: string };
@@ -74,7 +75,7 @@ const memoryKey = 'momentum.memories.v2';
 const contextKey = 'momentum.prototype-context.v1';
 const personalProfileKey = 'momentum.personal-profile.v1';
 const timeOptions = [15, 30, 60, 120];
-const defaultRegion = { coordinates: { latitude: 53.325, longitude: 5.999 }, label: 'Dokkum proefregio' };
+const defaultRegion = { coordinates: { latitude: 53.325, longitude: 5.999 }, label: 'Dokkum proefcontext · niet gebruikt voor keuzes' };
 
 export default function App() {
   const { height } = useWindowDimensions();
@@ -87,6 +88,7 @@ export default function App() {
   const [personalProfile, setPersonalProfile] = useState<PersonalProfile>(defaultPersonalProfile);
   const [personalHydrated, setPersonalHydrated] = useState(false);
   const [liveWorld, setLiveWorld] = useState<LiveWorldSnapshot | null>(null);
+  const [selectionLocationConfirmed, setSelectionLocationConfirmed] = useState(false);
   const [liveLoading, setLiveLoading] = useState(true);
   const [liveMessage, setLiveMessage] = useState('Live bronnen worden gecontroleerd…');
   const [calendarContext, setCalendarContext] = useState<CalendarContextSnapshot>(emptyCalendarContext);
@@ -137,8 +139,9 @@ export default function App() {
   const effectiveContext = useMemo(() => calendarContext.state === 'live' && calendarContext.currentFreeMinutes
     ? { ...prototypeContext, availableMinutes: Math.max(15, Math.min(120, calendarContext.currentFreeMinutes)) }
     : prototypeContext, [calendarContext.currentFreeMinutes, calendarContext.state, prototypeContext]);
-  const liveExperiences = useMemo(() => liveWorld ? [composeLiveExperience(liveWorld, effectiveContext), composeNearbyPlaceExperience(liveWorld, effectiveContext)].filter((item): item is Experience => Boolean(item)) : [], [effectiveContext, liveWorld]);
-  const candidatePool = useMemo(() => [...liveExperiences, ...experiences], [liveExperiences]);
+  const liveExperiences = useMemo(() => liveWorld && selectionLocationConfirmed ? [composeLiveExperience(liveWorld, effectiveContext), composeNearbyPlaceExperience(liveWorld, effectiveContext)].filter((item): item is Experience => Boolean(item)) : [], [effectiveContext, liveWorld, selectionLocationConfirmed]);
+  const contentCatalog = useMemo(() => resolveContentCatalog(createWorldContext(liveWorld?.coordinates ?? defaultRegion.coordinates, new Date(), 'nl', selectionLocationConfirmed)), [liveWorld?.coordinates, selectionLocationConfirmed]);
+  const candidatePool = useMemo(() => [...liveExperiences, ...contentCatalog.experiences], [contentCatalog.experiences, liveExperiences]);
   const learningContext = useMemo(() => ({
     kindAffinity: personalProfile.kindAffinity,
     blockedExperienceIds: personalProfile.blockedExperienceIds,
@@ -147,7 +150,7 @@ export default function App() {
   }), [personalProfile]);
   const primaryDecision = useMemo(() => rankForMoment(effectiveContext, '', [], candidatePool, learningContext), [candidatePool, effectiveContext, learningContext]);
   const primaryExperience = primaryDecision.selected?.experience ?? byId('work-reset');
-  const dayDecisions = useMemo(() => buildToday(effectiveContext, liveExperiences, learningContext, calendarContext.state === 'live' ? calendarContext.freeWindows : undefined), [calendarContext.freeWindows, calendarContext.state, effectiveContext, learningContext, liveExperiences]);
+  const dayDecisions = useMemo(() => buildToday(effectiveContext, liveExperiences, learningContext, calendarContext.state === 'live' ? calendarContext.freeWindows : undefined, contentCatalog.experiences), [calendarContext.freeWindows, calendarContext.state, contentCatalog.experiences, effectiveContext, learningContext, liveExperiences]);
 
   const connectCalendar = async () => {
     setCalendarLoading(true);
@@ -161,8 +164,10 @@ export default function App() {
       const snapshot = await loadLiveWorld(coordinates, label);
       setLiveWorld(snapshot); setLiveMessage('Snelle live bronnen bijgewerkt · plaatsen volgen'); saveLiveWorldCache(snapshot).catch(() => undefined);
       loadPlaceContext(snapshot).then((enhanced) => { setLiveWorld(enhanced); setLiveMessage('Live bronnen bijgewerkt'); saveLiveWorldCache(enhanced).catch(() => undefined); }).catch(() => undefined);
+      return true;
     } catch {
       setLiveMessage('Live bronnen konden niet worden bijgewerkt');
+      return false;
     } finally { setLiveLoading(false); }
   };
 
@@ -170,10 +175,10 @@ export default function App() {
     setLiveLoading(true); setLiveMessage('Toestemming voor globale omgeving wordt gevraagd…');
     try {
       const permission = await Location.requestForegroundPermissionsAsync();
-      if (permission.status !== 'granted') { setLiveMessage('Locatie niet gedeeld · Dokkum proefregio blijft actief'); return; }
+      if (permission.status !== 'granted') { setLiveMessage('Locatie niet gedeeld · alleen wereldwijde ervaringen worden gekozen'); return; }
       const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Low });
       const coordinates = { latitude: Number(position.coords.latitude.toFixed(2)), longitude: Number(position.coords.longitude.toFixed(2)) };
-      await refreshLiveWorld(coordinates, 'Jouw globale omgeving');
+      if (await refreshLiveWorld(coordinates, 'Jouw globale omgeving')) setSelectionLocationConfirmed(true);
     } catch { setLiveMessage('Globale locatie kon niet worden gebruikt'); }
     finally { setLiveLoading(false); }
   };
@@ -233,7 +238,7 @@ export default function App() {
           {flowStage === 'prepare' && <PrepareScreen experience={selected} onBack={() => setFlowStage('promise')} onStart={() => setFlowStage('presence')} />}
           {flowStage === 'presence' && <PresenceScreen experience={selected} onBack={() => setFlowStage('prepare')} onFinish={() => setFlowStage('remember')} />}
           {flowStage === 'remember' && <RememberScreen experience={selected} onSkip={() => { setFlowStage(null); setSurface(origin); }} onSave={finishExperience} />}
-          {flowStage === 'profile' && <ProfileScreen personal={personalProfile} context={prototypeContext} calendar={calendarContext} calendarLoading={calendarLoading} liveWorld={liveWorld} liveLoading={liveLoading} liveMessage={liveMessage} onChange={setPrototypeContext} onPersonalChange={setPersonalProfile} onResetLearning={() => setPersonalProfile((current) => resetLearning(current))} onRedoOnboarding={() => setPersonalProfile((current) => ({ ...current, onboardingComplete: false }))} onClearLiveCache={() => { clearLiveWorldCache().catch(() => undefined); setLiveMessage('Regionale live cache gewist'); }} onConnectCalendar={connectCalendar} onRefresh={() => refreshLiveWorld()} onUseLocation={useApproximateLocation} onClose={closeFlow} />}
+          {flowStage === 'profile' && <ProfileScreen personal={personalProfile} context={prototypeContext} calendar={calendarContext} calendarLoading={calendarLoading} liveWorld={liveWorld} contentCatalog={contentCatalog} liveLoading={liveLoading} liveMessage={liveMessage} onChange={setPrototypeContext} onPersonalChange={setPersonalProfile} onResetLearning={() => setPersonalProfile((current) => resetLearning(current))} onRedoOnboarding={() => setPersonalProfile((current) => ({ ...current, onboardingComplete: false }))} onClearLiveCache={() => { clearLiveWorldCache().catch(() => undefined); setLiveMessage('Regionale live cache gewist'); }} onConnectCalendar={connectCalendar} onRefresh={() => refreshLiveWorld()} onUseLocation={useApproximateLocation} onClose={closeFlow} />}
         </View>
       </SafeAreaView>
     </View>
@@ -571,7 +576,7 @@ function RememberScreen({ experience, onSkip, onSave }: { experience: Experience
   );
 }
 
-function ProfileScreen({ personal, context, calendar, calendarLoading, liveWorld, liveLoading, liveMessage, onChange, onPersonalChange, onResetLearning, onRedoOnboarding, onClearLiveCache, onConnectCalendar, onRefresh, onUseLocation, onClose }: { personal: PersonalProfile; context: PrototypeContext; calendar: CalendarContextSnapshot; calendarLoading: boolean; liveWorld: LiveWorldSnapshot | null; liveLoading: boolean; liveMessage: string; onChange: (context: PrototypeContext) => void; onPersonalChange: (profile: PersonalProfile) => void; onResetLearning: () => void; onRedoOnboarding: () => void; onClearLiveCache: () => void; onConnectCalendar: () => void; onRefresh: () => void; onUseLocation: () => void; onClose: () => void }) {
+function ProfileScreen({ personal, context, calendar, calendarLoading, liveWorld, contentCatalog, liveLoading, liveMessage, onChange, onPersonalChange, onResetLearning, onRedoOnboarding, onClearLiveCache, onConnectCalendar, onRefresh, onUseLocation, onClose }: { personal: PersonalProfile; context: PrototypeContext; calendar: CalendarContextSnapshot; calendarLoading: boolean; liveWorld: LiveWorldSnapshot | null; contentCatalog: ResolvedContentCatalog; liveLoading: boolean; liveMessage: string; onChange: (context: PrototypeContext) => void; onPersonalChange: (profile: PersonalProfile) => void; onResetLearning: () => void; onRedoOnboarding: () => void; onClearLiveCache: () => void; onConnectCalendar: () => void; onRefresh: () => void; onUseLocation: () => void; onClose: () => void }) {
   const dayParts: DayPart[] = ['morning', 'midday', 'afternoon', 'evening'];
   const profiles: PrototypeProfile[] = ['balanced', 'explorer', 'mover', 'family'];
   const companies: Array<{ id: Company; label: string }> = [{ id: 'solo', label: 'Alleen' }, { id: 'together', label: 'Samen' }, { id: 'family', label: 'Met gezin' }];
@@ -602,7 +607,7 @@ function ProfileScreen({ personal, context, calendar, calendarLoading, liveWorld
     <View style={styles.profileChoiceList}>{profiles.map((item) => <Pressable key={item} onPress={() => onChange({ ...context, profile: item })} style={[styles.profileChoice, context.profile === item && styles.profileChoiceSelected]}><View style={styles.flex}><Text style={styles.profileChoiceTitle}>{profileLabels[item].title}</Text><Text style={styles.profileChoiceBody}>{profileLabels[item].body}</Text></View><Text style={styles.profileChoiceMark}>{context.profile === item ? '●' : '○'}</Text></Pressable>)}</View>
     <Text style={styles.fieldLabel}>MET WIE?</Text><View style={styles.chipRow}>{companies.map((item) => <ChoiceChip key={item.id} label={item.label} selected={context.company === item.id} onPress={() => onChange({ ...context, company: item.id })} />)}</View>
     <Text style={styles.fieldLabel}>BESCHIKBAAR MATERIAAL</Text><View style={styles.chipRow}><ChoiceChip label="Kettlebell" selected={context.hasKettlebell} onPress={() => onChange({ ...context, hasKettlebell: !context.hasKettlebell })} /><ChoiceChip label="Geen trainingsmateriaal" selected={!context.hasKettlebell} onPress={() => onChange({ ...context, hasKettlebell: false })} /></View>
-    <View style={styles.profileCard}><ProfileRow label="Locatie" value={liveWorld?.regionLabel ?? 'Niet gekoppeld'} /><ProfileRow label="Agenda" value={calendar.state === 'live' ? 'Lokaal gekoppeld' : calendar.state === 'denied' ? 'Niet toegestaan' : 'Niet gekoppeld'} /><ProfileRow label="Weer" value={liveWorld?.weather ? 'Live gekoppeld' : 'Niet gekoppeld'} /><ProfileRow label="Gezondheid" value="Niet gekoppeld" /></View>
+    <View style={styles.profileCard}><ProfileRow label="Locatie" value={liveWorld?.regionLabel ?? 'Niet gekoppeld'} /><ProfileRow label="Ervaringen" value={contentCatalog.coverageLabel} /><ProfileRow label="Seizoen" value={contentCatalog.context.season === 'spring' ? 'Lente' : contentCatalog.context.season === 'summer' ? 'Zomer' : contentCatalog.context.season === 'autumn' ? 'Herfst' : 'Winter'} /><ProfileRow label="Agenda" value={calendar.state === 'live' ? 'Lokaal gekoppeld' : calendar.state === 'denied' ? 'Niet toegestaan' : 'Niet gekoppeld'} /><ProfileRow label="Weer" value={liveWorld?.weather ? 'Live gekoppeld' : 'Niet gekoppeld'} /><ProfileRow label="Gezondheid" value="Niet gekoppeld" /></View>
     <View style={styles.calendarControlCard}>
       <Text style={styles.liveEvidenceTitle}>AGENDA · VRIJE RUIMTE</Text>
       <Text style={styles.liveControlMessage}>{calendar.detail}</Text>

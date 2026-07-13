@@ -198,6 +198,8 @@ The four continuous tracks are Philosophy, Experience, Understanding, and Trust.
 
 **Implementation note (2026-07-12):** nearby public places with conservatively interpreted opening hours and non-medical air-quality/pollen context now join the same source contract. See ADR-021 and ADR-022.
 
+**Implementation note (2026-07-13):** editorial experiences now resolve through bounded local/regional packs plus a global evergreen fallback, independently of live-source coverage. Dokkum, New York, and Tokyo scenario checks protect global behavior; see ADR-024.
+
 ## Advancement rule
 
 A phase may begin discovery before the prior phase is fully complete, but implementation may not use unresolved foundational questions as silent assumptions. Founder approval is required to lift the no-application-code gate.

@@ -9,6 +9,8 @@ Momentum can add new live content without turning the app into a collection of s
 
 Momentum is global while source coverage is regional. Adapters report unsupported or unavailable coverage independently; no adapter may make the product assume a specific country, city, language, or timezone.
 
+Editorial content uses the separate pack and fallback contract in `International_Content_Architecture.md`. A matching content pack does not imply that any live source is available, and a live source does not authorize unreviewed local editorial content.
+
 ## Source families
 
 ### Personal context sources

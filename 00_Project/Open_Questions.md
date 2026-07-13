@@ -92,7 +92,7 @@ Priority labels:
 - **Soon:** How fresh must each type of live claim be?
 - **Soon:** Who is responsible for licensing, attribution, correction, and removal?
 - **Soon:** How are sensitive wildlife and fragile places protected?
-- **Later:** How does Living World scale internationally without losing local character?
+- **Resolved direction:** Living World scales without losing local character by keeping global evergreen experiences available everywhere and enriching them with reviewed, bounded local and regional packs. Live sources keep independent provenance and freshness. Localization remains a separate decision; see ADR-024.
 - **Later:** Can local curators or users contribute without turning Momentum into social media?
 
 ## Business and success

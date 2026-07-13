@@ -198,6 +198,22 @@ export const experiences: Experience[] = [
     ],
     memoryPrompt: 'Welke gedachte wil je meenemen?', keywords: ['lezen', 'leren', 'boek', 'kennis', 'groei', 'rust'], company: ['solo'],
   },
+  {
+    id: 'one-song-listening', kind: 'culture', title: 'Luister naar één nummer',
+    promise: 'Geef één muziekstuk je volledige aandacht, zonder ondertussen iets anders te doen.',
+    wonder: 'Een bekend nummer kan anders klinken wanneer je het niet als achtergrond gebruikt.',
+    image: 'https://images.unsplash.com/photo-1511379938547-c1f69419868d?auto=format&fit=crop&w=1200&q=88',
+    accent: '#B08BB5', duration: 8, effort: 'Heel rustig', cta: 'Kies mijn luistermoment',
+    why: ['Kan vrijwel overal', 'Geen voorbereiding nodig', 'Heeft een helder en natuurlijk einde'],
+    prepareTitle: 'Kies zonder lang te zoeken', prepare: ['Eén nummer dat je al kent', 'Koptelefoon alleen waar dat veilig is', 'Meldingen stil'],
+    presenceMode: 'handoff', presenceTitle: 'Luister tot de laatste noot', presenceCue: 'Open je vertrouwde muziekapp en leg daarna je scherm weg.',
+    steps: [
+      { title: 'Open je muziek', instruction: 'Kies het eerste bekende nummer dat bij je opkomt. Geen afspeellijst en geen zoektocht naar het perfecte lied.' },
+      { title: 'Laat alleen de muziek over', instruction: 'Leg je scherm weg en luister tot het nummer helemaal afgelopen is.', meta: 'Handoff naar je muziekapp' },
+      { title: 'Wacht tien seconden', instruction: 'Start niet meteen iets nieuws. Laat het einde nog even bestaan.', seconds: 10 },
+    ],
+    memoryPrompt: 'Welk detail hoorde je nu voor het eerst?', keywords: ['muziek', 'luisteren', 'nummer', 'lied', 'cultuur', 'rust', 'focus'], company: ['solo', 'together'],
+  },
 ];
 
 export const byId = (id: string) => experiences.find((item) => item.id === id) ?? experiences[0];
