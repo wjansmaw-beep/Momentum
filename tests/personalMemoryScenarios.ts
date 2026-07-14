@@ -13,7 +13,7 @@ export function runPersonalMemoryScenarioChecks() {
 
   const experience = byId('pantry-dinner');
   const learned = applyReflection(defaultPersonalProfile(), experience, {
-    outcome: 'neutral', aspects: ['less-guidance', 'too-long', 'content-not-useful'], note: 'De kookuitleg mocht korter.',
+    outcome: 'neutral', aspects: ['less-guidance', 'too-long', 'topic-not-useful'], note: 'De kookuitleg mocht korter.',
   });
   expect(learned.guidanceBalance < 0, 'Less guidance should change the guidance preference.');
   expect(learned.durationBiasMinutes < 0, 'Too long should favor shorter future experiences.');
@@ -24,6 +24,13 @@ export function runPersonalMemoryScenarioChecks() {
   expect(forgotten.guidanceBalance === 0 && forgotten.durationBiasMinutes === 0, 'Forgetting should recalculate learned preferences.');
   expect(!forgotten.mutedInsightTopics.includes('food'), 'Forgetting the only topic correction should restore that topic.');
 
+  const scoped = applyReflection(defaultPersonalProfile(), experience, { outcome: 'neutral', aspects: ['content-not-useful'] });
+  expect(scoped.mutedInsightExperienceIds.includes(experience.id), 'Experience-scoped feedback should mute only that experience.');
+  expect(scoped.mutedInsightTopics.length === 0, 'Experience-scoped feedback must not mute the whole topic.');
+
+  const topicScoped = applyReflection(defaultPersonalProfile(), experience, { outcome: 'neutral', aspects: ['topic-not-useful'] });
+  expect(topicScoped.mutedInsightTopics.includes('food'), 'Topic-scoped feedback should mute the explicitly chosen topic.');
+
   const directed = { ...defaultPersonalProfile(), directions: { near: ['vaker koken'], growth: [], meaning: [] } };
   const decision = rankForMoment(
     { ...defaultPrototypeContext(), dayPart: 'evening', availableMinutes: 45 }, '', [], experiences,
@@ -31,6 +38,8 @@ export function runPersonalMemoryScenarioChecks() {
   );
   expect(Boolean(decision.selected), 'Direction-aware ranking should still produce an experience.');
   expect(decision.selected?.reasons.some((reason) => reason.text.includes('richting')) ?? false, 'A matching self-chosen direction should be explained.');
+  const paused = { ...directed, pausedDirections: ['vaker koken'] };
+  expect(directionTerms(paused).length === 0, 'A paused direction must stop influencing ranking without being deleted.');
 
   return { migratedVersion: migrated.version, learnedSignals: learned.reflectionMemories.length, selected: decision.selected?.experience.id };
 }

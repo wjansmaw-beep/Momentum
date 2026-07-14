@@ -75,6 +75,8 @@ import { createWorldContext, ResolvedContentCatalog, resolveContentCatalog } fro
 
 type FlowStage = 'promise' | 'prepare' | 'presence' | 'remember' | 'profile' | null;
 type Memory = { id: string; title: string; date: string; image: string; note: string };
+type ActiveSession = { experienceId: string; stage: 'prepare' | 'presence'; stepIndex: number; origin: Surface; updatedAt: string };
+type PrototypeEvidence = { started: number; completed: number; reflected: number; skippedReflection: number; lastUpdated?: string };
 
 const colors = {
   ink: '#071013', panel: '#101A1D', bone: '#F4EEE3', muted: '#AEB4AE',
@@ -83,6 +85,8 @@ const colors = {
 const memoryKey = 'momentum.memories.v2';
 const contextKey = 'momentum.prototype-context.v1';
 const personalProfileKey = 'momentum.personal-profile.v1';
+const activeSessionKey = 'momentum.active-session.v1';
+const evidenceKey = 'momentum.prototype-evidence.v1';
 const timeOptions = [15, 30, 60, 120];
 const defaultRegion = { coordinates: { latitude: 53.325, longitude: 5.999 }, label: 'Dokkum proefcontext · niet gebruikt voor keuzes' };
 
@@ -96,6 +100,10 @@ export default function App() {
   const [contextHydrated, setContextHydrated] = useState(false);
   const [personalProfile, setPersonalProfile] = useState<PersonalProfile>(defaultPersonalProfile);
   const [personalHydrated, setPersonalHydrated] = useState(false);
+  const [activeSession, setActiveSession] = useState<ActiveSession | null>(null);
+  const [evidence, setEvidence] = useState<PrototypeEvidence>({ started: 0, completed: 0, reflected: 0, skippedReflection: 0 });
+  const [sessionHydrated, setSessionHydrated] = useState(false);
+  const [evidenceHydrated, setEvidenceHydrated] = useState(false);
   const [liveWorld, setLiveWorld] = useState<LiveWorldSnapshot | null>(null);
   const [selectionLocationConfirmed, setSelectionLocationConfirmed] = useState(false);
   const [liveLoading, setLiveLoading] = useState(true);
@@ -121,6 +129,12 @@ export default function App() {
     AsyncStorage.getItem(personalProfileKey).then((value) => {
       if (value) setPersonalProfile(hydratePersonalProfile(JSON.parse(value)));
     }).catch(() => undefined).finally(() => setPersonalHydrated(true));
+    AsyncStorage.getItem(activeSessionKey).then((value) => {
+      if (!value) return;
+      const stored = JSON.parse(value) as ActiveSession;
+      if (experiences.some((experience) => experience.id === stored.experienceId) && ['prepare', 'presence'].includes(stored.stage)) setActiveSession(stored);
+    }).catch(() => undefined).finally(() => setSessionHydrated(true));
+    AsyncStorage.getItem(evidenceKey).then((value) => { if (value) setEvidence((current) => ({ ...current, ...JSON.parse(value) })); }).catch(() => undefined).finally(() => setEvidenceHydrated(true));
     loadLiveWorldCache(defaultRegion.coordinates).then((cached) => {
       if (cached) { setLiveWorld(cached); setLiveMessage(`Eerdere regionale context · ${Math.round(snapshotAgeMinutes(cached))} min oud`); }
       return loadLiveWorld(defaultRegion.coordinates, defaultRegion.label);
@@ -145,6 +159,14 @@ export default function App() {
     AsyncStorage.setItem(personalProfileKey, JSON.stringify(personalProfile)).catch(() => undefined);
   }, [personalHydrated, personalProfile]);
 
+  useEffect(() => {
+    if (!sessionHydrated) return;
+    if (activeSession) AsyncStorage.setItem(activeSessionKey, JSON.stringify(activeSession)).catch(() => undefined);
+    else AsyncStorage.removeItem(activeSessionKey).catch(() => undefined);
+  }, [activeSession, sessionHydrated]);
+
+  useEffect(() => { if (evidenceHydrated) AsyncStorage.setItem(evidenceKey, JSON.stringify(evidence)).catch(() => undefined); }, [evidence, evidenceHydrated]);
+
   const effectiveContext = useMemo(() => calendarContext.state === 'live' && calendarContext.currentFreeMinutes
     ? { ...prototypeContext, availableMinutes: Math.max(15, Math.min(120, calendarContext.currentFreeMinutes)) }
     : prototypeContext, [calendarContext.currentFreeMinutes, calendarContext.state, prototypeContext]);
@@ -164,6 +186,7 @@ export default function App() {
   }), [personalProfile]);
   const primaryDecision = useMemo(() => rankForMoment(effectiveContext, '', [], candidatePool, learningContext), [candidatePool, effectiveContext, learningContext]);
   const primaryExperience = primaryDecision.selected?.experience ?? byId('work-reset');
+  const resumableExperience = activeSession ? byId(activeSession.experienceId) : undefined;
   const dayDecisions = useMemo(() => buildToday(effectiveContext, liveExperiences, learningContext, calendarContext.state === 'live' ? calendarContext.freeWindows : undefined, contentCatalog.experiences), [calendarContext.freeWindows, calendarContext.state, contentCatalog.experiences, effectiveContext, learningContext, liveExperiences]);
 
   const connectCalendar = async () => {
@@ -203,6 +226,23 @@ export default function App() {
     setFlowStage(stage);
   };
 
+  const startPresence = () => {
+    const isNew = activeSession?.experienceId !== selected.id;
+    setActiveSession({ experienceId: selected.id, stage: 'presence', stepIndex: isNew ? 0 : activeSession?.stepIndex ?? 0, origin, updatedAt: new Date().toISOString() });
+    if (isNew) setEvidence((current) => ({ ...current, started: current.started + 1, lastUpdated: new Date().toISOString() }));
+    setFlowStage('presence');
+  };
+
+  const resumeSession = () => {
+    if (!activeSession) return;
+    setSelected(byId(activeSession.experienceId)); setOrigin(activeSession.origin); setFlowStage(activeSession.stage);
+  };
+
+  const finishPresence = () => {
+    setEvidence((current) => ({ ...current, completed: current.completed + 1, lastUpdated: new Date().toISOString() }));
+    setActiveSession(null); setFlowStage('remember');
+  };
+
   const closeFlow = () => setFlowStage(null);
   const finishExperience = (input: ReflectionInput) => {
     const memory: Memory = {
@@ -214,8 +254,14 @@ export default function App() {
     };
     setMemories((current) => [memory, ...current.filter((item) => item.id !== selected.id)].slice(0, 12));
     setPersonalProfile((current) => applyReflection(current, selected, input));
+    setEvidence((current) => ({ ...current, reflected: current.reflected + 1, lastUpdated: new Date().toISOString() }));
     setFlowStage(null);
     setSurface('lifebook');
+  };
+
+  const skipReflection = () => {
+    setEvidence((current) => ({ ...current, skippedReflection: current.skippedReflection + 1, lastUpdated: new Date().toISOString() }));
+    setFlowStage(null); setSurface(origin);
   };
 
   const finishOnboarding = (profile: PersonalProfile) => {
@@ -241,7 +287,7 @@ export default function App() {
         <View style={styles.appFrame}>
           {flowStage === null && (
             <>
-              {surface === 'now' && <NowScreen firstName={personalProfile.firstName} experience={primaryExperience} decision={primaryDecision} context={effectiveContext} calendar={calendarContext} liveWorld={liveWorld} liveLoading={liveLoading} onOpen={(item, stage) => openExperience(item, 'now', stage)} onProfile={() => setFlowStage('profile')} onDiscover={() => setSurface('discover')} onFeedback={(outcome) => setPersonalProfile((current) => applyLearning(current, primaryExperience, outcome))} />}
+              {surface === 'now' && <NowScreen firstName={personalProfile.firstName} experience={primaryExperience} decision={primaryDecision} resumableExperience={resumableExperience} context={effectiveContext} calendar={calendarContext} liveWorld={liveWorld} liveLoading={liveLoading} onResume={resumeSession} onDiscardSession={() => setActiveSession(null)} onOpen={(item, stage) => openExperience(item, 'now', stage)} onProfile={() => setFlowStage('profile')} onDiscover={() => setSurface('discover')} onFeedback={(outcome) => setPersonalProfile((current) => applyLearning(current, primaryExperience, outcome))} />}
               {surface === 'today' && <TodayScreen decisions={dayDecisions} calendar={calendarContext} onOpen={(item) => openExperience(item, 'today')} />}
               {surface === 'discover' && <DiscoverScreen context={prototypeContext} candidatePool={candidatePool} learning={learningContext} onOpen={(item) => openExperience(item, 'discover')} />}
               {surface === 'lifebook' && <LifeBookScreen memories={memories} onOpen={(item) => { setPersonalProfile((current) => applyLearning(current, item, 'repeat')); openExperience(item, 'lifebook'); }} />}
@@ -249,10 +295,10 @@ export default function App() {
             </>
           )}
           {flowStage === 'promise' && <PromiseScreen experience={selected} onClose={closeFlow} onAccept={() => setFlowStage('prepare')} />}
-          {flowStage === 'prepare' && <PrepareScreen experience={selected} onBack={() => setFlowStage('promise')} onStart={() => setFlowStage('presence')} />}
-          {flowStage === 'presence' && <PresenceScreen experience={selected} personal={personalProfile} onBack={() => setFlowStage('prepare')} onFinish={() => setFlowStage('remember')} />}
-          {flowStage === 'remember' && <RememberScreen experience={selected} onSkip={() => { setFlowStage(null); setSurface(origin); }} onSave={finishExperience} />}
-          {flowStage === 'profile' && <ProfileScreen personal={personalProfile} context={prototypeContext} calendar={calendarContext} calendarLoading={calendarLoading} liveWorld={liveWorld} contentCatalog={contentCatalog} liveLoading={liveLoading} liveMessage={liveMessage} onChange={setPrototypeContext} onPersonalChange={setPersonalProfile} onForgetReflection={(id) => setPersonalProfile((current) => forgetReflection(current, id))} onForgetLearningEvent={(id) => setPersonalProfile((current) => forgetLearningEvent(current, id))} onResetLearning={() => setPersonalProfile((current) => resetLearning(current))} onRedoOnboarding={() => setPersonalProfile((current) => ({ ...current, onboardingComplete: false }))} onClearLiveCache={() => { clearLiveWorldCache().catch(() => undefined); setLiveMessage('Regionale live cache gewist'); }} onConnectCalendar={connectCalendar} onRefresh={() => refreshLiveWorld()} onUseLocation={useApproximateLocation} onClose={closeFlow} />}
+          {flowStage === 'prepare' && <PrepareScreen experience={selected} onBack={() => setFlowStage('promise')} onStart={startPresence} />}
+          {flowStage === 'presence' && <PresenceScreen experience={selected} personal={personalProfile} initialStep={activeSession?.experienceId === selected.id ? activeSession.stepIndex : 0} onStepChange={(stepIndex) => setActiveSession((current) => current && current.experienceId === selected.id ? { ...current, stage: 'presence', stepIndex, updatedAt: new Date().toISOString() } : current)} onBack={() => { setActiveSession((current) => current ? { ...current, stage: 'prepare', updatedAt: new Date().toISOString() } : current); setFlowStage('prepare'); }} onFinish={finishPresence} />}
+          {flowStage === 'remember' && <RememberScreen experience={selected} onSkip={skipReflection} onSave={finishExperience} />}
+          {flowStage === 'profile' && <ProfileScreen personal={personalProfile} evidence={evidence} context={prototypeContext} calendar={calendarContext} calendarLoading={calendarLoading} liveWorld={liveWorld} contentCatalog={contentCatalog} liveLoading={liveLoading} liveMessage={liveMessage} onChange={setPrototypeContext} onPersonalChange={setPersonalProfile} onForgetReflection={(id) => setPersonalProfile((current) => forgetReflection(current, id))} onForgetLearningEvent={(id) => setPersonalProfile((current) => forgetLearningEvent(current, id))} onResetEvidence={() => setEvidence({ started: 0, completed: 0, reflected: 0, skippedReflection: 0 })} onResetLearning={() => setPersonalProfile((current) => resetLearning(current))} onRedoOnboarding={() => setPersonalProfile((current) => ({ ...current, onboardingComplete: false }))} onClearLiveCache={() => { clearLiveWorldCache().catch(() => undefined); setLiveMessage('Regionale live cache gewist'); }} onConnectCalendar={connectCalendar} onRefresh={() => refreshLiveWorld()} onUseLocation={useApproximateLocation} onClose={closeFlow} />}
         </View>
       </SafeAreaView>
     </View>
@@ -325,15 +371,20 @@ function ScreenHeader({ eyebrow, title, subtitle, onProfile }: { eyebrow?: strin
   );
 }
 
-function NowScreen({ firstName, experience, decision, context, calendar, liveWorld, liveLoading, onOpen, onProfile, onDiscover, onFeedback }: { firstName: string; experience: Experience; decision: LocalDecision; context: PrototypeContext; calendar: CalendarContextSnapshot; liveWorld: LiveWorldSnapshot | null; liveLoading: boolean; onOpen: (item: Experience, stage?: FlowStage) => void; onProfile: () => void; onDiscover: () => void; onFeedback: (outcome: LearningOutcome) => void }) {
+function NowScreen({ firstName, experience, decision, resumableExperience, context, calendar, liveWorld, liveLoading, onResume, onDiscardSession, onOpen, onProfile, onDiscover, onFeedback }: { firstName: string; experience: Experience; decision: LocalDecision; resumableExperience?: Experience; context: PrototypeContext; calendar: CalendarContextSnapshot; liveWorld: LiveWorldSnapshot | null; liveLoading: boolean; onResume: () => void; onDiscardSession: () => void; onOpen: (item: Experience, stage?: FlowStage) => void; onProfile: () => void; onDiscover: () => void; onFeedback: (outcome: LearningOutcome) => void }) {
   const [declined, setDeclined] = useState(false);
   const [whyOpen, setWhyOpen] = useState(false);
   return (
     <ScrollView contentContainerStyle={styles.screenScroll} showsVerticalScrollIndicator={false}>
       <ScreenHeader eyebrow={`${dayPartLabels[context.dayPart].toUpperCase()}${firstName ? ` · ${firstName.toUpperCase()}` : ''}`} title="Vandaag wacht er iets moois op je." subtitle="Eén voorstel voor dit moment." onProfile={onProfile} />
       <LiveWorldBar snapshot={liveWorld} loading={liveLoading} />
+      {resumableExperience && <View style={styles.resumeCard}><Pressable accessibilityLabel={`Hervat ${resumableExperience.title}`} onPress={onResume} style={styles.resumeMain}><View style={styles.resumeMark}><Text style={styles.resumeMarkText}>▶</Text></View><View style={styles.flex}><Text style={styles.resumeLabel}>ER STAAT NOG EEN ERVARING OPEN</Text><Text style={styles.resumeTitle}>{resumableExperience.title}</Text><Text style={styles.resumeBody}>Ga verder waar je gebleven was.</Text></View><Text style={styles.arrow}>→</Text></Pressable><Pressable onPress={onDiscardSession} style={styles.resumeDiscard}><Text style={styles.resumeDiscardText}>Niet hervatten</Text></Pressable></View>}
       {calendar.state === 'live' && calendar.currentFreeMinutes ? <View style={styles.contextNotice}><Text style={styles.contextNoticeMark}>◷</Text><View style={styles.flex}><Text style={styles.contextNoticeTitle}>{calendar.currentFreeMinutes} minuten ruimte herkend</Text><Text style={styles.contextNoticeBody}>Alleen begin- en eindtijden verwerkt · afspraakinhoud genegeerd</Text></View></View> : null}
-      {!declined ? (
+      {decision.confidence === 'low' && !declined ? <View style={styles.silentCard}>
+        <Text style={styles.eyebrow}>NOG GEEN EERLIJK BESTE VOORSTEL</Text><Text style={styles.silentTitle}>Wat zou dit moment voor jou de moeite waard maken?</Text>
+        <Text style={styles.screenSubtitle}>Momentum mist voldoende onderscheid. Geef één korte richting; je beschikbare tijd blijft behouden.</Text>
+        <PrimaryButton label="Geef richting" onPress={onDiscover} /><SecondaryButton label="Laat dit moment open" onPress={() => setDeclined(true)} />
+      </View> : !declined ? (
         <View style={styles.heroCard}>
           <ImageBackground source={{ uri: experience.image }} style={styles.heroImage} imageStyle={styles.heroImageStyle}>
             <View style={styles.imageShade} />
@@ -513,17 +564,18 @@ function PrepareScreen({ experience, onBack, onStart }: { experience: Experience
   );
 }
 
-function PresenceScreen({ experience, personal, onBack, onFinish }: { experience: Experience; personal: PersonalProfile; onBack: () => void; onFinish: () => void }) {
-  const [stepIndex, setStepIndex] = useState(0);
-  const [remaining, setRemaining] = useState(experience.steps[0]?.seconds ?? 0);
+function PresenceScreen({ experience, personal, initialStep, onStepChange, onBack, onFinish }: { experience: Experience; personal: PersonalProfile; initialStep: number; onStepChange: (stepIndex: number) => void; onBack: () => void; onFinish: () => void }) {
+  const [stepIndex, setStepIndex] = useState(Math.min(initialStep, Math.max(0, experience.steps.length - 1)));
+  const [remaining, setRemaining] = useState(experience.steps[Math.min(initialStep, Math.max(0, experience.steps.length - 1))]?.seconds ?? 0);
   const [timerRunning, setTimerRunning] = useState(false);
   const current = experience.steps[stepIndex] ?? { title: experience.presenceTitle, instruction: experience.presenceCue };
-  const insightVisible = current.insight && personal.guidanceBalance > -0.2 && !personal.mutedInsightTopics.includes(current.insight.topic);
+  const insightVisible = current.insight && personal.guidanceBalance > -0.2 && !personal.mutedInsightTopics.includes(current.insight.topic) && !personal.mutedInsightExperienceIds.includes(experience.id);
   const isLast = stepIndex >= experience.steps.length - 1;
 
   useEffect(() => {
     setRemaining(current.seconds ?? 0);
     setTimerRunning(false);
+    onStepChange(stepIndex);
   }, [current.seconds, stepIndex]);
 
   useEffect(() => {
@@ -589,7 +641,8 @@ function PresenceScreen({ experience, personal, onBack, onFinish }: { experience
 function RememberScreen({ experience, onSkip, onSave }: { experience: Experience; onSkip: () => void; onSave: (input: ReflectionInput) => void }) {
   const [note, setNote] = useState('');
   const [aspects, setAspects] = useState<ReflectionAspect[]>([]);
-  const options = (Object.keys(reflectionAspectLabels) as ReflectionAspect[]).filter((aspect) => aspect !== 'content-not-useful' || experience.steps.some((step) => step.insight));
+  const hasInsight = experience.steps.some((step) => step.insight);
+  const options = (Object.keys(reflectionAspectLabels) as ReflectionAspect[]).filter((aspect) => !['content-not-useful', 'topic-not-useful'].includes(aspect) || hasInsight);
   const toggle = (aspect: ReflectionAspect) => setAspects((current) => current.includes(aspect) ? current.filter((item) => item !== aspect) : [...current, aspect]);
   const save = (outcome: LearningOutcome, selectedAspects = aspects) => onSave({ note, outcome, aspects: selectedAspects });
   return (
@@ -609,7 +662,7 @@ function RememberScreen({ experience, onSkip, onSave }: { experience: Experience
   );
 }
 
-function ProfileScreen({ personal, context, calendar, calendarLoading, liveWorld, contentCatalog, liveLoading, liveMessage, onChange, onPersonalChange, onForgetReflection, onForgetLearningEvent, onResetLearning, onRedoOnboarding, onClearLiveCache, onConnectCalendar, onRefresh, onUseLocation, onClose }: { personal: PersonalProfile; context: PrototypeContext; calendar: CalendarContextSnapshot; calendarLoading: boolean; liveWorld: LiveWorldSnapshot | null; contentCatalog: ResolvedContentCatalog; liveLoading: boolean; liveMessage: string; onChange: (context: PrototypeContext) => void; onPersonalChange: (profile: PersonalProfile) => void; onForgetReflection: (id: string) => void; onForgetLearningEvent: (id: string) => void; onResetLearning: () => void; onRedoOnboarding: () => void; onClearLiveCache: () => void; onConnectCalendar: () => void; onRefresh: () => void; onUseLocation: () => void; onClose: () => void }) {
+function ProfileScreen({ personal, evidence, context, calendar, calendarLoading, liveWorld, contentCatalog, liveLoading, liveMessage, onChange, onPersonalChange, onForgetReflection, onForgetLearningEvent, onResetEvidence, onResetLearning, onRedoOnboarding, onClearLiveCache, onConnectCalendar, onRefresh, onUseLocation, onClose }: { personal: PersonalProfile; evidence: PrototypeEvidence; context: PrototypeContext; calendar: CalendarContextSnapshot; calendarLoading: boolean; liveWorld: LiveWorldSnapshot | null; contentCatalog: ResolvedContentCatalog; liveLoading: boolean; liveMessage: string; onChange: (context: PrototypeContext) => void; onPersonalChange: (profile: PersonalProfile) => void; onForgetReflection: (id: string) => void; onForgetLearningEvent: (id: string) => void; onResetEvidence: () => void; onResetLearning: () => void; onRedoOnboarding: () => void; onClearLiveCache: () => void; onConnectCalendar: () => void; onRefresh: () => void; onUseLocation: () => void; onClose: () => void }) {
   const dayParts: DayPart[] = ['morning', 'midday', 'afternoon', 'evening'];
   const profiles: PrototypeProfile[] = ['balanced', 'explorer', 'mover', 'family'];
   const companies: Array<{ id: Company; label: string }> = [{ id: 'solo', label: 'Alleen' }, { id: 'together', label: 'Samen' }, { id: 'family', label: 'Met gezin' }];
@@ -625,7 +678,7 @@ function ProfileScreen({ personal, context, calendar, calendarLoading, liveWorld
     </View>
     <Text style={styles.fieldLabel}>MIJN RICHTING</Text>
     <Text style={styles.screenSubtitle}>Dit zijn woorden die jij zelf kiest. Momentum gebruikt ze als zachte richting, nooit als opdracht of score.</Text>
-    {(Object.keys(directionLabels) as Array<keyof typeof directionLabels>).map((horizon) => <DirectionEditor key={horizon} horizon={horizon} values={personal.directions[horizon]} onSave={(values) => onPersonalChange({ ...personal, directions: { ...personal.directions, [horizon]: values } })} />)}
+    {(Object.keys(directionLabels) as Array<keyof typeof directionLabels>).map((horizon) => <DirectionEditor key={horizon} horizon={horizon} values={personal.directions[horizon]} paused={personal.pausedDirections} onTogglePause={(value) => onPersonalChange({ ...personal, pausedDirections: personal.pausedDirections.includes(value) ? personal.pausedDirections.filter((item) => item !== value) : [...personal.pausedDirections, value] })} onSave={(values) => onPersonalChange({ ...personal, directions: { ...personal.directions, [horizon]: values }, pausedDirections: personal.pausedDirections.filter((item) => values.includes(item) || Object.entries(personal.directions).some(([key, entries]) => key !== horizon && entries.includes(item))) })} />)}
     <Text style={styles.fieldLabel}>ZELF GEKOZEN VOORKEUREN</Text>
     <View style={styles.chipRow}>{(Object.keys(experienceKindLabels) as ExperienceKind[]).map((kind) => <ChoiceChip key={kind} label={experienceKindLabels[kind]} selected={personal.preferredKinds.includes(kind)} onPress={() => onPersonalChange({ ...personal, preferredKinds: personal.preferredKinds.includes(kind) ? personal.preferredKinds.filter((item) => item !== kind) : [...personal.preferredKinds, kind] })} />)}</View>
     <Text style={styles.fieldLabel}>WAT MOMENTUM HEEFT GELEERD</Text>
@@ -635,9 +688,14 @@ function ProfileScreen({ personal, context, calendar, calendarLoading, liveWorld
       {personal.reflectionMemories.slice(0, 5).map((memory) => <View key={memory.id} style={styles.memorySignalRow}><View style={styles.flex}><Text style={styles.learningEvent}>• {memory.explanation}</Text>{memory.note && <Text style={styles.memorySignalNote}>“{memory.note}”</Text>}</View><Pressable accessibilityLabel={`Vergeet feedback over ${memory.experienceTitle}`} onPress={() => onForgetReflection(memory.id)} style={styles.forgetSignal}><Text style={styles.forgetSignalText}>Vergeet</Text></Pressable></View>)}
       {personal.learningEvents.filter((event) => !personal.reflectionMemories.some((memory) => memory.learningEventId === event.id)).slice(0, 5).map((event) => <View key={event.id} style={styles.memorySignalRow}><Text style={[styles.learningEvent, styles.flex]}>• {event.explanation}</Text><Pressable accessibilityLabel={`Vergeet leersignaal over ${event.experienceId}`} onPress={() => onForgetLearningEvent(event.id)} style={styles.forgetSignal}><Text style={styles.forgetSignalText}>Vergeet</Text></Pressable></View>)}
       {personal.mutedInsightTopics.length > 0 && <Text style={styles.learningEvent}>Minder uitleg over: {personal.mutedInsightTopics.join(', ')}.</Text>}
+      {personal.mutedInsightExperienceIds.length > 0 && <Text style={styles.learningEvent}>Uitleg uitgezet bij {personal.mutedInsightExperienceIds.length} specifieke ervaring(en).</Text>}
     </View>
     <SecondaryButton label="Wis alleen wat Momentum heeft geleerd" onPress={onResetLearning} />
     <SecondaryButton label="Doorloop mijn startkeuzes opnieuw" onPress={onRedoOnboarding} />
+    <Text style={styles.fieldLabel}>LOKAAL PROEFBEWIJS</Text>
+    <View style={styles.personalCard}><ProfileRow label="Gestart" value={`${evidence.started}`} /><ProfileRow label="Afgerond" value={`${evidence.completed}`} /><ProfileRow label="Gereflecteerd" value={`${evidence.reflected}`} /><ProfileRow label="Reflectie overgeslagen" value={`${evidence.skippedReflection}`} /></View>
+    <Text style={styles.screenSubtitle}>Alleen lokale aantallen, zonder account, inhoud, tijdstip of externe analytics. Dit helpt straks beoordelen of mensen werkelijk beginnen en afronden.</Text>
+    <SecondaryButton label="Wis lokale proeftellingen" onPress={onResetEvidence} />
     <Text style={styles.fieldLabel}>TESTCONTEXT</Text>
     <Text style={styles.screenSubtitle}>Deze waarden simuleren voorlopig context die later alleen met jouw toestemming uit apparaatbronnen kan komen.</Text>
     <Text style={styles.fieldLabel}>MOMENT VAN DE DAG</Text><View style={styles.chipRow}>{dayParts.map((item) => <ChoiceChip key={item} label={dayPartLabels[item]} selected={context.dayPart === item} onPress={() => onChange({ ...context, dayPart: item })} />)}</View>
@@ -693,13 +751,14 @@ function ExperienceTile({ experience, large, onPress }: { experience: Experience
 function Pill({ label, accent }: { label: string; accent: string }) { return <View style={[styles.pill, { borderColor: accent }]}><View style={[styles.pillDot, { backgroundColor: accent }]} /><Text style={[styles.pillText, { color: accent }]}>{label}</Text></View>; }
 function MiniFact({ value, label }: { value: string; label: string }) { return <View style={styles.miniFact}><Text numberOfLines={1} style={styles.miniFactValue}>{value}</Text><Text style={styles.miniFactLabel}>{label}</Text></View>; }
 function ChoiceChip({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) { return <Pressable onPress={onPress} style={[styles.choiceChip, selected && styles.choiceChipSelected]}><Text style={[styles.choiceChipText, selected && styles.choiceChipTextSelected]}>{label}</Text></Pressable>; }
-function DirectionEditor({ horizon, values, onSave }: { horizon: keyof typeof directionLabels; values: string[]; onSave: (values: string[]) => void }) {
+function DirectionEditor({ horizon, values, paused, onTogglePause, onSave }: { horizon: keyof typeof directionLabels; values: string[]; paused: string[]; onTogglePause: (value: string) => void; onSave: (values: string[]) => void }) {
   const [draft, setDraft] = useState(values.join('\n'));
   useEffect(() => setDraft(values.join('\n')), [values]);
   const save = () => onSave(draft.split('\n').map((item) => item.trim()).filter(Boolean));
   const placeholder = horizon === 'near' ? 'Bijvoorbeeld: vaker samen naar buiten' : horizon === 'growth' ? 'Bijvoorbeeld: sterker en nieuwsgieriger worden' : 'Bijvoorbeeld: aandacht voor gezin en natuur';
   return <View style={styles.directionCard}>
     <Text style={styles.directionTitle}>{directionLabels[horizon].title}</Text><Text style={styles.directionBody}>{directionLabels[horizon].body}</Text>
+    {values.map((value) => <View key={value} style={styles.directionStatusRow}><Text style={[styles.directionStatusText, paused.includes(value) && styles.directionStatusPaused]}>{value}</Text><Pressable onPress={() => onTogglePause(value)} style={styles.directionPause}><Text style={styles.directionPauseText}>{paused.includes(value) ? 'Hervat' : 'Pauzeer'}</Text></Pressable></View>)}
     <TextInput value={draft} onChangeText={setDraft} onBlur={save} placeholder={placeholder} placeholderTextColor="rgba(174,180,174,0.48)" multiline style={styles.directionInput} />
     <Pressable onPress={save} style={styles.directionSave}><Text style={styles.directionSaveText}>Richting bewaren</Text></Pressable>
   </View>;
@@ -734,6 +793,11 @@ const styles = StyleSheet.create({
   directionInput: { minHeight: 66, borderRadius: 14, borderWidth: 1, borderColor: 'rgba(164,197,93,0.22)', color: colors.bone, padding: 12, textAlignVertical: 'top', fontSize: 13, lineHeight: 20 },
   directionSave: { alignSelf: 'flex-end', paddingVertical: 9, paddingHorizontal: 4 },
   directionSaveText: { color: colors.green, fontSize: 11, fontWeight: '700' },
+  directionStatusRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 7, borderTopWidth: 1, borderTopColor: colors.line },
+  directionStatusText: { color: colors.bone, fontSize: 11, flex: 1 },
+  directionStatusPaused: { color: 'rgba(174,180,174,0.5)', textDecorationLine: 'line-through' },
+  directionPause: { borderRadius: 10, borderWidth: 1, borderColor: colors.line, paddingHorizontal: 9, paddingVertical: 6 },
+  directionPauseText: { color: colors.gold, fontSize: 8, fontWeight: '700' },
   reflectionHint: { color: colors.muted, fontSize: 11, lineHeight: 17, marginTop: -4, marginBottom: 12 },
   memorySignalRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingTop: 7, borderTopWidth: 1, borderTopColor: colors.line, marginTop: 9 },
   memorySignalNote: { color: 'rgba(174,180,174,0.72)', fontSize: 9, lineHeight: 14, marginTop: 3 },
@@ -742,6 +806,15 @@ const styles = StyleSheet.create({
   directionMatch: { color: colors.green, fontSize: 9, lineHeight: 14, marginTop: 7, fontWeight: '700' },
   selectionReasons: { borderRadius: 16, borderWidth: 1, borderColor: colors.line, backgroundColor: 'rgba(16,26,29,0.58)', padding: 13, marginTop: 10, marginBottom: 8 },
   selectionReason: { color: colors.muted, fontSize: 10, lineHeight: 16 },
+  resumeCard: { borderRadius: 20, borderWidth: 1, borderColor: 'rgba(164,197,93,0.34)', backgroundColor: 'rgba(164,197,93,0.08)', padding: 15, marginBottom: 14 },
+  resumeMain: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  resumeMark: { width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(164,197,93,0.18)', alignItems: 'center', justifyContent: 'center' },
+  resumeMarkText: { color: colors.green, fontSize: 12 },
+  resumeLabel: { color: colors.green, fontSize: 8, letterSpacing: 1, fontWeight: '700' },
+  resumeTitle: { color: colors.bone, fontSize: 14, fontWeight: '700', marginTop: 3 },
+  resumeBody: { color: colors.muted, fontSize: 10, marginTop: 2 },
+  resumeDiscard: { alignSelf: 'flex-end', paddingTop: 10, paddingHorizontal: 4 },
+  resumeDiscardText: { color: 'rgba(174,180,174,0.72)', fontSize: 9 },
   insightCard: { borderRadius: 20, borderWidth: 1, borderColor: 'rgba(217,179,107,0.32)', backgroundColor: 'rgba(217,179,107,0.07)', padding: 17, marginTop: 22 },
   insightEyebrow: { color: colors.gold, fontSize: 9, letterSpacing: 1.2, fontWeight: '700' },
   insightTitle: { color: colors.bone, fontSize: 17, fontWeight: '700', marginTop: 8 },

@@ -36,7 +36,7 @@ Priority labels:
 - **Resolved direction:** The smallest active-intent interaction begins with available time and asks at most one desired-outcome question when context is insufficient.
 - **Resolved direction:** The first end-to-end blueprint is “I unexpectedly have about an hour.” Its resulting capsule remains context-dependent.
 - **Soon:** When may Momentum proactively surface a detected moment, and how does the user control that initiative?
-- **Soon:** What confidence or ambiguity threshold requires a clarifying question rather than selection?
+- **Prototype direction:** `low` local ranking confidence now abstains into one clarification path. The production threshold remains a user-test decision; see ADR-027.
 - **Resolved prototype direction:** Now, Today, and Discover use one deterministic local decision engine with editable mock context and structured reasons. Production thresholds remain a user-test question; see ADR-016.
 - **Soon:** How many alternatives preserve autonomy without becoming a feed?
 - **Resolved direction:** Broader exploration is a conscious-choice surface and does not appear as a feed on `Now`; see ADR-012 and its four-surface refinement in ADR-014.
@@ -55,7 +55,7 @@ Priority labels:
 - **Resolved prototype direction:** A complete shake and kettlebell workout test the staged Capsule runner; quiet and route experiences use the same contract without making either activity the product starting point. See ADR-015.
 - **Soon:** At what precise point does Momentum hand off to Maps rather than remain active?
 - **Soon:** When is a Live Activity genuinely useful instead of extra screen presence?
-- **Soon:** How does Momentum resume after a handoff without falsely assuming completion?
+- **Prototype direction:** an active Capsule and current step persist locally and return through an explicit resume action; completion is never inferred from the handoff. Native return-state refinement remains open. See ADR-027.
 - **Soon:** Which experiences require safety or accessibility screening before acceptance?
 - **Later:** How should shared or family capsules work when participants have different needs and permissions?
 
@@ -72,12 +72,12 @@ Priority labels:
 - **Resolved direction:** Momentum distinguishes near intentions, growth directions, and meaning anchors. They guide but never command selection, and remain visible, reversible, and user-controlled; see ADR-025.
 - **Resolved direction:** learning can be a source-grounded layer inside place, nature, culture, workout, recipe, and other Capsules. “Read a book” is one possible experience, not the definition of learning.
 - **Soon:** What is the smallest onboarding or later conversation that can invite direction without asking someone to define their life purpose?
-- **Soon:** Where can users review, pause, edit, and delete each direction horizon without adding a fifth primary surface?
+- **Partly resolved:** Profile now supports review, edit, deletion through editing, and pause/resume without a fifth primary surface. Expiry and review timing remain open.
 - **Soon:** Which information types may be generated from sources, which require editorial review, and how is that distinction shown without clutter?
 - **Soon:** How many guide moments can a route contain before learning begins to compete with Presence or safety?
 - **Soon:** How should Momentum detect progress without converting goals into streaks, quotas, or identity judgments?
 - **Later:** Can users choose a deeper guide mode for history, nature, culture, food, or training while the default remains quiet?
-- **Soon:** Should “less of this content” mute a topic globally, only within one experience kind, or only for the current source?
+- **Prototype direction:** reflection offers two explicit scopes: this experience only or the insight topic across experiences. Kind- and source-level scope remain unneeded until testing shows value.
 
 ## Trust, onboarding, and permissions
 

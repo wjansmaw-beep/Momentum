@@ -4,7 +4,7 @@ import type { Company } from '../product/localIntelligence';
 export type Initiative = 'on-open' | 'day-rhythm' | 'proactive-later';
 export type LearningOutcome = 'not-now' | 'neutral' | 'worth-it' | 'repeat' | 'not-for-me';
 export type DirectionHorizon = 'near' | 'growth' | 'meaning';
-export type ReflectionAspect = 'less-guidance' | 'more-guidance' | 'too-intense' | 'too-light' | 'too-long' | 'too-much-travel' | 'not-relevant' | 'content-not-useful';
+export type ReflectionAspect = 'less-guidance' | 'more-guidance' | 'too-intense' | 'too-light' | 'too-long' | 'too-much-travel' | 'not-relevant' | 'content-not-useful' | 'topic-not-useful';
 
 export type LearningEvent = {
   id: string;
@@ -24,6 +24,7 @@ export type ReflectionMemory = {
   learningEventId?: string;
   aspects: ReflectionAspect[];
   mutedInsightTopics: InsightTopic[];
+  mutedInsightExperienceIds: string[];
   note?: string;
   explanation: string;
   createdAt: string;
@@ -41,6 +42,7 @@ export type PersonalProfile = {
   firstName: string;
   aspiration: string;
   directions: Record<DirectionHorizon, string[]>;
+  pausedDirections: string[];
   preferredKinds: ExperienceKind[];
   defaultCompany: Company;
   equipment: { kettlebell: boolean; bike: boolean; car: boolean };
@@ -52,6 +54,7 @@ export type PersonalProfile = {
   intensityBalance: number;
   travelBiasMinutes: number;
   mutedInsightTopics: InsightTopic[];
+  mutedInsightExperienceIds: string[];
   blockedExperienceIds: string[];
   favoriteExperienceIds: string[];
   recentExperienceIds: string[];
@@ -70,7 +73,8 @@ export const initiativeLabels: Record<Initiative, string> = {
 
 export const reflectionAspectLabels: Record<ReflectionAspect, string> = {
   'less-guidance': 'Minder uitleg', 'more-guidance': 'Meer uitleg', 'too-intense': 'Te zwaar', 'too-light': 'Te licht',
-  'too-long': 'Te lang', 'too-much-travel': 'Te veel reistijd', 'not-relevant': 'Paste niet bij mij', 'content-not-useful': 'Deze inhoud hoef ik niet',
+  'too-long': 'Te lang', 'too-much-travel': 'Te veel reistijd', 'not-relevant': 'Paste niet bij mij',
+  'content-not-useful': 'Geen uitleg bij deze ervaring', 'topic-not-useful': 'Minder over dit onderwerp',
 };
 
 export const directionLabels: Record<DirectionHorizon, { title: string; body: string }> = {
@@ -85,9 +89,9 @@ const clamp = (value: number, min = -0.6, max = 0.8) => Math.max(min, Math.min(m
 
 export function defaultPersonalProfile(): PersonalProfile {
   return {
-    version: 2, onboardingComplete: false, firstName: '', aspiration: '', directions: emptyDirections(), preferredKinds: [], defaultCompany: 'solo',
+    version: 2, onboardingComplete: false, firstName: '', aspiration: '', directions: emptyDirections(), pausedDirections: [], preferredKinds: [], defaultCompany: 'solo',
     equipment: { kettlebell: false, bike: false, car: false }, maxTravelMinutes: 20, initiative: 'day-rhythm', kindAffinity: emptyAffinity(),
-    guidanceBalance: 0, durationBiasMinutes: 0, intensityBalance: 0, travelBiasMinutes: 0, mutedInsightTopics: [], blockedExperienceIds: [], favoriteExperienceIds: [],
+    guidanceBalance: 0, durationBiasMinutes: 0, intensityBalance: 0, travelBiasMinutes: 0, mutedInsightTopics: [], mutedInsightExperienceIds: [], blockedExperienceIds: [], favoriteExperienceIds: [],
     recentExperienceIds: [], learningEvents: [], reflectionMemories: [],
   };
 }
@@ -109,7 +113,9 @@ export function hydratePersonalProfile(value: unknown): PersonalProfile {
       meaning: stored.directions?.meaning ?? [],
     },
     mutedInsightTopics: stored.mutedInsightTopics ?? [],
-    reflectionMemories: stored.reflectionMemories ?? [],
+    mutedInsightExperienceIds: stored.mutedInsightExperienceIds ?? [],
+    pausedDirections: stored.pausedDirections ?? [],
+    reflectionMemories: (stored.reflectionMemories ?? []).map((memory) => ({ ...memory, mutedInsightTopics: memory.mutedInsightTopics ?? [], mutedInsightExperienceIds: memory.mutedInsightExperienceIds ?? [] })),
   };
 }
 
@@ -156,6 +162,7 @@ function rebuildLearning(profile: PersonalProfile, learningEvents: LearningEvent
   let intensityBalance = 0;
   let travelBiasMinutes = 0;
   const mutedInsightTopics: InsightTopic[] = [];
+  const mutedInsightExperienceIds: string[] = [];
   [...reflectionMemories].reverse().forEach((memory) => {
     if (memory.aspects.includes('not-relevant')) affinity[memory.kind] = clamp(affinity[memory.kind] - 0.08);
     guidanceBalance = clamp(guidanceBalance + (memory.aspects.includes('more-guidance') ? 0.25 : 0) - (memory.aspects.includes('less-guidance') ? 0.25 : 0), -1, 1);
@@ -163,9 +170,10 @@ function rebuildLearning(profile: PersonalProfile, learningEvents: LearningEvent
     intensityBalance = clamp(intensityBalance + (memory.aspects.includes('too-light') ? 0.25 : 0) - (memory.aspects.includes('too-intense') ? 0.25 : 0), -1, 1);
     travelBiasMinutes = clamp(travelBiasMinutes - (memory.aspects.includes('too-much-travel') ? 5 : 0), -30, 0);
     memory.mutedInsightTopics.forEach((topic) => { if (!mutedInsightTopics.includes(topic)) mutedInsightTopics.push(topic); });
+    memory.mutedInsightExperienceIds.forEach((id) => { if (!mutedInsightExperienceIds.includes(id)) mutedInsightExperienceIds.push(id); });
   });
 
-  return { ...profile, kindAffinity: affinity, blockedExperienceIds, favoriteExperienceIds, recentExperienceIds, guidanceBalance, durationBiasMinutes, intensityBalance, travelBiasMinutes, mutedInsightTopics, learningEvents, reflectionMemories };
+  return { ...profile, kindAffinity: affinity, blockedExperienceIds, favoriteExperienceIds, recentExperienceIds, guidanceBalance, durationBiasMinutes, intensityBalance, travelBiasMinutes, mutedInsightTopics, mutedInsightExperienceIds, learningEvents, reflectionMemories };
 }
 
 const aspectExplanation = (aspects: ReflectionAspect[]) => aspects.map((aspect) => reflectionAspectLabels[aspect].toLowerCase()).join(', ');
@@ -174,14 +182,15 @@ export function applyReflection(profile: PersonalProfile, experience: Experience
   let next = applyLearning(profile, experience, input.outcome);
   const learningEventId = next.learningEvents[0]?.id !== profile.learningEvents[0]?.id ? next.learningEvents[0]?.id : undefined;
   const topics = Array.from(new Set(experience.steps.flatMap((step) => step.insight?.topic ? [step.insight.topic] : [])));
-  const muteTopics = input.aspects.includes('content-not-useful') ? topics : [];
+  const muteTopics = input.aspects.includes('topic-not-useful') ? topics : [];
+  const muteExperiences = input.aspects.includes('content-not-useful') ? [experience.id] : [];
   const kindPenalty = input.aspects.includes('not-relevant') && input.outcome !== 'not-for-me' ? -0.08 : 0;
   const explanation = input.aspects.length
     ? `Bij ${experience.title} wilde je: ${aspectExplanation(input.aspects)}.`
     : input.outcome === 'neutral' ? `Je bewaarde ${experience.title} zonder je profiel te veranderen.` : `Je reflecteerde op ${experience.title}.`;
   const memory: ReflectionMemory = {
     id: `reflection-${experience.id}-${Date.now()}`, experienceId: experience.id, experienceTitle: experience.title, kind: experience.kind,
-    outcome: input.outcome, learningEventId, aspects: input.aspects, mutedInsightTopics: muteTopics, note: input.note?.trim() || undefined, explanation, createdAt: new Date().toISOString(),
+    outcome: input.outcome, learningEventId, aspects: input.aspects, mutedInsightTopics: muteTopics, mutedInsightExperienceIds: muteExperiences, note: input.note?.trim() || undefined, explanation, createdAt: new Date().toISOString(),
   };
   next = {
     ...next,
@@ -191,6 +200,7 @@ export function applyReflection(profile: PersonalProfile, experience: Experience
     intensityBalance: clamp(next.intensityBalance + (input.aspects.includes('too-light') ? 0.25 : 0) - (input.aspects.includes('too-intense') ? 0.25 : 0), -1, 1),
     travelBiasMinutes: clamp(next.travelBiasMinutes - (input.aspects.includes('too-much-travel') ? 5 : 0), -30, 0),
     mutedInsightTopics: Array.from(new Set([...next.mutedInsightTopics, ...muteTopics])),
+    mutedInsightExperienceIds: Array.from(new Set([...next.mutedInsightExperienceIds, ...muteExperiences])),
     reflectionMemories: [memory, ...next.reflectionMemories].slice(0, 40),
   };
   return next;
@@ -211,11 +221,11 @@ export function forgetLearningEvent(profile: PersonalProfile, eventId: string): 
 }
 
 export function directionTerms(profile: PersonalProfile): string[] {
-  return Object.values(profile.directions).flat().flatMap((value) => value.toLocaleLowerCase('nl-NL').split(/[^\p{L}\p{N}]+/u)).filter((value) => value.length >= 4);
+  return Object.values(profile.directions).flat().filter((value) => !profile.pausedDirections.includes(value)).flatMap((value) => value.toLocaleLowerCase('nl-NL').split(/[^\p{L}\p{N}]+/u)).filter((value) => value.length >= 4);
 }
 
 export function resetLearning(profile: PersonalProfile): PersonalProfile {
   const seeded = emptyAffinity();
   profile.preferredKinds.forEach((kind) => { seeded[kind] = 0.18; });
-  return { ...profile, kindAffinity: seeded, guidanceBalance: 0, durationBiasMinutes: 0, intensityBalance: 0, travelBiasMinutes: 0, mutedInsightTopics: [], blockedExperienceIds: [], favoriteExperienceIds: [], recentExperienceIds: [], learningEvents: [], reflectionMemories: [] };
+  return { ...profile, kindAffinity: seeded, guidanceBalance: 0, durationBiasMinutes: 0, intensityBalance: 0, travelBiasMinutes: 0, mutedInsightTopics: [], mutedInsightExperienceIds: [], blockedExperienceIds: [], favoriteExperienceIds: [], recentExperienceIds: [], learningEvents: [], reflectionMemories: [] };
 }

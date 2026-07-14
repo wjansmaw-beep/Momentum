@@ -94,7 +94,7 @@ export const experiences: Experience[] = [
     prepareTitle: 'Zet alles klaar', prepare: ['1 banaan of mango', 'Yoghurt of plantaardige basis', 'Gember', 'Blender en glas'],
     presenceMode: 'guided', presenceTitle: 'Blend tot het glad is', presenceCue: 'Proef eerst. Voeg pas daarna iets toe.',
     steps: [
-      { title: 'Doe het fruit in de blender', instruction: 'Gebruik één banaan of ongeveer een hand mango. Bevroren fruit maakt de shake kouder.', meta: '1 portie' },
+      { title: 'Doe het fruit in de blender', instruction: 'Gebruik één banaan of ongeveer een hand mango. Bevroren fruit maakt de shake kouder.', meta: '1 portie', insight: { title: 'Wat het fruit hier doet', body: 'Banaan maakt de shake voller en zachter; mango geeft een frissere, fruitige basis. Bevroren fruit koelt én maakt de structuur dikker zonder extra ijs.', topic: 'food', sourceKind: 'editorial', sourceLabel: 'Momentum kookredactie' } },
       { title: 'Voeg de basis toe', instruction: 'Schenk ongeveer 200 ml yoghurt of een plantaardige basis erbij.', meta: 'Controleer wat bij jou past' },
       { title: 'Geef hem karakter', instruction: 'Voeg een klein stukje gember toe. Begin bescheiden; meer kan altijd.' },
       { title: 'Blend tot hij glad is', instruction: 'Blend kort, stop, controleer de dikte en voeg alleen zo nodig een scheut water toe.', seconds: 30 },
@@ -112,7 +112,7 @@ export const experiences: Experience[] = [
     prepareTitle: 'Laat je werk even liggen', prepare: ['Meldingen stil', 'Sta op', 'Laat je scherm achter'],
     presenceMode: 'quiet', presenceTitle: 'Loop zonder doel', presenceCue: 'Je hoeft niets bij te houden. Kom terug wanneer het genoeg is.',
     steps: [
-      { title: 'Laat het scherm achter', instruction: 'Sta op en kies de eenvoudigste route naar frisse lucht of een rustigere plek.' },
+      { title: 'Laat het scherm achter', instruction: 'Sta op en kies de eenvoudigste route naar frisse lucht of een rustigere plek.', insight: { title: 'Waarom deze pauze geen prestatie heeft', body: 'Het doel is alleen een duidelijke overgang tussen twee werkblokken. Je hoeft geen afstand, tempo of ademhaling te verbeteren om de pauze te laten tellen.', topic: 'general', sourceKind: 'editorial', sourceLabel: 'Momentum herstelredactie' } },
       { title: 'Loop één tempo lager', instruction: 'Niets meten. Laat je blik verder gaan dan de volgende paar meter.', seconds: 120 },
       { title: 'Blijf nog even stil', instruction: 'Stop kort voordat je teruggaat. Adem normaal en merk op of je tempo veranderde.', seconds: 60 },
     ],
@@ -148,7 +148,7 @@ export const experiences: Experience[] = [
     prepareTitle: 'Kies alleen waar jullie beginnen', prepare: ['Binnen of buiten', 'Geen spullen nodig', 'Laat je kind de eerste vondst kiezen'],
     presenceMode: 'quiet', presenceTitle: 'Vind vijf kleine wonderen', presenceCue: 'Leg de telefoon weg. Jullie bepalen wat telt.',
     steps: [
-      { title: 'Laat je kind kiezen', instruction: 'Binnen of buiten? De eerste keuze is meteen het begin van het spel.' },
+      { title: 'Laat je kind kiezen', instruction: 'Binnen of buiten? De eerste keuze is meteen het begin van het spel.', insight: { title: 'Eén keuze is genoeg', body: 'De activiteit hoeft niet volledig door een volwassene te worden bedacht. Met één echte keuze wordt het een gezamenlijk spel en kan de telefoon daarna weg.', topic: 'general', sourceKind: 'editorial', sourceLabel: 'Momentum gezinsredactie' } },
       { title: 'Vind iets ronds', instruction: 'Alles telt wanneer jullie kunnen uitleggen waarom.' },
       { title: 'Luister naar iets bijzonders', instruction: 'Wees samen tien seconden stil en wijs daarna aan wat je hoorde.', seconds: 10 },
       { title: 'Zoek één kleur op drie plekken', instruction: 'Laat je kind de kleur bepalen en samen de drie plekken vinden.' },
@@ -166,7 +166,7 @@ export const experiences: Experience[] = [
     prepareTitle: 'Klaar voor vertrek', prepare: ['Fiets en slot', 'Water', 'Controleer banden en licht', 'Houd terugkeertijd vrij'],
     presenceMode: 'handoff', presenceTitle: 'Volg de eerste richting', presenceCue: 'Gebruik navigatie alleen waar nodig en kijk verder om je heen.',
     steps: [
-      { title: 'Gebruik de route naar buiten', instruction: 'Laat Kaarten alleen helpen bij het eerste veilige deel van de rit.', meta: 'Navigatie via vertrouwde app' },
+      { title: 'Gebruik de route naar buiten', instruction: 'Laat Kaarten alleen helpen bij het eerste veilige deel van de rit.', meta: 'Navigatie via vertrouwde app', insight: { title: 'Waarom de terugweg al meetelt', body: 'Een vrije route blijft ontspannen wanneer de helft van de beschikbare tijd niet stilletjes voor de heenweg wordt gebruikt. Momentum beschermt daarom vooraf een terugkeerbuffer.', topic: 'movement', sourceKind: 'editorial', sourceLabel: 'Momentum routeredactie' } },
       { title: 'Kies één onbekende afslag', instruction: 'Alleen wanneer de weg veilig en toegankelijk voelt. Je hoeft geen routeprestatie te leveren.' },
       { title: 'Keer op tijd om', instruction: 'Gebruik ongeveer de helft van je beschikbare tijd voor de heenweg en bescherm je terugkeerbuffer.' },
     ],
@@ -217,7 +217,7 @@ export const experiences: Experience[] = [
     prepareTitle: 'Kies zonder lang te zoeken', prepare: ['Eén nummer dat je al kent', 'Koptelefoon alleen waar dat veilig is', 'Meldingen stil'],
     presenceMode: 'handoff', presenceTitle: 'Luister tot de laatste noot', presenceCue: 'Open je vertrouwde muziekapp en leg daarna je scherm weg.',
     steps: [
-      { title: 'Open je muziek', instruction: 'Kies het eerste bekende nummer dat bij je opkomt. Geen afspeellijst en geen zoektocht naar het perfecte lied.' },
+      { title: 'Open je muziek', instruction: 'Kies het eerste bekende nummer dat bij je opkomt. Geen afspeellijst en geen zoektocht naar het perfecte lied.', insight: { title: 'Luister naar één laag', body: 'Kies vóór het afspelen één aandachtspunt: ritme, bas, stem, tekst of ruimte tussen klanken. Zo wordt een bekend nummer een kleine ontdekking zonder extra schermtijd.', topic: 'culture', sourceKind: 'editorial', sourceLabel: 'Momentum cultuurredactie' } },
       { title: 'Laat alleen de muziek over', instruction: 'Leg je scherm weg en luister tot het nummer helemaal afgelopen is.', meta: 'Handoff naar je muziekapp' },
       { title: 'Wacht tien seconden', instruction: 'Start niet meteen iets nieuws. Laat het einde nog even bestaan.', seconds: 10 },
     ],

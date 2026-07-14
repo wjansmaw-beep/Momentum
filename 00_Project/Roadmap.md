@@ -157,6 +157,8 @@ The four continuous tracks are Philosophy, Experience, Understanding, and Trust.
 - failures and rejection preserve trust;
 - evidence determines the next slice.
 
+**Implementation note (2026-07-14):** the permission-light prototype now persists and resumes an active Capsule, preserves step progress across reloads and platform handoffs, abstains into clarification at low ranking confidence, keeps reflection optional, and exposes clearable local proof counts for starts, completions, reflections, and skips. Real user evidence is still required. See ADR-027.
+
 ## Phase 7 — Learning System
 
 **Goal:** improve relevance without surveillance or opaque identity judgments.
@@ -178,6 +180,8 @@ The four continuous tracks are Philosophy, Experience, Understanding, and Trust.
 - relevance improves without requesting unnecessary context.
 
 **Implementation note (2026-07-14):** the prototype now separates outcome from aspect-level reflection, stores explicit corrections in a visible local personal memory, migrates earlier profiles, and lets guidance, duration, intensity, relevance, travel tolerance, and insight-topic corrections influence later experiences. Individual signals and all learned memory can be removed; derived preferences are rebuilt from what remains. Retention policy remains open. See ADR-026.
+
+**Implementation note (2026-07-14):** directions can now be paused without deletion, and guidance feedback distinguishes one experience from a whole insight topic. See ADR-027.
 
 ## Phase 8 — Living World
 
