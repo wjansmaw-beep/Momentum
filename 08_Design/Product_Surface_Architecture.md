@@ -16,7 +16,9 @@ Momentum offers different kinds of help without turning life into a content feed
 
 ## Now
 
-Now is the most restrained surface. It has one visual center: a contextual Experience Promise. It shows desire, feasibility, action, compact rationale, decline, and a quiet entrance for newly available time. No alternative carousel, social proof, category row, or `view all` belongs here.
+Now is the most restrained surface. It has one visual center: a contextual Experience Promise. It shows desire, feasibility, action, compact rationale, decline, and a quiet entrance for newly available time.
+
+Only one promise is rendered at a time, but the person can immediately replace it with a small, precomputed and meaningfully different alternative. The transition replaces the current visual world; it never reveals a row, stack, `view all`, or endless recommendation feed. The best match is first and the end of the finite set returns agency through active intent. See ADR-028.
 
 ## Today
 
@@ -45,4 +47,3 @@ The surface determines how the experience was found. The Capsule determines how 
 ## Navigation
 
 The prototype uses `Nu`, `Vandaag`, `Ontdekken`, and `Leefboek` as primary destinations. Profile and context controls are available from the header. `Er is ruimte ontstaan` is an active-intent shortcut, not a fifth content destination.
-

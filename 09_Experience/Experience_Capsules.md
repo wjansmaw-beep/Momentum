@@ -13,6 +13,8 @@ All capsules follow:
 
 > Prepare → Begin → During → Finish → Remember
 
+Preparation first opens the expectation of the experience: what may be noticed, why the world makes it timely, and what kind of guidance is available. Practical requirements follow after meaning rather than replacing it.
+
 They share behavior and tone, but show different information because each experience demands different support.
 
 ## Universal rules
@@ -25,6 +27,9 @@ They share behavior and tone, but show different information because each experi
 - During Presence, remove discovery, upsells, unrelated suggestions, and engagement mechanics.
 - Offer learning only when it deepens the current experience; keep it optional, source-grounded, and subordinate to Presence.
 - Make reflection optional and proportional.
+- Let the person choose whether the Capsule is lived alone, together, or with family when the experience supports it.
+- Offer quiet, guide, and deeper guidance without making depth a content-consumption target.
+- Allow a share invitation before start, while distinguishing a simple system share from future synchronized participation.
 
 ## Walk or run
 
@@ -93,6 +98,19 @@ A handoff is successful when:
 5. failure has a clear fallback.
 
 Leaving Momentum is not leaving the experience.
+
+## Shared preparation
+
+Before starting, a person may share the experience promise, time commitment, practical preparation, and meeting intent. A future synchronized Capsule may show acceptance and shared execution state, but it may never expose either participant's private profile, inferred needs, calendar, health context, or ranking reasons. Until identity and deep-link contracts exist, the product labels sharing as an invitation rather than shared progress.
+
+## Consultable Presence
+
+Presence has two reversible visual states:
+
+- **Guide available:** the current useful instruction, route, timer, or sourced insight is easy to consult.
+- **Phone away:** the interface becomes almost empty while keeping one obvious action to reopen the guide.
+
+The change is controlled by the person. Momentum does not punish reopening the guide and does not use a blank screen when active safety information requires attention.
 
 ## Interruption and safety
 

@@ -39,6 +39,7 @@ Priority labels:
 - **Prototype direction:** `low` local ranking confidence now abstains into one clarification path. The production threshold remains a user-test decision; see ADR-027.
 - **Resolved prototype direction:** Now, Today, and Discover use one deterministic local decision engine with editable mock context and structured reasons. Production thresholds remain a user-test question; see ADR-016.
 - **Soon:** How many alternatives preserve autonomy without becoming a feed?
+- **Resolved premium direction:** `Now` renders one promise at a time and allows immediate replacement from a finite, precomputed set. The first item remains the best match; no row or endless carousel appears. See ADR-028.
 - **Resolved direction:** Broader exploration is a conscious-choice surface and does not appear as a feed on `Now`; see ADR-012 and its four-surface refinement in ADR-014.
 - **Resolved direction:** The primary product surfaces are `Now`, `Today`, `Discover`, and `Life Book`. Today is a finite day rhythm; Discover supports open intent expression.
 - **Resolved prototype direction:** “Why this fits” shows a concise subset of non-sensitive time, explicit preference and feasibility reasons, labelled by certainty; see `Decisions/ADR-013-explanation-and-situational-decline.md`.
@@ -58,6 +59,7 @@ Priority labels:
 - **Prototype direction:** an active Capsule and current step persist locally and return through an explicit resume action; completion is never inferred from the handoff. Native return-state refinement remains open. See ADR-027.
 - **Soon:** Which experiences require safety or accessibility screening before acceptance?
 - **Later:** How should shared or family capsules work when participants have different needs and permissions?
+- **Partly resolved:** preparation can choose company and send a system share invitation. Account identity, deep links, acceptance, shared progress, conflicts between participants, and privacy remain open. See ADR-028.
 
 ## Memory and learning
 

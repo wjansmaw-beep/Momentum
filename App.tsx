@@ -9,6 +9,7 @@ import {
   Pressable,
   SafeAreaView,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   TextInput,
@@ -75,7 +76,8 @@ import { createWorldContext, ResolvedContentCatalog, resolveContentCatalog } fro
 
 type FlowStage = 'promise' | 'prepare' | 'presence' | 'remember' | 'profile' | null;
 type Memory = { id: string; title: string; date: string; image: string; note: string };
-type ActiveSession = { experienceId: string; stage: 'prepare' | 'presence'; stepIndex: number; origin: Surface; updatedAt: string };
+type GuideDepth = 'quiet' | 'guide' | 'deep';
+type ActiveSession = { experienceId: string; stage: 'prepare' | 'presence'; stepIndex: number; origin: Surface; company?: Company; guideDepth?: GuideDepth; updatedAt: string };
 type PrototypeEvidence = { started: number; completed: number; reflected: number; skippedReflection: number; lastUpdated?: string };
 
 const colors = {
@@ -186,6 +188,18 @@ export default function App() {
   }), [personalProfile]);
   const primaryDecision = useMemo(() => rankForMoment(effectiveContext, '', [], candidatePool, learningContext), [candidatePool, effectiveContext, learningContext]);
   const primaryExperience = primaryDecision.selected?.experience ?? byId('work-reset');
+  const nowSuggestions = useMemo(() => {
+    const items: Array<{ experience: Experience; decision: LocalDecision }> = [];
+    const excluded: string[] = [];
+    for (let index = 0; index < 3; index += 1) {
+      const decision = rankForMoment(effectiveContext, '', excluded, candidatePool, learningContext);
+      const experience = decision.selected?.experience;
+      if (!experience) break;
+      items.push({ experience, decision });
+      excluded.push(experience.id);
+    }
+    return items.length ? items : [{ experience: primaryExperience, decision: primaryDecision }];
+  }, [candidatePool, effectiveContext, learningContext, primaryDecision, primaryExperience]);
   const resumableExperience = activeSession ? byId(activeSession.experienceId) : undefined;
   const dayDecisions = useMemo(() => buildToday(effectiveContext, liveExperiences, learningContext, calendarContext.state === 'live' ? calendarContext.freeWindows : undefined, contentCatalog.experiences), [calendarContext.freeWindows, calendarContext.state, contentCatalog.experiences, effectiveContext, learningContext, liveExperiences]);
 
@@ -226,9 +240,9 @@ export default function App() {
     setFlowStage(stage);
   };
 
-  const startPresence = () => {
+  const startPresence = (company: Company, guideDepth: GuideDepth) => {
     const isNew = activeSession?.experienceId !== selected.id;
-    setActiveSession({ experienceId: selected.id, stage: 'presence', stepIndex: isNew ? 0 : activeSession?.stepIndex ?? 0, origin, updatedAt: new Date().toISOString() });
+    setActiveSession({ experienceId: selected.id, stage: 'presence', stepIndex: isNew ? 0 : activeSession?.stepIndex ?? 0, origin, company, guideDepth, updatedAt: new Date().toISOString() });
     if (isNew) setEvidence((current) => ({ ...current, started: current.started + 1, lastUpdated: new Date().toISOString() }));
     setFlowStage('presence');
   };
@@ -287,7 +301,7 @@ export default function App() {
         <View style={styles.appFrame}>
           {flowStage === null && (
             <>
-              {surface === 'now' && <NowScreen firstName={personalProfile.firstName} experience={primaryExperience} decision={primaryDecision} resumableExperience={resumableExperience} context={effectiveContext} calendar={calendarContext} liveWorld={liveWorld} liveLoading={liveLoading} onResume={resumeSession} onDiscardSession={() => setActiveSession(null)} onOpen={(item, stage) => openExperience(item, 'now', stage)} onProfile={() => setFlowStage('profile')} onDiscover={() => setSurface('discover')} onFeedback={(outcome) => setPersonalProfile((current) => applyLearning(current, primaryExperience, outcome))} />}
+              {surface === 'now' && <NowScreen firstName={personalProfile.firstName} suggestions={nowSuggestions} resumableExperience={resumableExperience} context={effectiveContext} calendar={calendarContext} liveWorld={liveWorld} liveLoading={liveLoading} onResume={resumeSession} onDiscardSession={() => setActiveSession(null)} onOpen={(item, stage) => openExperience(item, 'now', stage)} onProfile={() => setFlowStage('profile')} onDiscover={() => setSurface('discover')} onFeedback={(item, outcome) => setPersonalProfile((current) => applyLearning(current, item, outcome))} />}
               {surface === 'today' && <TodayScreen decisions={dayDecisions} calendar={calendarContext} onOpen={(item) => openExperience(item, 'today')} />}
               {surface === 'discover' && <DiscoverScreen context={prototypeContext} candidatePool={candidatePool} learning={learningContext} onOpen={(item) => openExperience(item, 'discover')} />}
               {surface === 'lifebook' && <LifeBookScreen memories={memories} onOpen={(item) => { setPersonalProfile((current) => applyLearning(current, item, 'repeat')); openExperience(item, 'lifebook'); }} />}
@@ -295,8 +309,8 @@ export default function App() {
             </>
           )}
           {flowStage === 'promise' && <PromiseScreen experience={selected} onClose={closeFlow} onAccept={() => setFlowStage('prepare')} />}
-          {flowStage === 'prepare' && <PrepareScreen experience={selected} onBack={() => setFlowStage('promise')} onStart={startPresence} />}
-          {flowStage === 'presence' && <PresenceScreen experience={selected} personal={personalProfile} initialStep={activeSession?.experienceId === selected.id ? activeSession.stepIndex : 0} onStepChange={(stepIndex) => setActiveSession((current) => current && current.experienceId === selected.id ? { ...current, stage: 'presence', stepIndex, updatedAt: new Date().toISOString() } : current)} onBack={() => { setActiveSession((current) => current ? { ...current, stage: 'prepare', updatedAt: new Date().toISOString() } : current); setFlowStage('prepare'); }} onFinish={finishPresence} />}
+          {flowStage === 'prepare' && <PrepareScreen experience={selected} initialCompany={(activeSession?.experienceId === selected.id ? activeSession.company : personalProfile.defaultCompany) ?? 'solo'} initialGuideDepth={activeSession?.experienceId === selected.id ? activeSession.guideDepth : undefined} onBack={() => setFlowStage('promise')} onStart={startPresence} />}
+          {flowStage === 'presence' && <PresenceScreen experience={selected} personal={personalProfile} company={activeSession?.company ?? personalProfile.defaultCompany} guideDepth={activeSession?.guideDepth ?? 'guide'} initialStep={activeSession?.experienceId === selected.id ? activeSession.stepIndex : 0} onStepChange={(stepIndex) => setActiveSession((current) => current && current.experienceId === selected.id ? { ...current, stage: 'presence', stepIndex, updatedAt: new Date().toISOString() } : current)} onBack={() => { setActiveSession((current) => current ? { ...current, stage: 'prepare', updatedAt: new Date().toISOString() } : current); setFlowStage('prepare'); }} onFinish={finishPresence} />}
           {flowStage === 'remember' && <RememberScreen experience={selected} onSkip={skipReflection} onSave={finishExperience} />}
           {flowStage === 'profile' && <ProfileScreen personal={personalProfile} evidence={evidence} context={prototypeContext} calendar={calendarContext} calendarLoading={calendarLoading} liveWorld={liveWorld} contentCatalog={contentCatalog} liveLoading={liveLoading} liveMessage={liveMessage} onChange={setPrototypeContext} onPersonalChange={setPersonalProfile} onForgetReflection={(id) => setPersonalProfile((current) => forgetReflection(current, id))} onForgetLearningEvent={(id) => setPersonalProfile((current) => forgetLearningEvent(current, id))} onResetEvidence={() => setEvidence({ started: 0, completed: 0, reflected: 0, skippedReflection: 0 })} onResetLearning={() => setPersonalProfile((current) => resetLearning(current))} onRedoOnboarding={() => setPersonalProfile((current) => ({ ...current, onboardingComplete: false }))} onClearLiveCache={() => { clearLiveWorldCache().catch(() => undefined); setLiveMessage('Regionale live cache gewist'); }} onConnectCalendar={connectCalendar} onRefresh={() => refreshLiveWorld()} onUseLocation={useApproximateLocation} onClose={closeFlow} />}
         </View>
@@ -371,12 +385,18 @@ function ScreenHeader({ eyebrow, title, subtitle, onProfile }: { eyebrow?: strin
   );
 }
 
-function NowScreen({ firstName, experience, decision, resumableExperience, context, calendar, liveWorld, liveLoading, onResume, onDiscardSession, onOpen, onProfile, onDiscover, onFeedback }: { firstName: string; experience: Experience; decision: LocalDecision; resumableExperience?: Experience; context: PrototypeContext; calendar: CalendarContextSnapshot; liveWorld: LiveWorldSnapshot | null; liveLoading: boolean; onResume: () => void; onDiscardSession: () => void; onOpen: (item: Experience, stage?: FlowStage) => void; onProfile: () => void; onDiscover: () => void; onFeedback: (outcome: LearningOutcome) => void }) {
+function NowScreen({ firstName, suggestions, resumableExperience, context, calendar, liveWorld, liveLoading, onResume, onDiscardSession, onOpen, onProfile, onDiscover, onFeedback }: { firstName: string; suggestions: Array<{ experience: Experience; decision: LocalDecision }>; resumableExperience?: Experience; context: PrototypeContext; calendar: CalendarContextSnapshot; liveWorld: LiveWorldSnapshot | null; liveLoading: boolean; onResume: () => void; onDiscardSession: () => void; onOpen: (item: Experience, stage?: FlowStage) => void; onProfile: () => void; onDiscover: () => void; onFeedback: (item: Experience, outcome: LearningOutcome) => void }) {
   const [declined, setDeclined] = useState(false);
   const [whyOpen, setWhyOpen] = useState(false);
+  const [suggestionIndex, setSuggestionIndex] = useState(0);
+  const currentSuggestion = suggestions[Math.min(suggestionIndex, suggestions.length - 1)] ?? suggestions[0];
+  const experience = currentSuggestion.experience;
+  const decision = currentSuggestion.decision;
+  useEffect(() => { setSuggestionIndex(0); setWhyOpen(false); setDeclined(false); }, [suggestions.map((item) => item.experience.id).join('|')]);
+  const showSuggestion = (index: number) => { setSuggestionIndex(index); setWhyOpen(false); setDeclined(false); };
   return (
     <ScrollView contentContainerStyle={styles.screenScroll} showsVerticalScrollIndicator={false}>
-      <ScreenHeader eyebrow={`${dayPartLabels[context.dayPart].toUpperCase()}${firstName ? ` · ${firstName.toUpperCase()}` : ''}`} title="Vandaag wacht er iets moois op je." subtitle="Eén voorstel voor dit moment." onProfile={onProfile} />
+      <ScreenHeader eyebrow={`${dayPartLabels[context.dayPart].toUpperCase()}${firstName ? ` · ${firstName.toUpperCase()}` : ''}`} title="Vandaag wacht er iets moois op je." subtitle="Eén voorstel tegelijk. Kies direct een andere blik wanneer je wilt." onProfile={onProfile} />
       <LiveWorldBar snapshot={liveWorld} loading={liveLoading} />
       {resumableExperience && <View style={styles.resumeCard}><Pressable accessibilityLabel={`Hervat ${resumableExperience.title}`} onPress={onResume} style={styles.resumeMain}><View style={styles.resumeMark}><Text style={styles.resumeMarkText}>▶</Text></View><View style={styles.flex}><Text style={styles.resumeLabel}>ER STAAT NOG EEN ERVARING OPEN</Text><Text style={styles.resumeTitle}>{resumableExperience.title}</Text><Text style={styles.resumeBody}>Ga verder waar je gebleven was.</Text></View><Text style={styles.arrow}>→</Text></Pressable><Pressable onPress={onDiscardSession} style={styles.resumeDiscard}><Text style={styles.resumeDiscardText}>Niet hervatten</Text></Pressable></View>}
       {calendar.state === 'live' && calendar.currentFreeMinutes ? <View style={styles.contextNotice}><Text style={styles.contextNoticeMark}>◷</Text><View style={styles.flex}><Text style={styles.contextNoticeTitle}>{calendar.currentFreeMinutes} minuten ruimte herkend</Text><Text style={styles.contextNoticeBody}>Alleen begin- en eindtijden verwerkt · afspraakinhoud genegeerd</Text></View></View> : null}
@@ -388,7 +408,7 @@ function NowScreen({ firstName, experience, decision, resumableExperience, conte
         <View style={styles.heroCard}>
           <ImageBackground source={{ uri: experience.image }} style={styles.heroImage} imageStyle={styles.heroImageStyle}>
             <View style={styles.imageShade} />
-            <View style={styles.heroTop}><Pill label="NATURE MOMENT" accent={experience.accent} /><Text style={styles.heroTime}>VANAVOND</Text></View>
+            <View style={styles.heroTop}><Pill label={`${experienceKindLabels[experience.kind].toUpperCase()} MOMENT`} accent={experience.accent} /><Text style={styles.heroTime}>{suggestionIndex === 0 ? 'BESTE MATCH' : 'ANDERE BLIK'}</Text></View>
             <View style={styles.heroBottom}>
               <Text style={styles.heroTitle}>{experience.title}</Text>
               <Text style={styles.heroPromise}>{experience.promise}</Text>
@@ -402,12 +422,17 @@ function NowScreen({ firstName, experience, decision, resumableExperience, conte
           <View style={styles.heroActionArea}>
             <Text style={styles.wonderText}>{experience.wonder}</Text>
             <PrimaryButton label={experience.cta} onPress={() => onOpen(experience)} />
+            {suggestions.length > 1 && <View style={styles.suggestionSwitcher}>
+              <Pressable accessibilityLabel="Vorige suggestie" disabled={suggestionIndex === 0} onPress={() => showSuggestion(Math.max(0, suggestionIndex - 1))} style={[styles.suggestionArrow, suggestionIndex === 0 && styles.suggestionArrowDisabled]}><Text style={styles.suggestionArrowText}>←</Text></Pressable>
+              <View style={styles.suggestionPosition}><Text style={styles.suggestionPositionLabel}>{suggestionIndex + 1} VAN {suggestions.length}</Text><Text style={styles.suggestionPositionBody}>{suggestionIndex === 0 ? 'Gekozen als beste match' : 'Bewust een andere richting'}</Text></View>
+              <Pressable accessibilityLabel="Volgende suggestie" disabled={suggestionIndex >= suggestions.length - 1} onPress={() => showSuggestion(Math.min(suggestions.length - 1, suggestionIndex + 1))} style={[styles.suggestionArrow, suggestionIndex >= suggestions.length - 1 && styles.suggestionArrowDisabled]}><Text style={styles.suggestionArrowText}>→</Text></Pressable>
+            </View>}
             <Pressable onPress={() => setWhyOpen((value) => !value)} style={styles.whyButton}>
               <Text style={styles.whyButtonText}>Waarom dit nu past</Text><Text style={styles.whyChevron}>{whyOpen ? '⌃' : '⌄'}</Text>
             </Pressable>
             {whyOpen && <View style={styles.whyPanel}>{decision.selected?.reasons.map((reason) => <Text key={reason.text} style={styles.whyReason}>{reason.certainty === 'chosen' ? 'Gekozen' : 'Berekend'} · {reason.text}</Text>)}<Text style={styles.proofNote}>Vertrouwen {decision.confidence} · {decision.rejected} niet-passende kandidaten verwijderd · {calendar.state === 'live' ? 'vrije agendatijd lokaal meegewogen' : 'geen agenda gebruikt'} · geen gezondheidsdata gebruikt</Text></View>}
-            <Pressable onPress={() => { onFeedback('not-now'); setDeclined(true); }} style={styles.quietAction}><Text style={styles.quietActionText}>Niet nu</Text></Pressable>
-            <Pressable onPress={() => { onFeedback('not-for-me'); setDeclined(true); }} style={styles.quietAction}><Text style={styles.quietCorrection}>Dit past niet bij mij</Text></Pressable>
+            <Pressable onPress={() => { onFeedback(experience, 'not-now'); setDeclined(true); }} style={styles.quietAction}><Text style={styles.quietActionText}>Niet nu</Text></Pressable>
+            <Pressable onPress={() => { onFeedback(experience, 'not-for-me'); setDeclined(true); }} style={styles.quietAction}><Text style={styles.quietCorrection}>Dit past niet bij mij</Text></Pressable>
           </View>
         </View>
       ) : (
@@ -547,29 +572,45 @@ function PromiseScreen({ experience, onClose, onAccept }: { experience: Experien
   );
 }
 
-function PrepareScreen({ experience, onBack, onStart }: { experience: Experience; onBack: () => void; onStart: () => void }) {
+function PrepareScreen({ experience, initialCompany, initialGuideDepth, onBack, onStart }: { experience: Experience; initialCompany: Company; initialGuideDepth?: GuideDepth; onBack: () => void; onStart: (company: Company, guideDepth: GuideDepth) => void }) {
+  const supportedCompanies = experience.company;
+  const [company, setCompany] = useState<Company>(supportedCompanies.includes(initialCompany) ? initialCompany : supportedCompanies[0]);
+  const [guideDepth, setGuideDepth] = useState<GuideDepth>(initialGuideDepth ?? (experience.presenceMode === 'quiet' ? 'quiet' : 'guide'));
+  const companyChoices: Array<{ id: Company; label: string }> = [{ id: 'solo', label: 'Alleen' }, { id: 'together', label: 'Samen' }, { id: 'family', label: 'Met gezin' }];
+  const shareExperience = async () => {
+    const companion = company === 'solo' ? 'alleen' : company === 'family' ? 'met gezin' : 'samen';
+    await Share.share({ title: experience.title, message: `Ga je mee?\n\n${experience.title}\n${experience.promise}\n${experience.duration} minuten · ${companion}\n\nIk bereid deze ervaring voor in Momentum.` }).catch(() => undefined);
+  };
   return (
     <ScrollView contentContainerStyle={styles.flowScroll} showsVerticalScrollIndicator={false}>
       <BackButton label="Terug" onPress={onBack} />
-      <Text style={styles.eyebrow}>PREPARE</Text><Text style={styles.flowTitle}>{experience.prepareTitle}</Text><Text style={styles.screenSubtitle}>Alles wat nodig is. Niets dat je nog laat zoeken.</Text>
-      <View style={styles.prepareCard}>{experience.prepare.map((item, index) => <View key={item} style={styles.prepareRow}><View style={[styles.stepNumber, { borderColor: experience.accent }]}><Text style={styles.stepNumberText}>{index + 1}</Text></View><Text style={styles.prepareText}>{item}</Text></View>)}</View>
+      <Text style={styles.eyebrow}>JE ERVARING</Text><Text style={styles.flowTitle}>{experience.prepareTitle}</Text><Text style={styles.screenSubtitle}>Eerst wat je gaat beleven. Daarna alleen wat nodig is om te beginnen.</Text>
+      <View style={styles.expectationCard}><Text style={styles.expectationLabel}>DIT WACHT OP JE</Text><Text style={styles.expectationTitle}>{experience.wonder}</Text><Text style={styles.expectationBody}>{experience.promise}</Text></View>
+      {experience.liveEvidence?.length ? <View style={styles.prepareLiveCard}><Text style={styles.liveEvidenceTitle}>WAT DE WERELD NU LAAT ZIEN</Text>{experience.liveEvidence.slice(0, 3).map((evidence) => <View key={`${evidence.sourceName}-${evidence.label}`} style={styles.prepareLiveRow}><View style={styles.liveEvidenceDot} /><View style={styles.flex}><Text style={styles.liveEvidenceLabel}>{evidence.label}</Text><Text style={styles.liveEvidenceMeta}>{evidence.sourceName} · {evidence.certainty === 'observation' ? 'recente waarneming' : 'actuele verwachting'}</Text></View></View>)}</View> : <View style={styles.editorialDepthCard}><Text style={styles.expectationLabel}>WAAR JE OP KUNT LETTEN</Text><Text style={styles.editorialDepthText}>{experience.steps.find((step) => step.insight)?.insight?.title ?? experience.wonder}</Text><Text style={styles.editorialDepthSource}>{experience.steps.find((step) => step.insight)?.insight?.sourceLabel ?? 'Momentum ervaringsredactie'}</Text></View>}
+      <Text style={styles.fieldLabel}>MET WIE BELEEF JE DIT?</Text><View style={styles.chipRow}>{companyChoices.filter((item) => supportedCompanies.includes(item.id)).map((item) => <ChoiceChip key={item.id} label={item.label} selected={company === item.id} onPress={() => setCompany(item.id)} />)}</View>
+      <Pressable onPress={shareExperience} style={styles.shareCard}><View style={styles.shareMark}><Text style={styles.shareMarkText}>↗</Text></View><View style={styles.flex}><Text style={styles.shareTitle}>Nodig iemand uit</Text><Text style={styles.shareBody}>Deel de belofte, tijd en voorbereiding. Gedeelde voortgang volgt later met accounts.</Text></View><Text style={styles.arrow}>→</Text></Pressable>
+      <Text style={styles.fieldLabel}>HOEVEEL BEGELEIDING WIL JE?</Text><View style={styles.guideDepthList}>
+        {([{ id: 'quiet', title: 'Rustig', body: 'Alleen openen en daarna ruimte maken.' }, { id: 'guide', title: 'Gids', body: 'Nuttige informatie op het juiste moment.' }, { id: 'deep', title: 'Verdieping', body: 'Meer verhalen, uitleg en dingen om op te letten.' }] as Array<{ id: GuideDepth; title: string; body: string }>).map((item) => <Pressable key={item.id} onPress={() => setGuideDepth(item.id)} style={[styles.guideDepthChoice, guideDepth === item.id && styles.guideDepthChoiceSelected]}><View style={styles.flex}><Text style={styles.guideDepthTitle}>{item.title}</Text><Text style={styles.guideDepthBody}>{item.body}</Text></View><Text style={styles.guideDepthMark}>{guideDepth === item.id ? '●' : '○'}</Text></Pressable>)}
+      </View>
+      <Text style={styles.fieldLabel}>PRAKTISCH VOOR JE VERTREKT</Text><View style={styles.prepareCard}>{experience.prepare.map((item) => <View key={item} style={styles.prepareRow}><View style={[styles.prepareBullet, { backgroundColor: experience.accent }]} /><Text style={styles.prepareText}>{item}</Text></View>)}</View>
       {experience.routePlan && <View style={styles.routePlanCard}>
         <Text style={styles.liveEvidenceTitle}>ROUTE COMPOSER</Text><Text style={styles.routePlanTitle}>{experience.routePlan.destinationName}</Text>
         <View style={styles.routeBudget}><MiniFact value={`${experience.routePlan.outboundMinutes} min`} label="heen" /><MiniFact value={`${experience.routePlan.experienceMinutes} min`} label="beleven" /><MiniFact value={`${experience.routePlan.returnMinutes} min`} label="terug" /><MiniFact value={`${experience.routePlan.bufferMinutes} min`} label="buffer" /></View>
         <Text style={styles.routeGuard}>{experience.routePlan.natureGuard}</Text>
       </View>}
       <View style={styles.commitmentCard}><Text style={styles.commitmentLabel}>TOTALE VERPLICHTING</Text><Text style={styles.commitmentValue}>{experience.duration} minuten · {experience.effort.toLowerCase()}</Text>{experience.distance && <Text style={styles.commitmentBody}>{experience.distance} is meegenomen voordat je begint.</Text>}</View>
-      <PrimaryButton label="Ik ga nu" onPress={onStart} />
+      <PrimaryButton label="Ik ga nu" onPress={() => onStart(company, guideDepth)} />
     </ScrollView>
   );
 }
 
-function PresenceScreen({ experience, personal, initialStep, onStepChange, onBack, onFinish }: { experience: Experience; personal: PersonalProfile; initialStep: number; onStepChange: (stepIndex: number) => void; onBack: () => void; onFinish: () => void }) {
+function PresenceScreen({ experience, personal, company, guideDepth, initialStep, onStepChange, onBack, onFinish }: { experience: Experience; personal: PersonalProfile; company: Company; guideDepth: GuideDepth; initialStep: number; onStepChange: (stepIndex: number) => void; onBack: () => void; onFinish: () => void }) {
   const [stepIndex, setStepIndex] = useState(Math.min(initialStep, Math.max(0, experience.steps.length - 1)));
   const [remaining, setRemaining] = useState(experience.steps[Math.min(initialStep, Math.max(0, experience.steps.length - 1))]?.seconds ?? 0);
   const [timerRunning, setTimerRunning] = useState(false);
+  const [phoneAway, setPhoneAway] = useState(false);
   const current = experience.steps[stepIndex] ?? { title: experience.presenceTitle, instruction: experience.presenceCue };
-  const insightVisible = current.insight && personal.guidanceBalance > -0.2 && !personal.mutedInsightTopics.includes(current.insight.topic) && !personal.mutedInsightExperienceIds.includes(experience.id);
+  const insightVisible = guideDepth !== 'quiet' && current.insight && (guideDepth === 'deep' || personal.guidanceBalance > -0.2) && !personal.mutedInsightTopics.includes(current.insight.topic) && !personal.mutedInsightExperienceIds.includes(experience.id);
   const isLast = stepIndex >= experience.steps.length - 1;
 
   useEffect(() => {
@@ -598,15 +639,21 @@ function PresenceScreen({ experience, personal, initialStep, onStepChange, onBac
     else setStepIndex((value) => value + 1);
   };
   const formatTime = (seconds: number) => `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+  if (phoneAway) return <View style={styles.phoneAwayScreen}>
+    <Text style={styles.phoneAwayEyebrow}>PRESENCE</Text><Text style={styles.phoneAwayTitle}>{experience.title}</Text><Text style={styles.phoneAwayCue}>{current.title}</Text>
+    {current.seconds ? <Text style={styles.phoneAwayTimer}>{formatTime(remaining)}</Text> : <View style={[styles.phoneAwayOrb, { borderColor: experience.accent }]}><Text style={[styles.phoneAwayOrbText, { color: experience.accent }]}>·</Text></View>}
+    <Text style={styles.phoneAwayBody}>Je hoeft nu niets te bedienen. De gids blijft met één tik beschikbaar.</Text>
+    <Pressable onPress={() => setPhoneAway(false)} style={styles.reopenGuide}><Text style={styles.reopenGuideText}>Raadpleeg de gids</Text></Pressable>
+  </View>;
   return (
     <View style={styles.presenceScreen}>
-      <BackButton label="Voorbereiding" onPress={onBack} />
+      <View style={styles.presenceTopRow}><BackButton label="Voorbereiding" onPress={onBack} /><Pressable onPress={() => setPhoneAway(true)} style={styles.phoneAwayButton}><Text style={styles.phoneAwayButtonText}>Telefoon weg</Text></Pressable></View>
       <View style={styles.capsuleProgress}>
         {experience.steps.map((_, index) => <View key={index} style={[styles.capsuleProgressPart, index <= stepIndex && { backgroundColor: experience.accent }]} />)}
       </View>
       <ScrollView contentContainerStyle={styles.capsuleStep} showsVerticalScrollIndicator={false}>
         <Text style={styles.eyebrow}>{experience.presenceMode === 'handoff' ? 'ROUTE & PRESENCE' : experience.presenceMode === 'quiet' ? 'QUIET GUIDE' : 'STAP VOOR STAP'}</Text>
-        <Text style={styles.capsuleStepCount}>Stap {stepIndex + 1} van {experience.steps.length}</Text>
+        <Text style={styles.capsuleStepCount}>Stap {stepIndex + 1} van {experience.steps.length} · {company === 'solo' ? 'alleen' : company === 'family' ? 'met gezin' : 'samen'} · {guideDepth === 'deep' ? 'verdieping' : guideDepth === 'quiet' ? 'rustig' : 'gids'}</Text>
         <Text style={styles.presenceTitle}>{current.title}</Text>
         {current.meta && <View style={[styles.stepMetaPill, { borderColor: experience.accent }]}><Text style={styles.stepMetaText}>{current.meta}</Text></View>}
         <Text style={styles.presenceCue}>{current.instruction}</Text>
@@ -830,6 +877,9 @@ const styles = StyleSheet.create({
   heroCard: { borderRadius: 30, overflow: 'hidden', backgroundColor: 'rgba(16,26,29,0.96)', borderWidth: 1, borderColor: colors.line }, heroImage: { height: 390, padding: 18, justifyContent: 'space-between' }, heroImageStyle: { borderTopLeftRadius: 29, borderTopRightRadius: 29 }, imageShade: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: 'rgba(3,8,9,0.36)' },
   heroTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }, heroTime: { color: colors.bone, fontSize: 10, letterSpacing: 1.4 }, heroBottom: { gap: 11 }, heroTitle: { color: '#FFF9EF', fontSize: 38, lineHeight: 41, fontWeight: '300', letterSpacing: -1.1 }, heroPromise: { color: 'rgba(255,249,239,0.88)', fontSize: 16, lineHeight: 23, maxWidth: 390 }, heroFacts: { flexDirection: 'row', gap: 18, marginTop: 8 },
   heroActionArea: { padding: 18 }, wonderText: { color: colors.bone, fontSize: 15, lineHeight: 22, marginBottom: 16 },
+  suggestionSwitcher: { minHeight: 66, marginTop: 12, borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.line, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  suggestionArrow: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.04)' },
+  suggestionArrowDisabled: { opacity: 0.22 }, suggestionArrowText: { color: colors.bone, fontSize: 20 }, suggestionPosition: { alignItems: 'center', flex: 1 }, suggestionPositionLabel: { color: colors.green, fontSize: 9, letterSpacing: 1.3, fontWeight: '700' }, suggestionPositionBody: { color: colors.muted, fontSize: 10, marginTop: 4 },
   liveWorldBar: { minHeight: 64, borderRadius: 20, borderWidth: 1, borderColor: colors.line, backgroundColor: 'rgba(16,26,29,0.72)', paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 11, marginBottom: 14 }, liveWorldBarTitle: { color: colors.bone, fontSize: 12, fontWeight: '600' }, liveWorldBarDetail: { color: colors.muted, fontSize: 10, marginTop: 3 }, liveWorldMark: { color: colors.green, fontSize: 22 },
   contextNotice: { minHeight: 58, borderRadius: 18, borderWidth: 1, borderColor: 'rgba(217,179,107,0.28)', backgroundColor: 'rgba(217,179,107,0.05)', paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 11, marginBottom: 14 }, contextNoticeMark: { color: colors.gold, fontSize: 21 }, contextNoticeTitle: { color: colors.bone, fontSize: 12, fontWeight: '700' }, contextNoticeBody: { color: colors.muted, fontSize: 9, marginTop: 3 },
   pill: { alignSelf: 'flex-start', borderRadius: 99, borderWidth: 1, backgroundColor: 'rgba(5,10,10,0.56)', paddingHorizontal: 10, paddingVertical: 7, flexDirection: 'row', alignItems: 'center', gap: 7 }, pillDot: { width: 6, height: 6, borderRadius: 3 }, pillText: { fontSize: 9, letterSpacing: 1.2, fontWeight: '700' },
@@ -846,9 +896,16 @@ const styles = StyleSheet.create({
   bottomNav: { position: 'absolute', left: 14, right: 14, bottom: 10, minHeight: 72, borderRadius: 26, borderWidth: 1, borderColor: colors.line, backgroundColor: 'rgba(9,17,20,0.96)', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 6 }, navItem: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 5, minHeight: 62 }, navIcon: { color: colors.muted, fontSize: 18 }, navLabel: { color: colors.muted, fontSize: 10 }, navActive: { color: colors.green },
   backButton: { alignSelf: 'flex-start', minHeight: 42, justifyContent: 'center', marginBottom: 12 }, backButtonText: { color: colors.muted, fontSize: 14 }, detailHero: { height: 430, justifyContent: 'flex-end', marginHorizontal: -22, marginTop: -66, marginBottom: 24 }, detailHeroImage: { borderBottomLeftRadius: 30, borderBottomRightRadius: 30 }, detailHeroCopy: { padding: 22, paddingTop: 120 }, detailTitle: { color: colors.bone, fontSize: 42, lineHeight: 45, fontWeight: '300', letterSpacing: -1.3, marginTop: 13 }, detailPromise: { color: 'rgba(244,238,227,0.84)', fontSize: 16, lineHeight: 23, marginTop: 10 }, wonderHeadline: { color: colors.gold, fontSize: 10, letterSpacing: 1.4, fontWeight: '700' }, wonderLarge: { color: colors.bone, fontSize: 21, lineHeight: 30, fontWeight: '300', marginTop: 10 }, factStrip: { flexDirection: 'row', gap: 14, borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.line, paddingVertical: 16, marginVertical: 22 },
   liveEvidenceCard: { borderRadius: 22, borderWidth: 1, borderColor: 'rgba(164,197,93,0.32)', backgroundColor: 'rgba(164,197,93,0.06)', padding: 16, gap: 12, marginBottom: 20 }, liveEvidenceTitle: { color: colors.green, fontSize: 9, letterSpacing: 1.35, fontWeight: '700' }, liveEvidenceRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 }, liveEvidenceDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.green, marginTop: 5 }, liveEvidenceLabel: { color: colors.bone, fontSize: 12, lineHeight: 17 }, liveEvidenceMeta: { color: colors.muted, fontSize: 9, marginTop: 3 }, liveEvidenceCaution: { color: colors.gold, fontSize: 10, lineHeight: 15, borderTopWidth: 1, borderTopColor: colors.line, paddingTop: 10 },
-  flowTitle: { color: colors.bone, fontSize: 41, lineHeight: 45, fontWeight: '300', letterSpacing: -1.2 }, prepareCard: { borderRadius: 25, borderWidth: 1, borderColor: colors.line, backgroundColor: 'rgba(16,26,29,0.82)', padding: 18, gap: 18, marginVertical: 28 }, prepareRow: { flexDirection: 'row', alignItems: 'center' }, stepNumber: { width: 34, height: 34, borderRadius: 17, borderWidth: 1, alignItems: 'center', justifyContent: 'center', marginRight: 13 }, stepNumberText: { color: colors.bone, fontSize: 12 }, prepareText: { color: colors.bone, fontSize: 16, flex: 1 }, commitmentCard: { borderRadius: 20, borderWidth: 1, borderColor: colors.line, padding: 16, marginBottom: 22 }, commitmentLabel: { color: colors.gold, fontSize: 9, letterSpacing: 1.3, fontWeight: '700' }, commitmentValue: { color: colors.bone, fontSize: 17, marginTop: 7 }, commitmentBody: { color: colors.muted, fontSize: 11, marginTop: 5 },
+  flowTitle: { color: colors.bone, fontSize: 41, lineHeight: 45, fontWeight: '300', letterSpacing: -1.2 },
+  expectationCard: { borderRadius: 26, borderWidth: 1, borderColor: 'rgba(217,179,107,0.34)', backgroundColor: 'rgba(217,179,107,0.06)', padding: 20, marginTop: 24 }, expectationLabel: { color: colors.gold, fontSize: 9, letterSpacing: 1.5, fontWeight: '700' }, expectationTitle: { color: colors.bone, fontSize: 24, lineHeight: 31, fontWeight: '300', marginTop: 10 }, expectationBody: { color: colors.muted, fontSize: 13, lineHeight: 20, marginTop: 9 },
+  prepareLiveCard: { borderRadius: 22, borderWidth: 1, borderColor: 'rgba(164,197,93,0.3)', backgroundColor: 'rgba(164,197,93,0.05)', padding: 16, gap: 12, marginTop: 14, marginBottom: 24 }, prepareLiveRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  editorialDepthCard: { borderRadius: 22, borderWidth: 1, borderColor: colors.line, backgroundColor: 'rgba(16,26,29,0.74)', padding: 17, marginTop: 14, marginBottom: 24 }, editorialDepthText: { color: colors.bone, fontSize: 17, lineHeight: 24, marginTop: 8 }, editorialDepthSource: { color: colors.muted, fontSize: 9, marginTop: 8 },
+  shareCard: { minHeight: 84, borderRadius: 22, borderWidth: 1, borderColor: 'rgba(217,179,107,0.3)', backgroundColor: 'rgba(16,26,29,0.8)', padding: 14, flexDirection: 'row', alignItems: 'center', marginTop: -12, marginBottom: 24 }, shareMark: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, borderColor: colors.gold, alignItems: 'center', justifyContent: 'center', marginRight: 12 }, shareMarkText: { color: colors.gold, fontSize: 18 }, shareTitle: { color: colors.bone, fontSize: 15, fontWeight: '700' }, shareBody: { color: colors.muted, fontSize: 10, lineHeight: 15, marginTop: 3 },
+  guideDepthList: { gap: 9, marginBottom: 24 }, guideDepthChoice: { minHeight: 68, borderRadius: 20, borderWidth: 1, borderColor: colors.line, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center' }, guideDepthChoiceSelected: { borderColor: colors.green, backgroundColor: 'rgba(164,197,93,0.1)' }, guideDepthTitle: { color: colors.bone, fontSize: 15, fontWeight: '700' }, guideDepthBody: { color: colors.muted, fontSize: 10, marginTop: 4 }, guideDepthMark: { color: colors.green, fontSize: 16 },
+  prepareCard: { borderRadius: 25, borderWidth: 1, borderColor: colors.line, backgroundColor: 'rgba(16,26,29,0.82)', padding: 18, gap: 18, marginBottom: 28 }, prepareRow: { flexDirection: 'row', alignItems: 'center' }, prepareBullet: { width: 7, height: 7, borderRadius: 4, marginRight: 13 }, stepNumber: { width: 34, height: 34, borderRadius: 17, borderWidth: 1, alignItems: 'center', justifyContent: 'center', marginRight: 13 }, stepNumberText: { color: colors.bone, fontSize: 12 }, prepareText: { color: colors.bone, fontSize: 16, flex: 1 }, commitmentCard: { borderRadius: 20, borderWidth: 1, borderColor: colors.line, padding: 16, marginBottom: 22 }, commitmentLabel: { color: colors.gold, fontSize: 9, letterSpacing: 1.3, fontWeight: '700' }, commitmentValue: { color: colors.bone, fontSize: 17, marginTop: 7 }, commitmentBody: { color: colors.muted, fontSize: 11, marginTop: 5 },
   routePlanCard: { borderRadius: 22, borderWidth: 1, borderColor: 'rgba(217,179,107,0.35)', backgroundColor: 'rgba(217,179,107,0.05)', padding: 16, marginBottom: 20 }, routePlanTitle: { color: colors.bone, fontSize: 20, lineHeight: 25, marginTop: 8 }, routeBudget: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 16 }, routeGuard: { color: colors.muted, fontSize: 11, lineHeight: 17, marginTop: 14, borderTopWidth: 1, borderTopColor: colors.line, paddingTop: 12 },
-  presenceScreen: { flex: 1, padding: 22, paddingTop: 12, paddingBottom: 24 }, presenceTitle: { color: colors.bone, fontSize: 38, lineHeight: 43, fontWeight: '300', textAlign: 'center' }, presenceCue: { color: colors.muted, fontSize: 16, lineHeight: 24, textAlign: 'center', maxWidth: 370, marginTop: 18 }, presenceUnit: { color: colors.muted, fontSize: 9, letterSpacing: 1.5 }, presenceFooter: { color: colors.muted, fontSize: 10, lineHeight: 15, textAlign: 'center', marginTop: 10 },
+  presenceScreen: { flex: 1, padding: 22, paddingTop: 12, paddingBottom: 24 }, presenceTopRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }, phoneAwayButton: { minHeight: 42, paddingHorizontal: 14, borderRadius: 21, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' }, phoneAwayButtonText: { color: colors.green, fontSize: 11, fontWeight: '700' }, presenceTitle: { color: colors.bone, fontSize: 38, lineHeight: 43, fontWeight: '300', textAlign: 'center' }, presenceCue: { color: colors.muted, fontSize: 16, lineHeight: 24, textAlign: 'center', maxWidth: 370, marginTop: 18 }, presenceUnit: { color: colors.muted, fontSize: 9, letterSpacing: 1.5 }, presenceFooter: { color: colors.muted, fontSize: 10, lineHeight: 15, textAlign: 'center', marginTop: 10 },
+  phoneAwayScreen: { flex: 1, padding: 28, alignItems: 'center', justifyContent: 'center', backgroundColor: '#050A0C' }, phoneAwayEyebrow: { color: colors.green, fontSize: 9, letterSpacing: 2.2, fontWeight: '700' }, phoneAwayTitle: { color: colors.bone, fontSize: 28, lineHeight: 34, fontWeight: '300', textAlign: 'center', marginTop: 14 }, phoneAwayCue: { color: colors.muted, fontSize: 15, textAlign: 'center', marginTop: 14 }, phoneAwayTimer: { color: colors.bone, fontSize: 62, fontWeight: '200', fontVariant: ['tabular-nums'], marginTop: 34 }, phoneAwayOrb: { width: 130, height: 130, borderRadius: 65, borderWidth: 2, alignItems: 'center', justifyContent: 'center', marginTop: 34 }, phoneAwayOrbText: { fontSize: 48 }, phoneAwayBody: { color: 'rgba(174,180,174,0.64)', fontSize: 11, lineHeight: 17, textAlign: 'center', maxWidth: 300, marginTop: 26 }, reopenGuide: { minHeight: 48, borderRadius: 24, borderWidth: 1, borderColor: colors.line, paddingHorizontal: 22, alignItems: 'center', justifyContent: 'center', marginTop: 26 }, reopenGuideText: { color: colors.bone, fontSize: 13, fontWeight: '700' },
   capsuleProgress: { flexDirection: 'row', gap: 5, marginBottom: 12 }, capsuleProgressPart: { height: 3, flex: 1, borderRadius: 2, backgroundColor: 'rgba(244,238,227,0.12)' },
   capsuleStep: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 18 }, capsuleStepCount: { color: colors.muted, fontSize: 11, marginBottom: 14 },
   stepMetaPill: { borderWidth: 1, borderRadius: 99, paddingHorizontal: 13, paddingVertical: 8, marginTop: 18 }, stepMetaText: { color: colors.bone, fontSize: 11, fontWeight: '600' },

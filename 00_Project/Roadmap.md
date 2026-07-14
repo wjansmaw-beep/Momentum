@@ -210,6 +210,31 @@ The four continuous tracks are Philosophy, Experience, Understanding, and Trust.
 
 **Implementation note (2026-07-13):** editorial experiences now resolve through bounded local/regional packs plus a global evergreen fallback, independently of live-source coverage. Dokkum, New York, and Tokyo scenario checks protect global behavior; see ADR-024.
 
+## Phase 9 — Premium Living Guide
+
+**Goal:** make Momentum feel like a continuously changing, personal guide to the world rather than a collection of activity cards.
+
+**Deliverables**
+
+- one visible best suggestion with a finite, immediate alternative path;
+- a Living World interpretation that can enrich arbitrary locations without pretending equal source coverage;
+- preparation led by expectation, company, guide depth, provenance, and practical readiness;
+- quiet, guide, and deeper Capsule behavior;
+- consultable Presence plus an explicit phone-away state;
+- invitation sharing, followed later by privacy-designed synchronized participation;
+- richer situated guidance for routes, nature, culture, food, movement, and other experience forms.
+
+**Definition of Done**
+
+- changing suggestion feels like changing perspective, not browsing a feed;
+- preparation makes the experience desirable and understandable before listing equipment;
+- the guide is useful at the point of experience and can disappear without becoming inaccessible;
+- local depth is source-grounded and global fallback remains complete;
+- sharing never exposes private ranking context;
+- new breadth continues to serve Understanding → Wonder → Momentum → Presence → Memory.
+
+**Implementation note (2026-07-14):** the first prototype now precomputes a finite Now suggestion set, keeps one card visible, adds richer expectation-first preparation, company and system sharing, three guide-depth choices, and a reversible phone-away Presence state. Synchronized participation and deep links remain future work. See ADR-028.
+
 ## Advancement rule
 
 A phase may begin discovery before the prior phase is fully complete, but implementation may not use unresolved foundational questions as silent assumptions. Founder approval is required to lift the no-application-code gate.
