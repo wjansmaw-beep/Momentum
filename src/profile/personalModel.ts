@@ -21,6 +21,7 @@ export type ReflectionMemory = {
   experienceTitle: string;
   kind: ExperienceKind;
   outcome: LearningOutcome;
+  learningEventId?: string;
   aspects: ReflectionAspect[];
   mutedInsightTopics: InsightTopic[];
   note?: string;
@@ -49,6 +50,7 @@ export type PersonalProfile = {
   guidanceBalance: number;
   durationBiasMinutes: number;
   intensityBalance: number;
+  travelBiasMinutes: number;
   mutedInsightTopics: InsightTopic[];
   blockedExperienceIds: string[];
   favoriteExperienceIds: string[];
@@ -85,7 +87,7 @@ export function defaultPersonalProfile(): PersonalProfile {
   return {
     version: 2, onboardingComplete: false, firstName: '', aspiration: '', directions: emptyDirections(), preferredKinds: [], defaultCompany: 'solo',
     equipment: { kettlebell: false, bike: false, car: false }, maxTravelMinutes: 20, initiative: 'day-rhythm', kindAffinity: emptyAffinity(),
-    guidanceBalance: 0, durationBiasMinutes: 0, intensityBalance: 0, mutedInsightTopics: [], blockedExperienceIds: [], favoriteExperienceIds: [],
+    guidanceBalance: 0, durationBiasMinutes: 0, intensityBalance: 0, travelBiasMinutes: 0, mutedInsightTopics: [], blockedExperienceIds: [], favoriteExperienceIds: [],
     recentExperienceIds: [], learningEvents: [], reflectionMemories: [],
   };
 }
@@ -134,10 +136,43 @@ export function applyLearning(profile: PersonalProfile, experience: Experience, 
   };
 }
 
+function rebuildLearning(profile: PersonalProfile, learningEvents: LearningEvent[], reflectionMemories: ReflectionMemory[]): PersonalProfile {
+  const affinity = emptyAffinity();
+  profile.preferredKinds.forEach((kind) => { affinity[kind] = 0.18; });
+  let blockedExperienceIds: string[] = [];
+  let favoriteExperienceIds: string[] = [];
+  let recentExperienceIds: string[] = [];
+
+  [...learningEvents].reverse().forEach((event) => {
+    const delta = event.outcome === 'not-for-me' ? -0.18 : event.outcome === 'repeat' ? 0.16 : 0.08;
+    affinity[event.kind] = clamp(affinity[event.kind] + delta);
+    if (event.outcome === 'not-for-me') blockedExperienceIds = Array.from(new Set([...blockedExperienceIds, event.experienceId]));
+    else recentExperienceIds = [event.experienceId, ...recentExperienceIds.filter((id) => id !== event.experienceId)].slice(0, 8);
+    if (event.outcome === 'repeat') favoriteExperienceIds = Array.from(new Set([event.experienceId, ...favoriteExperienceIds])).slice(0, 20);
+  });
+
+  let guidanceBalance = 0;
+  let durationBiasMinutes = 0;
+  let intensityBalance = 0;
+  let travelBiasMinutes = 0;
+  const mutedInsightTopics: InsightTopic[] = [];
+  [...reflectionMemories].reverse().forEach((memory) => {
+    if (memory.aspects.includes('not-relevant')) affinity[memory.kind] = clamp(affinity[memory.kind] - 0.08);
+    guidanceBalance = clamp(guidanceBalance + (memory.aspects.includes('more-guidance') ? 0.25 : 0) - (memory.aspects.includes('less-guidance') ? 0.25 : 0), -1, 1);
+    durationBiasMinutes = clamp(durationBiasMinutes - (memory.aspects.includes('too-long') ? 5 : 0), -30, 15);
+    intensityBalance = clamp(intensityBalance + (memory.aspects.includes('too-light') ? 0.25 : 0) - (memory.aspects.includes('too-intense') ? 0.25 : 0), -1, 1);
+    travelBiasMinutes = clamp(travelBiasMinutes - (memory.aspects.includes('too-much-travel') ? 5 : 0), -30, 0);
+    memory.mutedInsightTopics.forEach((topic) => { if (!mutedInsightTopics.includes(topic)) mutedInsightTopics.push(topic); });
+  });
+
+  return { ...profile, kindAffinity: affinity, blockedExperienceIds, favoriteExperienceIds, recentExperienceIds, guidanceBalance, durationBiasMinutes, intensityBalance, travelBiasMinutes, mutedInsightTopics, learningEvents, reflectionMemories };
+}
+
 const aspectExplanation = (aspects: ReflectionAspect[]) => aspects.map((aspect) => reflectionAspectLabels[aspect].toLowerCase()).join(', ');
 
 export function applyReflection(profile: PersonalProfile, experience: Experience, input: ReflectionInput): PersonalProfile {
   let next = applyLearning(profile, experience, input.outcome);
+  const learningEventId = next.learningEvents[0]?.id !== profile.learningEvents[0]?.id ? next.learningEvents[0]?.id : undefined;
   const topics = Array.from(new Set(experience.steps.flatMap((step) => step.insight?.topic ? [step.insight.topic] : [])));
   const muteTopics = input.aspects.includes('content-not-useful') ? topics : [];
   const kindPenalty = input.aspects.includes('not-relevant') && input.outcome !== 'not-for-me' ? -0.08 : 0;
@@ -146,7 +181,7 @@ export function applyReflection(profile: PersonalProfile, experience: Experience
     : input.outcome === 'neutral' ? `Je bewaarde ${experience.title} zonder je profiel te veranderen.` : `Je reflecteerde op ${experience.title}.`;
   const memory: ReflectionMemory = {
     id: `reflection-${experience.id}-${Date.now()}`, experienceId: experience.id, experienceTitle: experience.title, kind: experience.kind,
-    outcome: input.outcome, aspects: input.aspects, mutedInsightTopics: muteTopics, note: input.note?.trim() || undefined, explanation, createdAt: new Date().toISOString(),
+    outcome: input.outcome, learningEventId, aspects: input.aspects, mutedInsightTopics: muteTopics, note: input.note?.trim() || undefined, explanation, createdAt: new Date().toISOString(),
   };
   next = {
     ...next,
@@ -154,11 +189,25 @@ export function applyReflection(profile: PersonalProfile, experience: Experience
     guidanceBalance: clamp(next.guidanceBalance + (input.aspects.includes('more-guidance') ? 0.25 : 0) - (input.aspects.includes('less-guidance') ? 0.25 : 0), -1, 1),
     durationBiasMinutes: clamp(next.durationBiasMinutes - (input.aspects.includes('too-long') ? 5 : 0), -30, 15),
     intensityBalance: clamp(next.intensityBalance + (input.aspects.includes('too-light') ? 0.25 : 0) - (input.aspects.includes('too-intense') ? 0.25 : 0), -1, 1),
-    maxTravelMinutes: input.aspects.includes('too-much-travel') ? Math.max(5, next.maxTravelMinutes - 5) : next.maxTravelMinutes,
+    travelBiasMinutes: clamp(next.travelBiasMinutes - (input.aspects.includes('too-much-travel') ? 5 : 0), -30, 0),
     mutedInsightTopics: Array.from(new Set([...next.mutedInsightTopics, ...muteTopics])),
     reflectionMemories: [memory, ...next.reflectionMemories].slice(0, 40),
   };
   return next;
+}
+
+export function forgetReflection(profile: PersonalProfile, reflectionId: string): PersonalProfile {
+  const removed = profile.reflectionMemories.find((memory) => memory.id === reflectionId);
+  if (!removed) return profile;
+  const reflections = profile.reflectionMemories.filter((memory) => memory.id !== reflectionId);
+  const events = removed.learningEventId ? profile.learningEvents.filter((event) => event.id !== removed.learningEventId) : profile.learningEvents;
+  return rebuildLearning(profile, events, reflections);
+}
+
+export function forgetLearningEvent(profile: PersonalProfile, eventId: string): PersonalProfile {
+  const events = profile.learningEvents.filter((event) => event.id !== eventId);
+  const reflections = profile.reflectionMemories.filter((memory) => memory.learningEventId !== eventId);
+  return rebuildLearning(profile, events, reflections);
 }
 
 export function directionTerms(profile: PersonalProfile): string[] {
@@ -168,5 +217,5 @@ export function directionTerms(profile: PersonalProfile): string[] {
 export function resetLearning(profile: PersonalProfile): PersonalProfile {
   const seeded = emptyAffinity();
   profile.preferredKinds.forEach((kind) => { seeded[kind] = 0.18; });
-  return { ...profile, kindAffinity: seeded, guidanceBalance: 0, durationBiasMinutes: 0, intensityBalance: 0, mutedInsightTopics: [], blockedExperienceIds: [], favoriteExperienceIds: [], recentExperienceIds: [], learningEvents: [], reflectionMemories: [] };
+  return { ...profile, kindAffinity: seeded, guidanceBalance: 0, durationBiasMinutes: 0, intensityBalance: 0, travelBiasMinutes: 0, mutedInsightTopics: [], blockedExperienceIds: [], favoriteExperienceIds: [], recentExperienceIds: [], learningEvents: [], reflectionMemories: [] };
 }

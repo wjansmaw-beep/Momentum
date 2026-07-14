@@ -63,7 +63,7 @@ Priority labels:
 
 - **Soon:** What is the smallest meaningful Memory: feeling, photo, sentence, inferred completion, or a combination?
 - **Soon:** When should reflection appear, and when should Momentum remain silent?
-- **Partly resolved:** the prototype shows plain-language reflection memories and offers a full learning reset. Individual correction, pause, deletion, and retention still need a final interaction. See ADR-026.
+- **Partly resolved:** the prototype shows plain-language reflection memories and supports individual deletion plus a full learning reset. Pausing and retention still need a final interaction. See ADR-026.
 - **Soon:** How long are moment-level signals retained?
 - **Later:** Does a Life view exist, and how can it celebrate lived experience without becoming a performance dashboard?
 

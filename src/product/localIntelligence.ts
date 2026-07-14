@@ -30,6 +30,8 @@ export type PersonalLearningContext = {
   directionTerms: string[];
   durationBiasMinutes: number;
   intensityBalance: number;
+  maxTravelMinutes: number;
+  travelBiasMinutes: number;
 };
 
 export const dayPartLabels: Record<DayPart, string> = {
@@ -79,6 +81,7 @@ export function rankForMoment(context: PrototypeContext, intentText = '', exclud
     !excludedIds.includes(experience.id)
     && !learning?.blockedExperienceIds.includes(experience.id)
     && experience.duration + 5 <= context.availableMinutes
+    && (!experience.routePlan || experience.routePlan.outboundMinutes <= Math.max(5, (learning?.maxTravelMinutes ?? 120) + (learning?.travelBiasMinutes ?? 0)))
     && equipmentAllowed(experience, context)
     && companyAllowed(experience, context));
 

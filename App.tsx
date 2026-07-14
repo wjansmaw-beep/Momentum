@@ -44,6 +44,8 @@ import {
   directionLabels,
   directionTerms,
   experienceKindLabels,
+  forgetLearningEvent,
+  forgetReflection,
   hydratePersonalProfile,
   initiativeLabels,
   LearningOutcome,
@@ -157,6 +159,8 @@ export default function App() {
     directionTerms: directionTerms(personalProfile),
     durationBiasMinutes: personalProfile.durationBiasMinutes,
     intensityBalance: personalProfile.intensityBalance,
+    maxTravelMinutes: personalProfile.maxTravelMinutes,
+    travelBiasMinutes: personalProfile.travelBiasMinutes,
   }), [personalProfile]);
   const primaryDecision = useMemo(() => rankForMoment(effectiveContext, '', [], candidatePool, learningContext), [candidatePool, effectiveContext, learningContext]);
   const primaryExperience = primaryDecision.selected?.experience ?? byId('work-reset');
@@ -248,7 +252,7 @@ export default function App() {
           {flowStage === 'prepare' && <PrepareScreen experience={selected} onBack={() => setFlowStage('promise')} onStart={() => setFlowStage('presence')} />}
           {flowStage === 'presence' && <PresenceScreen experience={selected} personal={personalProfile} onBack={() => setFlowStage('prepare')} onFinish={() => setFlowStage('remember')} />}
           {flowStage === 'remember' && <RememberScreen experience={selected} onSkip={() => { setFlowStage(null); setSurface(origin); }} onSave={finishExperience} />}
-          {flowStage === 'profile' && <ProfileScreen personal={personalProfile} context={prototypeContext} calendar={calendarContext} calendarLoading={calendarLoading} liveWorld={liveWorld} contentCatalog={contentCatalog} liveLoading={liveLoading} liveMessage={liveMessage} onChange={setPrototypeContext} onPersonalChange={setPersonalProfile} onResetLearning={() => setPersonalProfile((current) => resetLearning(current))} onRedoOnboarding={() => setPersonalProfile((current) => ({ ...current, onboardingComplete: false }))} onClearLiveCache={() => { clearLiveWorldCache().catch(() => undefined); setLiveMessage('Regionale live cache gewist'); }} onConnectCalendar={connectCalendar} onRefresh={() => refreshLiveWorld()} onUseLocation={useApproximateLocation} onClose={closeFlow} />}
+          {flowStage === 'profile' && <ProfileScreen personal={personalProfile} context={prototypeContext} calendar={calendarContext} calendarLoading={calendarLoading} liveWorld={liveWorld} contentCatalog={contentCatalog} liveLoading={liveLoading} liveMessage={liveMessage} onChange={setPrototypeContext} onPersonalChange={setPersonalProfile} onForgetReflection={(id) => setPersonalProfile((current) => forgetReflection(current, id))} onForgetLearningEvent={(id) => setPersonalProfile((current) => forgetLearningEvent(current, id))} onResetLearning={() => setPersonalProfile((current) => resetLearning(current))} onRedoOnboarding={() => setPersonalProfile((current) => ({ ...current, onboardingComplete: false }))} onClearLiveCache={() => { clearLiveWorldCache().catch(() => undefined); setLiveMessage('Regionale live cache gewist'); }} onConnectCalendar={connectCalendar} onRefresh={() => refreshLiveWorld()} onUseLocation={useApproximateLocation} onClose={closeFlow} />}
         </View>
       </SafeAreaView>
     </View>
@@ -382,6 +386,7 @@ function TodayScreen({ decisions, calendar, onOpen }: { decisions: TodayDecision
       <View style={styles.timeline}>
         {decisions.map((moment, index) => {
           const item = moment.result.experience;
+          const directionReason = moment.result.reasons.find((reason) => reason.text.includes('richting'));
           return (
             <Pressable key={item.id} onPress={() => onOpen(item)} style={styles.timelineRow}>
               <View style={styles.timelineRail}><View style={[styles.timelineDot, { backgroundColor: item.accent }]} />{index < decisions.length - 1 && <View style={styles.timelineLine} />}</View>
@@ -393,6 +398,7 @@ function TodayScreen({ decisions, calendar, onOpen }: { decisions: TodayDecision
                     <Text style={styles.dayCardTitle}>{item.title}</Text>
                     <Text style={styles.dayCardPromise}>{item.promise}</Text>
                     <Text style={styles.dayCardMeta}>{item.duration} min · {item.effort} · lokaal gekozen  →</Text>
+                    {directionReason && <Text style={styles.directionMatch}>Past bij een richting die jij zelf benoemde</Text>}
                   </View>
                 </ImageBackground>
               </View>
@@ -441,6 +447,7 @@ function DiscoverScreen({ context, candidatePool, learning, onOpen }: { context:
           {primary ? <>
             <Text style={styles.sectionLabel}>MIJN BESTE VOORSTEL · VERTROUWEN {result.confidence.toUpperCase()}</Text>
             <ExperienceTile experience={primary} large onPress={() => onOpen(primary)} />
+            <View style={styles.selectionReasons}>{result.selected?.reasons.map((reason) => <Text key={reason.text} style={styles.selectionReason}>• {reason.text}</Text>)}</View>
             {alternative && <><Text style={styles.sectionLabel}>EEN ECHT ANDERE RICHTING</Text><ExperienceTile experience={alternative} onPress={() => onOpen(alternative)} /></>}
           </> : <View style={styles.silentCard}><Text style={styles.eyebrow}>GEEN EERLIJK VOORSTEL</Text><Text style={styles.silentTitle}>Binnen deze ruimte past nu niets compleet.</Text><Text style={styles.screenSubtitle}>Vergroot de beschikbare tijd of pas één praktische beperking aan.</Text></View>}
           <SecondaryButton label="Pas mijn woorden aan" onPress={() => setMode('idle')} />
@@ -602,7 +609,7 @@ function RememberScreen({ experience, onSkip, onSave }: { experience: Experience
   );
 }
 
-function ProfileScreen({ personal, context, calendar, calendarLoading, liveWorld, contentCatalog, liveLoading, liveMessage, onChange, onPersonalChange, onResetLearning, onRedoOnboarding, onClearLiveCache, onConnectCalendar, onRefresh, onUseLocation, onClose }: { personal: PersonalProfile; context: PrototypeContext; calendar: CalendarContextSnapshot; calendarLoading: boolean; liveWorld: LiveWorldSnapshot | null; contentCatalog: ResolvedContentCatalog; liveLoading: boolean; liveMessage: string; onChange: (context: PrototypeContext) => void; onPersonalChange: (profile: PersonalProfile) => void; onResetLearning: () => void; onRedoOnboarding: () => void; onClearLiveCache: () => void; onConnectCalendar: () => void; onRefresh: () => void; onUseLocation: () => void; onClose: () => void }) {
+function ProfileScreen({ personal, context, calendar, calendarLoading, liveWorld, contentCatalog, liveLoading, liveMessage, onChange, onPersonalChange, onForgetReflection, onForgetLearningEvent, onResetLearning, onRedoOnboarding, onClearLiveCache, onConnectCalendar, onRefresh, onUseLocation, onClose }: { personal: PersonalProfile; context: PrototypeContext; calendar: CalendarContextSnapshot; calendarLoading: boolean; liveWorld: LiveWorldSnapshot | null; contentCatalog: ResolvedContentCatalog; liveLoading: boolean; liveMessage: string; onChange: (context: PrototypeContext) => void; onPersonalChange: (profile: PersonalProfile) => void; onForgetReflection: (id: string) => void; onForgetLearningEvent: (id: string) => void; onResetLearning: () => void; onRedoOnboarding: () => void; onClearLiveCache: () => void; onConnectCalendar: () => void; onRefresh: () => void; onUseLocation: () => void; onClose: () => void }) {
   const dayParts: DayPart[] = ['morning', 'midday', 'afternoon', 'evening'];
   const profiles: PrototypeProfile[] = ['balanced', 'explorer', 'mover', 'family'];
   const companies: Array<{ id: Company; label: string }> = [{ id: 'solo', label: 'Alleen' }, { id: 'together', label: 'Samen' }, { id: 'family', label: 'Met gezin' }];
@@ -625,7 +632,8 @@ function ProfileScreen({ personal, context, calendar, calendarLoading, liveWorld
     <View style={styles.learningCard}>
       <Text style={styles.learningTitle}>{personal.reflectionMemories.length || personal.learningEvents.length ? `${personal.reflectionMemories.length + personal.learningEvents.length} expliciete signalen` : 'Nog geen duurzaam leersignaal'}</Text>
       <Text style={styles.learningBody}>{personal.reflectionMemories[0]?.explanation ?? personal.learningEvents[0]?.explanation ?? '“Niet nu” verandert niets. Alleen bevestigingen en correcties die jij bewust geeft worden onthouden.'}</Text>
-      {personal.reflectionMemories.slice(1, 4).map((memory) => <Text key={memory.id} style={styles.learningEvent}>• {memory.explanation}</Text>)}
+      {personal.reflectionMemories.slice(0, 5).map((memory) => <View key={memory.id} style={styles.memorySignalRow}><View style={styles.flex}><Text style={styles.learningEvent}>• {memory.explanation}</Text>{memory.note && <Text style={styles.memorySignalNote}>“{memory.note}”</Text>}</View><Pressable accessibilityLabel={`Vergeet feedback over ${memory.experienceTitle}`} onPress={() => onForgetReflection(memory.id)} style={styles.forgetSignal}><Text style={styles.forgetSignalText}>Vergeet</Text></Pressable></View>)}
+      {personal.learningEvents.filter((event) => !personal.reflectionMemories.some((memory) => memory.learningEventId === event.id)).slice(0, 5).map((event) => <View key={event.id} style={styles.memorySignalRow}><Text style={[styles.learningEvent, styles.flex]}>• {event.explanation}</Text><Pressable accessibilityLabel={`Vergeet leersignaal over ${event.experienceId}`} onPress={() => onForgetLearningEvent(event.id)} style={styles.forgetSignal}><Text style={styles.forgetSignalText}>Vergeet</Text></Pressable></View>)}
       {personal.mutedInsightTopics.length > 0 && <Text style={styles.learningEvent}>Minder uitleg over: {personal.mutedInsightTopics.join(', ')}.</Text>}
     </View>
     <SecondaryButton label="Wis alleen wat Momentum heeft geleerd" onPress={onResetLearning} />
@@ -727,6 +735,13 @@ const styles = StyleSheet.create({
   directionSave: { alignSelf: 'flex-end', paddingVertical: 9, paddingHorizontal: 4 },
   directionSaveText: { color: colors.green, fontSize: 11, fontWeight: '700' },
   reflectionHint: { color: colors.muted, fontSize: 11, lineHeight: 17, marginTop: -4, marginBottom: 12 },
+  memorySignalRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingTop: 7, borderTopWidth: 1, borderTopColor: colors.line, marginTop: 9 },
+  memorySignalNote: { color: 'rgba(174,180,174,0.72)', fontSize: 9, lineHeight: 14, marginTop: 3 },
+  forgetSignal: { borderRadius: 12, borderWidth: 1, borderColor: 'rgba(217,179,107,0.28)', paddingHorizontal: 10, paddingVertical: 7 },
+  forgetSignalText: { color: colors.gold, fontSize: 9, fontWeight: '700' },
+  directionMatch: { color: colors.green, fontSize: 9, lineHeight: 14, marginTop: 7, fontWeight: '700' },
+  selectionReasons: { borderRadius: 16, borderWidth: 1, borderColor: colors.line, backgroundColor: 'rgba(16,26,29,0.58)', padding: 13, marginTop: 10, marginBottom: 8 },
+  selectionReason: { color: colors.muted, fontSize: 10, lineHeight: 16 },
   insightCard: { borderRadius: 20, borderWidth: 1, borderColor: 'rgba(217,179,107,0.32)', backgroundColor: 'rgba(217,179,107,0.07)', padding: 17, marginTop: 22 },
   insightEyebrow: { color: colors.gold, fontSize: 9, letterSpacing: 1.2, fontWeight: '700' },
   insightTitle: { color: colors.bone, fontSize: 17, fontWeight: '700', marginTop: 8 },

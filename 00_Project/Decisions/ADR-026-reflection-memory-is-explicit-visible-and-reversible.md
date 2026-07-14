@@ -20,8 +20,9 @@ These corrections become part of a local personal memory. They influence later s
 - Meaning anchors and life direction are never inferred from negative reflection.
 - A topic is muted only after an explicit “this content is not useful” correction.
 - The prototype stores this memory locally on the device.
-- The person can inspect a plain-language summary and clear learned memory.
-- Individual signal removal and retention periods remain follow-up decisions.
+- The person can inspect a plain-language summary, remove an individual signal, or clear all learned memory.
+- Removing a signal rebuilds derived preferences from the remaining explicit history; it does not merely hide the text.
+- Retention periods remain a follow-up decision.
 
 ## Prototype behavior
 
@@ -39,4 +40,4 @@ The learning remains a soft ranking influence. Feasibility, safety, time, compan
 
 ## Consequences
 
-Reflection becomes a product input rather than only a saved memory. The profile needs a visible personal-memory section, migration from the earlier profile shape, and scenario tests that prove explicit corrections change later behavior without turning a single situational decline into a permanent judgment.
+Reflection becomes a product input rather than only a saved memory. The profile contains a visible personal-memory section, migration from the earlier profile shape, individual forgetting, and scenario tests that prove explicit corrections change later behavior without turning a single situational decline into a permanent judgment.
