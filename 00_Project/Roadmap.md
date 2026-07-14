@@ -177,6 +177,8 @@ The four continuous tracks are Philosophy, Experience, Understanding, and Trust.
 - users can inspect and remove learned signals;
 - relevance improves without requesting unnecessary context.
 
+**Implementation note (2026-07-14):** the prototype now separates outcome from aspect-level reflection, stores explicit corrections in a visible local personal memory, migrates earlier profiles, and lets guidance, duration, intensity, relevance, and insight-topic corrections influence later experiences. Clearing all learned memory is available; individual signal removal and retention policy remain open. See ADR-026.
+
 ## Phase 8 — Living World
 
 **Goal:** responsibly expand timely, local opportunities.

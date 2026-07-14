@@ -27,6 +27,9 @@ export type PersonalLearningContext = {
   blockedExperienceIds: string[];
   favoriteExperienceIds: string[];
   recentExperienceIds: string[];
+  directionTerms: string[];
+  durationBiasMinutes: number;
+  intensityBalance: number;
 };
 
 export const dayPartLabels: Record<DayPart, string> = {
@@ -56,6 +59,13 @@ const dayFit: Record<DayPart, Record<string, number>> = {
 
 const containsIntent = (experience: Experience, intent: string) =>
   experience.keywords.reduce((score, keyword) => score + (intent.includes(keyword) ? 42 : 0), 0);
+
+const directionFit = (experience: Experience, terms: string[]) => {
+  const searchable = `${experience.title} ${experience.promise} ${experience.wonder} ${experience.keywords.join(' ')}`.toLocaleLowerCase('nl-NL');
+  return Math.min(18, terms.reduce((score, term) => score + (searchable.includes(term) ? 6 : 0), 0));
+};
+
+const effortLevel = (effort: string) => /stevig|zwaar/i.test(effort) ? 1 : /licht|rustig|eenvoudig/i.test(effort) ? -1 : 0;
 
 const equipmentAllowed = (experience: Experience, context: PrototypeContext) =>
   experience.id !== 'kettlebell-focus' || context.hasKettlebell;
@@ -94,7 +104,7 @@ export function rankForMoment(context: PrototypeContext, intentText = '', exclud
     score += affinity;
     if (affinity >= 10) reasons.push({ certainty: 'chosen', text: `sluit aan bij proefprofiel ${profileLabels[context.profile].title}` });
 
-    const target = context.availableMinutes * 0.65;
+    const target = context.availableMinutes * 0.65 + (learning?.durationBiasMinutes ?? 0);
     const timeScore = Math.max(0, 18 - Math.abs(target - experience.duration) * 0.45);
     score += timeScore;
     reasons.push({ certainty: 'calculated', text: `past met buffer binnen ${context.availableMinutes} minuten` });
@@ -105,6 +115,13 @@ export function rankForMoment(context: PrototypeContext, intentText = '', exclud
       reasons.unshift({ certainty: 'calculated', text: 'actuele brongegevens maken dit moment onderscheidend' });
     }
     if (experience.prepare.length <= 4) score += 5;
+
+    const directionScore = directionFit(experience, learning?.directionTerms ?? []);
+    score += directionScore;
+    if (directionScore >= 6) reasons.push({ certainty: 'chosen', text: 'sluit aan bij een richting die jij zelf hebt benoemd' });
+
+    const intensityScore = effortLevel(experience.effort) * (learning?.intensityBalance ?? 0) * 10;
+    score += intensityScore;
 
     const learnedAffinity = learning?.kindAffinity[experience.kind] ?? 0;
     score += learnedAffinity * 45;

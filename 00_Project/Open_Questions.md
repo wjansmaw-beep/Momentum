@@ -63,7 +63,7 @@ Priority labels:
 
 - **Soon:** What is the smallest meaningful Memory: feeling, photo, sentence, inferred completion, or a combination?
 - **Soon:** When should reflection appear, and when should Momentum remain silent?
-- **Soon:** What does the user see and control in the learned profile?
+- **Partly resolved:** the prototype shows plain-language reflection memories and offers a full learning reset. Individual correction, pause, deletion, and retention still need a final interaction. See ADR-026.
 - **Soon:** How long are moment-level signals retained?
 - **Later:** Does a Life view exist, and how can it celebrate lived experience without becoming a performance dashboard?
 
@@ -77,6 +77,7 @@ Priority labels:
 - **Soon:** How many guide moments can a route contain before learning begins to compete with Presence or safety?
 - **Soon:** How should Momentum detect progress without converting goals into streaks, quotas, or identity judgments?
 - **Later:** Can users choose a deeper guide mode for history, nature, culture, food, or training while the default remains quiet?
+- **Soon:** Should “less of this content” mute a topic globally, only within one experience kind, or only for the current source?
 
 ## Trust, onboarding, and permissions
 

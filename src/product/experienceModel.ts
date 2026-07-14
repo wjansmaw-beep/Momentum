@@ -1,11 +1,20 @@
 export type Surface = 'now' | 'today' | 'discover' | 'lifebook';
 export type ExperienceKind = 'outside' | 'food' | 'movement' | 'restore' | 'connect' | 'learn' | 'culture';
 export type PresenceMode = 'quiet' | 'guided' | 'handoff';
+export type InsightTopic = 'place' | 'nature' | 'movement' | 'food' | 'culture' | 'general';
+export type GuidedInsight = {
+  title: string;
+  body: string;
+  topic: InsightTopic;
+  sourceKind: 'editorial' | 'live' | 'curator' | 'generated';
+  sourceLabel: string;
+};
 export type CapsuleStep = {
   title: string;
   instruction: string;
   meta?: string;
   seconds?: number;
+  insight?: GuidedInsight;
 };
 
 export type LiveEvidence = {
@@ -69,7 +78,7 @@ export const experiences: Experience[] = [
     presenceMode: 'handoff', presenceTitle: 'Geniet van het licht', presenceCue: 'Open de route en laat Momentum daarna verdwijnen.',
     steps: [
       { title: 'Reis naar het startpunt', instruction: 'Laat Kaarten je brengen. Momentum hoeft onderweg niets toe te voegen.', meta: 'Navigatie via vertrouwde app' },
-      { title: 'Begin rustig', instruction: 'Geef jezelf de eerste vijf minuten om aan wind, licht en omgeving te wennen.', meta: 'Telefoon weg' },
+      { title: 'Begin rustig', instruction: 'Geef jezelf de eerste vijf minuten om aan wind, licht en omgeving te wennen.', meta: 'Telefoon weg', insight: { title: 'Waarom het licht zo laag voelt', body: 'Rond zonsondergang legt het licht een langere weg door de atmosfeer af. Koelere kleuren worden sterker verstrooid, waardoor warme tinten meer opvallen.', topic: 'nature', sourceKind: 'editorial', sourceLabel: 'Momentum natuurredactie' } },
       { title: 'Kijk één keer bewust om je heen', instruction: 'Zoek geen perfecte foto. Merk één detail op dat alleen vanavond bestaat.' },
       { title: 'Keer zonder haast terug', instruction: 'Laat voldoende tijd over voor de terugweg en verander de route niet wanneer omstandigheden onveilig voelen.' },
     ],
@@ -120,7 +129,7 @@ export const experiences: Experience[] = [
     presenceMode: 'guided', presenceTitle: 'Goblet squat', presenceCue: 'Rustig omlaag. Sterk omhoog.',
     steps: [
       { title: 'Warm-up', instruction: 'Rustige heupscharnieren, squats zonder gewicht en armcirkels. Begin pas wanneer bewegen goed voelt.', meta: '3 minuten', seconds: 45 },
-      { title: 'Goblet squat', instruction: 'Houd de kettlebell dicht bij je borst. Zak beheerst en kom krachtig omhoog.', meta: '3 rondes · 8 herhalingen' },
+      { title: 'Goblet squat', instruction: 'Houd de kettlebell dicht bij je borst. Zak beheerst en kom krachtig omhoog.', meta: '3 rondes · 8 herhalingen', insight: { title: 'Waarom het gewicht dichtbij blijft', body: 'Een gewicht dicht bij je lichaam is meestal eenvoudiger stabiel te houden. Daardoor kun je aandacht geven aan een rustige beweging en een houding die goed blijft voelen.', topic: 'movement', sourceKind: 'editorial', sourceLabel: 'Momentum trainingsredactie' } },
       { title: 'Kettlebell deadlift', instruction: 'Duw de heupen naar achteren, houd je rug neutraal en kom vanuit je benen omhoog.', meta: '3 rondes · 10 herhalingen' },
       { title: 'Eénarmige row', instruction: 'Steun stevig, trek de elleboog langs je zij en wissel na de herhalingen.', meta: '3 rondes · 8 per kant' },
       { title: 'Halve-kniende press', instruction: 'Span rustig aan en druk alleen binnen een comfortabele bewegingsbaan.', meta: '2 rondes · 6 per kant' },
@@ -175,7 +184,7 @@ export const experiences: Experience[] = [
     steps: [
       { title: 'Kies je basis', instruction: 'Neem één groente en combineer die met rijst, pasta of brood. Controleer zelf allergieën en houdbaarheid.' },
       { title: 'Snijd eerst alles', instruction: 'Maak de groente in gelijke stukken en zet je smaakmaker alvast klaar.', meta: 'Mise en place' },
-      { title: 'Bak de groente', instruction: 'Verhit een beetje olie en bak rustig tot kleur en geur ontstaan. Roer geregeld.', seconds: 180 },
+      { title: 'Bak de groente', instruction: 'Verhit een beetje olie en bak rustig tot kleur en geur ontstaan. Roer geregeld.', seconds: 180, insight: { title: 'Waarom kleur smaak toevoegt', body: 'Wanneer ingrediënten aan het oppervlak bruinen, ontstaan nieuwe aroma\'s. Geef de pan daarom wat ruimte en roer niet onafgebroken.', topic: 'food', sourceKind: 'editorial', sourceLabel: 'Momentum kookredactie' } },
       { title: 'Voeg de basis toe', instruction: 'Meng met je gekookte rijst of pasta, of serveer op brood. Voeg zo nodig een klein beetje kookvocht toe.' },
       { title: 'Breng pas nu op smaak', instruction: 'Proef en voeg één smaakmaker tegelijk toe. Stop zodra het compleet voelt.' },
       { title: 'Serveer zonder nieuwe suggestie', instruction: 'De maaltijd is het eindpunt. Momentum heeft nu niets meer toe te voegen.' },
@@ -183,20 +192,20 @@ export const experiences: Experience[] = [
     memoryPrompt: 'Wat zou je volgende keer anders doen?', keywords: ['koken', 'recept', 'eten', 'avondeten', 'maaltijd', 'keuken', 'ingrediënten'], company: ['solo', 'together', 'family'],
   },
   {
-    id: 'small-reading', kind: 'learn', title: 'Vijftien minuten voor één goed idee',
-    promise: 'Lees niet om af te krijgen, maar om één gedachte mee te nemen.',
-    wonder: 'Een korte focus maakt van een verloren kwartier iets dat blijft hangen.',
+    id: 'small-reading', kind: 'learn', title: 'Eén inzicht, direct toegepast',
+    promise: 'Momentum geeft je een klein idee en laat je het meteen in de echte wereld herkennen.',
+    wonder: 'Leren blijft beter hangen wanneer het niet bij informatie alleen blijft.',
     image: 'https://images.unsplash.com/photo-1507842217343-583bb7270b66?auto=format&fit=crop&w=1200&q=88',
-    accent: '#88A2B2', duration: 15, effort: 'Rustig', cta: 'Open dit leesmoment',
-    why: ['Past in een kort tijdvenster', 'Kan vrijwel overal', 'Duidelijk einde voorkomt doorlezen'],
-    prepareTitle: 'Kies één tekst', prepare: ['Boek of bewaard artikel', 'Timer op vijftien minuten', 'Noteer maximaal één zin'],
-    presenceMode: 'quiet', presenceTitle: 'Lees tot één idee blijft hangen', presenceCue: 'Daarna mag het boek weer dicht.',
+    accent: '#88A2B2', duration: 15, effort: 'Rustig', cta: 'Ontdek dit inzicht',
+    why: ['Past in een kort tijdvenster', 'Momentum levert de inhoud', 'Eindigt met kijken en doen'],
+    prepareTitle: 'Alleen je aandacht is nodig', prepare: ['Geen boek of artikel nodig', 'Kijk straks bewust om je heen', 'Bewaar hooguit één inzicht'],
+    presenceMode: 'guided', presenceTitle: 'Ontdek door te vergelijken', presenceCue: 'Eén idee, daarna de wereld weer in.',
     steps: [
-      { title: 'Kies één tekst', instruction: 'Neem wat al binnen bereik ligt. Niet eerst zoeken naar het perfecte artikel of hoofdstuk.' },
-      { title: 'Lees zonder te verzamelen', instruction: 'Markeer niets tijdens de eerste minuten. Laat één gedachte vanzelf opvallen.', seconds: 300 },
-      { title: 'Schrijf maximaal één zin', instruction: 'Noteer alleen wat je morgen nog wilt weten. Daarna mag de tekst dicht.' },
+      { title: 'Het idee', instruction: 'Je merkt kenmerken sneller op wanneer je twee dingen bewust vergelijkt in plaats van er maar één te bekijken.', insight: { title: 'Vergelijken maakt verschillen zichtbaar', body: 'Kies twee alledaagse dingen uit dezelfde soort: twee bomen, gevels, kopjes of geluiden. Vraag niet welke mooier is, maar welk klein verschil je eerst niet zag.', topic: 'general', sourceKind: 'editorial', sourceLabel: 'Momentum leerredactie' } },
+      { title: 'Probeer het buiten het scherm', instruction: 'Kies twee dingen in je omgeving en noem drie concrete verschillen. Leg daarna je telefoon weg.', seconds: 180 },
+      { title: 'Neem één vraag mee', instruction: 'Wat zou je hierover nog willen begrijpen? Bewaar alleen die vraag wanneer hij echt nieuwsgierigheid oproept.' },
     ],
-    memoryPrompt: 'Welke gedachte wil je meenemen?', keywords: ['lezen', 'leren', 'boek', 'kennis', 'groei', 'rust'], company: ['solo'],
+    memoryPrompt: 'Welk verschil zag je nu pas?', keywords: ['leren', 'kennis', 'groei', 'nieuwsgierigheid', 'ontdekken', 'kijken'], company: ['solo'],
   },
   {
     id: 'one-song-listening', kind: 'culture', title: 'Luister naar één nummer',
