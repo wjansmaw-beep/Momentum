@@ -34,6 +34,7 @@ Priority labels:
 
 - **Now:** Does the primary surface always show exactly one Experience Promise, and what happens when confidence is low?
 - **Resolved direction:** The smallest active-intent interaction begins with available time and asks at most one desired-outcome question when context is insufficient.
+- **Resolved prototype direction:** active intent now asks one material clarification for unknown direction, food form, movement form, or outside tone and scopes the answer to the current moment. See ADR-035.
 - **Resolved direction:** The first end-to-end blueprint is “I unexpectedly have about an hour.” Its resulting capsule remains context-dependent.
 - **Soon:** When may Momentum proactively surface a detected moment, and how does the user control that initiative?
 - **Prototype direction:** `low` local ranking confidence now abstains into one clarification path. The production threshold remains a user-test decision; see ADR-027.
@@ -72,6 +73,7 @@ Priority labels:
 ## Direction, meaning, and guided learning
 
 - **Resolved direction:** Momentum distinguishes near intentions, growth directions, and meaning anchors. They guide but never command selection, and remain visible, reversible, and user-controlled; see ADR-025.
+- **Resolved prototype direction:** a sufficiently matched user-confirmed direction may appear as a soft Meaning Thread in Promise, Prepare, and Memory. Weak matches remain absent and no score or obligation is created. See ADR-035.
 - **Resolved direction:** learning can be a source-grounded layer inside place, nature, culture, workout, recipe, and other Capsules. “Read a book” is one possible experience, not the definition of learning.
 - **Soon:** What is the smallest onboarding or later conversation that can invite direction without asking someone to define their life purpose?
 - **Partly resolved:** Profile now supports review, edit, deletion through editing, and pause/resume without a fifth primary surface. Expiry and review timing remain open.

@@ -24,7 +24,7 @@ import {
   experiences,
   Surface,
 } from './src/product/experienceModel';
-import { composeContextualBlueprints, composeExperienceBlueprints } from './src/product/experienceBlueprintComposer';
+import { composeContextualBlueprints, composeExperienceBlueprints, IntentClarificationOption, understandActiveIntent } from './src/product/experienceBlueprintComposer';
 import {
   buildToday,
   Company,
@@ -91,9 +91,10 @@ import { buildExperienceGuide, currentEvidence, GuideDepth } from './src/guidanc
 import { composeGuideMoments } from './src/guidance/guideComposer';
 import { auditCandidatePool, CompositionSummary } from './src/guidance/compositionAudit';
 import { colors, typography } from './src/design/theme';
+import { attachMeaningThread } from './src/product/meaningThread';
 
 type FlowStage = 'invite' | 'promise' | 'prepare' | 'presence' | 'remember' | 'profile' | null;
-type Memory = { id: string; title: string; date: string; image: string; note: string; sharedWith?: string[] };
+type Memory = { id: string; title: string; date: string; image: string; note: string; sharedWith?: string[]; meaning?: string };
 type ActiveSession = { experienceId: string; stage: 'prepare' | 'presence'; stepIndex: number; origin: Surface; company?: Company; guideDepth?: GuideDepth; shared?: SharedCapsuleState; updatedAt: string };
 type PrototypeEvidence = { started: number; completed: number; reflected: number; skippedReflection: number; lastUpdated?: string };
 
@@ -198,8 +199,9 @@ export default function App() {
   const liveExperiences = useMemo(() => liveWorld && selectionLocationConfirmed ? [composeLiveExperience(liveWorld, effectiveContext), composeNearbyPlaceExperience(liveWorld, effectiveContext)].filter((item): item is Experience => Boolean(item)).map((item) => composeGuideMoments(item)) : [], [effectiveContext, liveWorld, selectionLocationConfirmed]);
   const contentCatalog = useMemo(() => resolveContentCatalog(createWorldContext(liveWorld?.coordinates ?? defaultRegion.coordinates, new Date(), 'nl', selectionLocationConfirmed)), [liveWorld?.coordinates, selectionLocationConfirmed]);
   const guidedCatalogExperiences = useMemo(() => contentCatalog.experiences.map((item) => composeGuideMoments(item)), [contentCatalog.experiences]);
-  const contextualBlueprints = useMemo(() => composeContextualBlueprints(effectiveContext, guidedCatalogExperiences, personalProfile.preferredKinds), [effectiveContext, guidedCatalogExperiences, personalProfile.preferredKinds]);
-  const compositionAudit = useMemo(() => auditCandidatePool([...liveExperiences, ...contextualBlueprints]), [contextualBlueprints, liveExperiences]);
+  const contextualBlueprints = useMemo(() => composeContextualBlueprints(effectiveContext, guidedCatalogExperiences, personalProfile.preferredKinds).map((item) => attachMeaningThread(item, personalProfile)), [effectiveContext, guidedCatalogExperiences, personalProfile]);
+  const meaningfulLiveExperiences = useMemo(() => liveExperiences.map((item) => attachMeaningThread(item, personalProfile)), [liveExperiences, personalProfile]);
+  const compositionAudit = useMemo(() => auditCandidatePool([...meaningfulLiveExperiences, ...contextualBlueprints]), [contextualBlueprints, meaningfulLiveExperiences]);
   const candidatePool = compositionAudit.accepted.length ? compositionAudit.accepted : guidedCatalogExperiences;
   const learningContext = useMemo(() => ({
     kindAffinity: personalProfile.kindAffinity,
@@ -227,7 +229,7 @@ export default function App() {
     return items.length ? items : [{ experience: primaryExperience, decision: primaryDecision }];
   }, [candidatePool, effectiveContext, learningContext, primaryDecision, primaryExperience]);
   const resumableExperience = activeSession ? candidatePool.find((experience) => experience.id === activeSession.experienceId) ?? experiences.find((experience) => experience.id === activeSession.experienceId) : undefined;
-  const dayDecisions = useMemo(() => buildToday(effectiveContext, liveExperiences, learningContext, calendarContext.state === 'live' ? calendarContext.freeWindows : undefined, contextualBlueprints), [calendarContext.freeWindows, calendarContext.state, contextualBlueprints, effectiveContext, learningContext, liveExperiences]);
+  const dayDecisions = useMemo(() => buildToday(effectiveContext, meaningfulLiveExperiences, learningContext, calendarContext.state === 'live' ? calendarContext.freeWindows : undefined, contextualBlueprints), [calendarContext.freeWindows, calendarContext.state, contextualBlueprints, effectiveContext, learningContext, meaningfulLiveExperiences]);
 
   const connectCalendar = async () => {
     setCalendarLoading(true);
@@ -328,6 +330,7 @@ export default function App() {
       image: selected.image,
       note: input.note || 'Een moment dat de moeite waard was.',
       sharedWith: completedSession?.shared?.participants.filter((participant) => participant.status === 'ready' && participant.role !== completedSession.shared?.role).map((participant) => participant.name),
+      meaning: selected.meaningThread?.label,
     };
     setMemories((current) => [memory, ...current.filter((item) => item.id !== selected.id)].slice(0, 12));
     setPersonalProfile((current) => applyReflection(current, selected, input));
@@ -586,13 +589,20 @@ function TodayScreen({ decisions, calendar, onOpen }: { decisions: TodayDecision
 function DiscoverScreen({ context, candidatePool, learning, onOpen }: { context: PrototypeContext; candidatePool: Experience[]; learning: PersonalLearningContext; onOpen: (item: Experience) => void }) {
   const [minutes, setMinutes] = useState(60);
   const [input, setInput] = useState('');
-  const [mode, setMode] = useState<'idle' | 'result'>('idle');
-  const blueprintComposition = useMemo(() => composeExperienceBlueprints(input, { ...context, availableMinutes: minutes }, candidatePool), [candidatePool, context, input, minutes]);
+  const [mode, setMode] = useState<'idle' | 'clarify' | 'result'>('idle');
+  const [clarificationChoice, setClarificationChoice] = useState<IntentClarificationOption | null>(null);
+  const understanding = useMemo(() => understandActiveIntent(input), [input]);
+  const effectiveIntent = `${input} ${clarificationChoice?.terms ?? ''}`.trim();
+  const explicitCompany: Company = /kind|kinderen|gezin/i.test(effectiveIntent) ? 'family' : /samen|partner|vriend/i.test(effectiveIntent) ? 'together' : context.company;
+  const intentContext = useMemo(() => ({ ...context, company: explicitCompany, availableMinutes: minutes }), [context, explicitCompany, minutes]);
+  const blueprintComposition = useMemo(() => composeExperienceBlueprints(input, intentContext, candidatePool, clarificationChoice?.terms), [candidatePool, clarificationChoice?.terms, input, intentContext]);
   const intentPool = useMemo(() => blueprintComposition.experiences.length ? [...blueprintComposition.experiences, ...candidatePool] : candidatePool, [blueprintComposition.experiences, candidatePool]);
-  const result = useMemo(() => rankForMoment({ ...context, availableMinutes: minutes }, input, [], intentPool, learning), [context, input, intentPool, learning, minutes]);
+  const result = useMemo(() => rankForMoment(intentContext, effectiveIntent, [], intentPool, learning), [effectiveIntent, intentContext, intentPool, learning]);
   const primary = result.selected?.experience;
   const alternative = result.alternative?.experience;
-  const surprise = () => { setInput(''); setMode('result'); };
+  const submitIntent = () => { setClarificationChoice(null); setMode(understanding.clarification ? 'clarify' : 'result'); };
+  const chooseClarification = (option: IntentClarificationOption) => { setClarificationChoice(option); setMode('result'); };
+  const surprise = () => { setInput(''); setClarificationChoice(null); setMode('result'); };
   return (
     <ScrollView contentContainerStyle={styles.screenScroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
       <ScreenHeader eyebrow="JIJ GEEFT RICHTING" title="Waar heb je ruimte voor?" subtitle="Zeg het in je eigen woorden. Momentum maakt er geen categorie van." />
@@ -610,16 +620,26 @@ function DiscoverScreen({ context, candidatePool, learning, onOpen }: { context:
             multiline
             style={styles.intentInput}
           />
-          <PrimaryButton label={input.trim() ? 'Vind wat hierbij past' : 'Help me kiezen'} onPress={() => setMode('result')} />
+          <PrimaryButton label={input.trim() ? 'Vind wat hierbij past' : 'Help me kiezen'} onPress={submitIntent} />
           <View style={styles.orRow}><View style={styles.orLine} /><Text style={styles.orText}>OF</Text><View style={styles.orLine} /></View>
           <SecondaryButton label="Verras me binnen deze tijd" onPress={surprise} />
           <Text style={styles.intentPrivacy}>Voor deze proef wordt je zin alleen lokaal geïnterpreteerd. Er wordt geen chatgeschiedenis gemaakt.</Text>
+        </View>
+      ) : mode === 'clarify' && understanding.clarification ? (
+        <View style={styles.clarificationPanel}>
+          <Text style={styles.interpretationLabel}>ÉÉN KEUZE MAAKT HET VERSCHIL</Text>
+          <Text style={styles.clarificationTitle}>{understanding.clarification.question}</Text>
+          <Text style={styles.clarificationBody}>{understanding.clarification.reason}</Text>
+          {input.trim() && <Text style={styles.intentQuote}>“{input.trim()}”</Text>}
+          <View style={styles.clarificationOptions}>{understanding.clarification.options.map((option) => <Pressable key={option.id} onPress={() => chooseClarification(option)} style={styles.clarificationOption}><Text style={styles.clarificationOptionText}>{option.label}</Text><Text style={styles.arrow}>→</Text></Pressable>)}</View>
+          <SecondaryButton label="Pas mijn woorden aan" onPress={() => setMode('idle')} />
         </View>
       ) : (
         <View>
           <View style={styles.interpretation}>
             <Text style={styles.interpretationLabel}>ZO HEB IK JE MOMENT BEGREPEN</Text>
-            <Text style={styles.interpretationText}>{blueprintComposition.interpretation} · {minutes} minuten · {context.company === 'solo' ? 'alleen' : context.company === 'family' ? 'met gezin' : 'samen'}</Text>
+            {input.trim() && <Text style={styles.intentQuote}>“{input.trim()}”</Text>}
+            <Text style={styles.interpretationText}>{blueprintComposition.interpretation} · {minutes} minuten · {explicitCompany === 'solo' ? 'alleen' : explicitCompany === 'family' ? 'met gezin' : 'samen'}{clarificationChoice ? ` · ${clarificationChoice.label.toLowerCase()}` : ''}</Text>
             {primary?.blueprint && <Text style={styles.blueprintTrust}>Samengesteld met {primary.blueprint.validationLabel.toLowerCase()}.</Text>}
           </View>
           {primary ? <>
@@ -628,7 +648,7 @@ function DiscoverScreen({ context, candidatePool, learning, onOpen }: { context:
             <View style={styles.selectionReasons}>{result.selected?.reasons.map((reason) => <Text key={reason.text} style={styles.selectionReason}>• {reason.text}</Text>)}</View>
             {alternative && <><Text style={styles.sectionLabel}>EEN ECHT ANDERE RICHTING</Text><ExperienceTile experience={alternative} onPress={() => onOpen(alternative)} /></>}
           </> : <View style={styles.silentCard}><Text style={styles.eyebrow}>GEEN EERLIJK VOORSTEL</Text><Text style={styles.silentTitle}>Binnen deze ruimte past nu niets compleet.</Text><Text style={styles.screenSubtitle}>Vergroot de beschikbare tijd of pas één praktische beperking aan.</Text></View>}
-          <SecondaryButton label="Pas mijn woorden aan" onPress={() => setMode('idle')} />
+          <SecondaryButton label="Pas mijn woorden aan" onPress={() => { setClarificationChoice(null); setMode('idle'); }} />
           <Text style={styles.finiteNote}>Momentum toont bewust geen eindeloze lijst.</Text>
         </View>
       )}
@@ -645,7 +665,7 @@ function LifeBookScreen({ memories, onOpen }: { memories: Memory[]; onOpen: (ite
       <View style={styles.memoryGrid}>
         {memories.map((memory) => {
           const experience = experiences.find((item) => item.title === memory.title) ?? byId('wadden-light');
-          return <Pressable key={memory.id} onPress={() => onOpen(experience)} style={styles.memoryCard}><ImageBackground source={{ uri: memory.image }} style={styles.memoryImage} imageStyle={styles.memoryImageStyle}><View style={styles.imageShade} /><View style={styles.memoryCopy}><Text style={styles.memoryDate}>{memory.date}</Text><Text style={styles.memoryTitle}>{memory.title}</Text><Text style={styles.memoryNote}>{memory.note}</Text>{memory.sharedWith?.length ? <Text style={styles.memoryShared}>Samen met {memory.sharedWith.join(', ')}</Text> : null}</View></ImageBackground></Pressable>;
+          return <Pressable key={memory.id} onPress={() => onOpen(experience)} style={styles.memoryCard}><ImageBackground source={{ uri: memory.image }} style={styles.memoryImage} imageStyle={styles.memoryImageStyle}><View style={styles.imageShade} /><View style={styles.memoryCopy}><Text style={styles.memoryDate}>{memory.date}</Text><Text style={styles.memoryTitle}>{memory.title}</Text><Text style={styles.memoryNote}>{memory.note}</Text>{memory.meaning ? <Text style={styles.memoryMeaning}>Raakte aan: {memory.meaning}</Text> : null}{memory.sharedWith?.length ? <Text style={styles.memoryShared}>Samen met {memory.sharedWith.join(', ')}</Text> : null}</View></ImageBackground></Pressable>;
         })}
       </View>
       <View style={styles.learningCard}><Text style={styles.learningTitle}>Een voorzichtig patroon</Text><Text style={styles.learningBody}>Momenten met buitenlucht en een helder einde lijken vaak de moeite waard. Jij kunt dit later bekijken, corrigeren of verwijderen.</Text></View>
@@ -664,6 +684,7 @@ function PromiseScreen({ experience, onClose, onAccept }: { experience: Experien
       <Text style={styles.wonderLarge}>{experience.wonder}</Text>
       <View style={styles.factStrip}><MiniFact value={`${experience.duration} min`} label="totaal" /><MiniFact value={experience.effort} label="inspanning" /><MiniFact value={experience.timeWindow ?? 'nu mogelijk'} label="moment" /></View>
       {experience.blueprint && <View style={styles.blueprintBadge}><Text style={styles.blueprintBadgeMark}>✓</Text><View style={styles.flex}><Text style={styles.blueprintBadgeTitle}>Complete ervaring</Text><Text style={styles.blueprintBadgeBody}>{experience.blueprint.validationLabel}. Je houdt altijd zelf de regie.</Text></View></View>}
+      {experience.meaningThread && <MeaningThreadCard experience={experience} />}
       {freshEvidence.length ? <View style={styles.liveEvidenceCard}>
         <Text style={styles.liveEvidenceTitle}>LIVE WORLD · BRONBEWIJS</Text>
         {freshEvidence.map((evidence) => <View key={`${evidence.sourceName}-${evidence.label}`} style={styles.liveEvidenceRow}><View style={styles.liveEvidenceDot} /><View style={styles.flex}><Text style={styles.liveEvidenceLabel}>{evidence.label}</Text><Text style={styles.liveEvidenceMeta}>{evidence.certainty === 'observation' ? 'Waarneming' : 'Voorspelling'} · {evidence.sourceName} · {evidence.freshnessLabel.toLowerCase()}</Text></View></View>)}
@@ -727,6 +748,7 @@ function PrepareScreen({ experience, personal, hostName, initialCompany, initial
       <BackButton label="Terug" onPress={onBack} />
       <Text style={styles.eyebrow}>JE ERVARING</Text><Text style={styles.flowTitle}>{experience.prepareTitle}</Text><Text style={styles.screenSubtitle}>Eerst wat je gaat beleven. Daarna alleen wat nodig is om te beginnen.</Text>
       <View style={styles.expectationCard}><Text style={styles.expectationLabel}>DIT WACHT OP JE</Text><Text style={styles.expectationTitle}>{experience.wonder}</Text><Text style={styles.expectationBody}>{experience.promise}</Text></View>
+      {experience.meaningThread && <MeaningThreadCard experience={experience} compact />}
       {freshEvidence.length ? <View style={styles.prepareLiveCard}><Text style={styles.liveEvidenceTitle}>WAT DE WERELD NU LAAT ZIEN</Text>{freshEvidence.slice(0, 3).map((evidence) => <View key={`${evidence.sourceName}-${evidence.label}`} style={styles.prepareLiveRow}><View style={styles.liveEvidenceDot} /><View style={styles.flex}><Text style={styles.liveEvidenceLabel}>{evidence.label}</Text><Text style={styles.liveEvidenceMeta}>{evidence.sourceName} · {evidence.certainty === 'observation' ? 'recente waarneming' : 'actuele verwachting'} · {evidence.freshnessLabel.toLowerCase()}</Text></View></View>)}</View> : <View style={styles.editorialDepthCard}><Text style={styles.expectationLabel}>WERELDWIJD BRUIKBARE GIDS</Text><Text style={styles.editorialDepthText}>{experience.steps.find((step) => step.insight)?.insight?.title ?? experience.wonder}</Text><Text style={styles.editorialDepthSource}>{guide.coverageLabel} · {experience.steps.find((step) => step.insight)?.insight?.sourceLabel ?? 'Momentum ervaringsredactie'}</Text></View>}
       <View style={styles.readySummary}>
         <View style={styles.flex}><Text style={styles.readySummaryLabel}>KLAAR MET VERSTANDIGE STANDAARDEN</Text><Text style={styles.readySummaryTitle}>{company === 'solo' ? 'Alleen' : company === 'family' ? 'Met gezin' : 'Samen'} · {guideDepth === 'quiet' ? 'rustige begeleiding' : guideDepth === 'deep' ? 'verdiepende gids' : 'gids op het juiste moment'}</Text></View>
@@ -878,6 +900,7 @@ function RememberScreen({ experience, personal, shared, onSkip, onSave }: { expe
       <Text style={styles.eyebrow}>MEMORY</Text><Text style={styles.flowTitle}>Wat blijft er over?</Text><Text style={styles.screenSubtitle}>{experience.memoryPrompt}</Text>
       <ImageBackground source={{ uri: experience.image }} style={styles.memoryPreview} imageStyle={styles.memoryImageStyle}><View style={styles.imageShade} /><Text style={styles.memoryPreviewTitle}>{experience.title}</Text></ImageBackground>
       {shared && <View style={styles.sharedMemoryCard}><Text style={styles.expectationLabel}>SAMEN BELEEFD</Text><Text style={styles.sharedMemoryTitle}>{shared.participants.filter((participant) => participant.status === 'ready').map((participant) => participant.name).join(' + ')}</Text><Text style={styles.sharedMemoryBody}>Je bewaart alleen jouw eigen herinnering. De andere deelnemer krijgt geen kopie van jouw reflectie.</Text></View>}
+      {experience.meaningThread && <MeaningThreadCard experience={experience} reflective />}
       {meaningThread.length ? <View style={styles.meaningTraceCard}><Text style={styles.expectationLabel}>WAT MISSCHIEN BLEEF HANGEN</Text><Text style={styles.meaningTraceTitle}>{meaningThread.join(' · ')}</Text><Text style={styles.meaningTraceBody}>Je hoeft hier niets over te schrijven. Bewaar alleen wat voor jou werkelijk betekenis had.</Text></View> : null}
       <Text style={styles.fieldLabel}>HOE WAS DIT VOOR JOU?</Text>
       <View style={styles.memoryOutcomeRow}>
@@ -993,6 +1016,12 @@ function ExperienceTile({ experience, large, onPress }: { experience: Experience
 
 function Pill({ label, accent }: { label: string; accent: string }) { return <View style={[styles.pill, { borderColor: accent }]}><View style={[styles.pillDot, { backgroundColor: accent }]} /><Text style={[styles.pillText, { color: accent }]}>{label}</Text></View>; }
 function MiniFact({ value, label }: { value: string; label: string }) { return <View style={styles.miniFact}><Text numberOfLines={1} style={styles.miniFactValue}>{value}</Text><Text style={styles.miniFactLabel}>{label}</Text></View>; }
+function MeaningThreadCard({ experience, compact = false, reflective = false }: { experience: Experience; compact?: boolean; reflective?: boolean }) {
+  const thread = experience.meaningThread;
+  if (!thread) return null;
+  const horizon = thread.horizon === 'near' ? 'VOOR DE KOMENDE TIJD' : thread.horizon === 'growth' ? 'EEN RICHTING WAARIN JE WILT GROEIEN' : 'WAT JIJ BELANGRIJK NOEMT';
+  return <View style={[styles.meaningThreadCard, compact && styles.meaningThreadCompact]}><Text style={styles.meaningThreadEyebrow}>{reflective ? 'RAAKTE DIT AAN WAT JIJ BELANGRIJK VINDT?' : horizon}</Text><Text style={styles.meaningThreadLabel}>{thread.label}</Text><Text style={styles.meaningThreadReason}>{reflective ? 'Geen score en geen verplicht doel. Alleen een draad die je kunt herkennen, corrigeren of laten rusten.' : `${thread.reason}. Dit is gebaseerd op woorden die jij zelf hebt gekozen.`}</Text></View>;
+}
 function ChoiceChip({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) { return <Pressable onPress={onPress} style={[styles.choiceChip, selected && styles.choiceChipSelected]}><Text style={[styles.choiceChipText, selected && styles.choiceChipTextSelected]}>{label}</Text></Pressable>; }
 function DirectionEditor({ horizon, values, paused, onTogglePause, onSave }: { horizon: keyof typeof directionLabels; values: string[]; paused: string[]; onTogglePause: (value: string) => void; onSave: (values: string[]) => void }) {
   const [draft, setDraft] = useState(values.join('\n'));
@@ -1089,11 +1118,13 @@ const styles = StyleSheet.create({
   daySummary: { borderRadius: 22, borderWidth: 1, borderColor: colors.line, backgroundColor: 'rgba(16,26,29,0.78)', padding: 17, marginBottom: 26 }, daySummaryTitle: { color: colors.bone, fontSize: 17 }, daySummaryBody: { color: colors.muted, fontSize: 12, lineHeight: 18, marginTop: 5 }, timeline: { gap: 0 }, timelineRow: { flexDirection: 'row' }, timelineRail: { width: 28, alignItems: 'center' }, timelineDot: { width: 10, height: 10, borderRadius: 5, marginTop: 3 }, timelineLine: { flex: 1, width: 1, backgroundColor: colors.line, marginVertical: 7 }, timelineContent: { flex: 1, paddingBottom: 20 }, timelineTime: { color: colors.gold, fontSize: 11, letterSpacing: 1.2, fontWeight: '700', marginBottom: 9 }, dayCardImage: { minHeight: 190, justifyContent: 'flex-end' }, dayCardImageStyle: { borderRadius: 22 }, dayCardCopy: { padding: 17 }, dayCardTitle: { color: colors.bone, fontSize: 25, lineHeight: 31, fontWeight: '400', fontFamily: editorialFont }, dayCardPromise: { color: 'rgba(244,238,227,0.8)', fontSize: 13, lineHeight: 19, marginTop: 6, maxWidth: 330 }, dayCardMeta: { color: colors.bone, fontSize: 12, marginTop: 12 }, quietDay: { borderTopWidth: 1, borderColor: colors.line, paddingTop: 20, marginTop: 2 }, quietDayTitle: { color: colors.bone, fontSize: 16 }, quietDayBody: { color: colors.muted, fontSize: 12, lineHeight: 18, marginTop: 5 },
   calendarWindows: { borderRadius: 22, borderWidth: 1, borderColor: 'rgba(217,179,107,0.3)', backgroundColor: 'rgba(217,179,107,0.05)', padding: 17, marginBottom: 16, gap: 9 }, calendarWindowText: { color: colors.bone, fontSize: 11, lineHeight: 17 },
   intentPanel: { borderRadius: 28, borderWidth: 1, borderColor: colors.line, backgroundColor: 'rgba(16,26,29,0.88)', padding: 20 }, fieldLabel: { color: colors.gold, fontSize: 11, letterSpacing: 1.35, fontWeight: '700', marginTop: 8, marginBottom: 12 }, chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 24 }, choiceChip: { minHeight: 44, borderRadius: 99, borderWidth: 1, borderColor: colors.line, paddingHorizontal: 15, paddingVertical: 11, justifyContent: 'center' }, choiceChipSelected: { borderColor: colors.green, backgroundColor: 'rgba(164,197,93,0.16)' }, choiceChipText: { color: colors.muted, fontSize: 13 }, choiceChipTextSelected: { color: colors.bone }, intentInput: { minHeight: 118, borderRadius: 20, borderWidth: 1, borderColor: colors.line, backgroundColor: 'rgba(4,10,12,0.48)', color: colors.bone, fontSize: 16, lineHeight: 23, padding: 16, textAlignVertical: 'top', marginBottom: 14 }, orRow: { flexDirection: 'row', alignItems: 'center', marginTop: 13 }, orLine: { flex: 1, height: 1, backgroundColor: colors.line }, orText: { color: colors.muted, fontSize: 11, marginHorizontal: 12 }, intentPrivacy: { color: 'rgba(174,180,174,0.68)', fontSize: 11, lineHeight: 17, textAlign: 'center', marginTop: 10 }, interpretation: { borderRadius: 18, borderWidth: 1, borderColor: colors.line, padding: 15, marginBottom: 24 }, interpretationLabel: { color: colors.green, fontSize: 11, letterSpacing: 1.25, fontWeight: '700' }, interpretationText: { color: colors.bone, fontSize: 13, lineHeight: 19, marginTop: 7 }, sectionLabel: { color: colors.gold, fontSize: 11, letterSpacing: 1.35, fontWeight: '700', marginTop: 8, marginBottom: 10 }, experienceTile: { marginBottom: 20 }, tileImage: { minHeight: 210, justifyContent: 'flex-end' }, tileImageLarge: { minHeight: 310 }, tileImageStyle: { borderRadius: 25 }, tileCopy: { padding: 18 }, tileTitle: { color: colors.bone, fontSize: 29, lineHeight: 35, fontWeight: '400', fontFamily: editorialFont, marginTop: 12 }, tilePromise: { color: 'rgba(244,238,227,0.82)', fontSize: 13, lineHeight: 19, marginTop: 7 }, tileMeta: { color: colors.bone, fontSize: 12, marginTop: 14 }, finiteNote: { color: colors.muted, fontSize: 11, textAlign: 'center', marginTop: 2 },
-  lifeSummary: { flexDirection: 'row', alignItems: 'center', borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.line, paddingVertical: 18, marginBottom: 28 }, lifeSummaryBig: { color: colors.green, fontSize: 48, fontWeight: '200', marginRight: 16 }, lifeSummaryTitle: { color: colors.bone, fontSize: 16 }, lifeSummaryBody: { color: colors.muted, fontSize: 11, marginTop: 4 }, memoryGrid: { gap: 14 }, memoryCard: { minHeight: 230 }, memoryImage: { minHeight: 230, justifyContent: 'flex-end' }, memoryImageStyle: { borderRadius: 24 }, memoryCopy: { padding: 18 }, memoryDate: { color: colors.gold, fontSize: 9, letterSpacing: 1.2 }, memoryTitle: { color: colors.bone, fontSize: 27, lineHeight: 31, fontWeight: '300', marginTop: 7 }, memoryNote: { color: 'rgba(244,238,227,0.74)', fontSize: 12, lineHeight: 17, marginTop: 6 }, memoryShared: { color: colors.green, fontSize: 10, marginTop: 8 }, learningCard: { borderRadius: 22, borderWidth: 1, borderColor: colors.line, backgroundColor: 'rgba(164,197,93,0.06)', padding: 18, marginTop: 22 }, learningTitle: { color: colors.green, fontSize: 14, fontWeight: '700' }, learningBody: { color: colors.muted, fontSize: 12, lineHeight: 19, marginTop: 7 },
+  clarificationPanel: { borderRadius: 28, borderWidth: 1, borderColor: 'rgba(217,179,107,0.3)', backgroundColor: 'rgba(16,26,29,0.9)', padding: 20 }, clarificationTitle: { color: colors.bone, fontFamily: editorialFont, fontSize: 30, lineHeight: 37, marginTop: 13 }, clarificationBody: { color: colors.muted, fontSize: 14, lineHeight: 21, marginTop: 10 }, intentQuote: { color: colors.gold, fontFamily: editorialFont, fontSize: 16, lineHeight: 23, marginTop: 12 }, clarificationOptions: { gap: 9, marginTop: 24, marginBottom: 18 }, clarificationOption: { minHeight: 58, borderRadius: 18, borderWidth: 1, borderColor: colors.line, backgroundColor: 'rgba(4,10,12,0.34)', paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center' }, clarificationOptionText: { color: colors.bone, fontSize: 15, fontWeight: '600', flex: 1 },
+  lifeSummary: { flexDirection: 'row', alignItems: 'center', borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.line, paddingVertical: 18, marginBottom: 28 }, lifeSummaryBig: { color: colors.green, fontSize: 48, fontWeight: '200', marginRight: 16 }, lifeSummaryTitle: { color: colors.bone, fontSize: 16 }, lifeSummaryBody: { color: colors.muted, fontSize: 11, marginTop: 4 }, memoryGrid: { gap: 14 }, memoryCard: { minHeight: 230 }, memoryImage: { minHeight: 230, justifyContent: 'flex-end' }, memoryImageStyle: { borderRadius: 24 }, memoryCopy: { padding: 18 }, memoryDate: { color: colors.gold, fontSize: 11, letterSpacing: 1.1 }, memoryTitle: { color: colors.bone, fontFamily: editorialFont, fontSize: 27, lineHeight: 33, fontWeight: '400', marginTop: 7 }, memoryNote: { color: 'rgba(244,238,227,0.78)', fontSize: 12, lineHeight: 18, marginTop: 6 }, memoryMeaning: { color: colors.gold, fontSize: 11, lineHeight: 16, marginTop: 9 }, memoryShared: { color: colors.green, fontSize: 11, marginTop: 8 }, learningCard: { borderRadius: 22, borderWidth: 1, borderColor: colors.line, backgroundColor: 'rgba(164,197,93,0.06)', padding: 18, marginTop: 22 }, learningTitle: { color: colors.green, fontSize: 14, fontWeight: '700' }, learningBody: { color: colors.muted, fontSize: 12, lineHeight: 19, marginTop: 7 },
   bottomNav: { position: 'absolute', left: 14, right: 14, bottom: 10, minHeight: 72, borderRadius: 26, borderWidth: 1, borderColor: colors.line, backgroundColor: 'rgba(9,17,20,0.96)', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 6 }, navItem: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 5, minHeight: 62 }, navIcon: { color: colors.muted, fontSize: 18 }, navLabel: { color: colors.muted, fontSize: 10 }, navActive: { color: colors.green },
   backButton: { alignSelf: 'flex-start', minHeight: 44, justifyContent: 'center', marginBottom: 12 }, backButtonText: { color: colors.muted, fontSize: 14 }, detailHero: { height: 430, justifyContent: 'flex-end', marginHorizontal: -22, marginTop: -66, marginBottom: 24 }, detailHeroImage: { borderBottomLeftRadius: 30, borderBottomRightRadius: 30 }, detailHeroCopy: { padding: 22, paddingTop: 120 }, detailTitle: { color: colors.bone, fontSize: 42, lineHeight: 49, fontWeight: '400', fontFamily: editorialFont, letterSpacing: -0.8, marginTop: 13 }, detailPromise: { color: 'rgba(244,238,227,0.84)', fontSize: 16, lineHeight: 23, marginTop: 10 }, wonderHeadline: { color: colors.gold, fontSize: 11, letterSpacing: 1.3, fontWeight: '700' }, wonderLarge: { color: colors.bone, fontSize: 21, lineHeight: 30, fontWeight: '400', fontFamily: editorialFont, marginTop: 10 }, factStrip: { flexDirection: 'row', gap: 14, borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.line, paddingVertical: 16, marginVertical: 22 },
   liveEvidenceCard: { borderRadius: 22, borderWidth: 1, borderColor: 'rgba(164,197,93,0.32)', backgroundColor: 'rgba(164,197,93,0.06)', padding: 16, gap: 12, marginBottom: 20 }, liveEvidenceTitle: { color: colors.green, fontSize: 9, letterSpacing: 1.35, fontWeight: '700' }, liveEvidenceRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 }, liveEvidenceDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.green, marginTop: 5 }, liveEvidenceLabel: { color: colors.bone, fontSize: 12, lineHeight: 17 }, liveEvidenceMeta: { color: colors.muted, fontSize: 9, marginTop: 3 }, liveEvidenceCaution: { color: colors.gold, fontSize: 10, lineHeight: 15, borderTopWidth: 1, borderTopColor: colors.line, paddingTop: 10 },
   blueprintBadge: { minHeight: 64, borderRadius: 18, borderWidth: 1, borderColor: 'rgba(164,197,93,0.22)', backgroundColor: 'rgba(164,197,93,0.05)', padding: 13, marginTop: -8, marginBottom: 20, flexDirection: 'row', alignItems: 'center', gap: 11 }, blueprintBadgeMark: { color: colors.green, fontSize: 18 }, blueprintBadgeTitle: { color: colors.bone, fontSize: 13, fontWeight: '700' }, blueprintBadgeBody: { color: colors.muted, fontSize: 11, lineHeight: 16, marginTop: 3 },
+  meaningThreadCard: { borderRadius: 20, borderWidth: 1, borderColor: 'rgba(217,179,107,0.26)', backgroundColor: 'rgba(217,179,107,0.045)', padding: 16, marginBottom: 20 }, meaningThreadCompact: { marginTop: 14, marginBottom: 2 }, meaningThreadEyebrow: { color: colors.gold, fontSize: 10, letterSpacing: 1.2, fontWeight: '700' }, meaningThreadLabel: { color: colors.bone, fontFamily: editorialFont, fontSize: 19, lineHeight: 25, marginTop: 8 }, meaningThreadReason: { color: colors.muted, fontSize: 11, lineHeight: 17, marginTop: 7 },
   flowTitle: { color: colors.bone, fontSize: 41, lineHeight: 47, fontWeight: '400', fontFamily: editorialFont, letterSpacing: -0.8 },
   expectationCard: { borderRadius: 26, borderWidth: 1, borderColor: 'rgba(217,179,107,0.34)', backgroundColor: 'rgba(217,179,107,0.06)', padding: 20, marginTop: 24 }, expectationLabel: { color: colors.gold, fontSize: 9, letterSpacing: 1.5, fontWeight: '700' }, expectationTitle: { color: colors.bone, fontSize: 24, lineHeight: 31, fontWeight: '300', marginTop: 10 }, expectationBody: { color: colors.muted, fontSize: 13, lineHeight: 20, marginTop: 9 },
   prepareLiveCard: { borderRadius: 22, borderWidth: 1, borderColor: 'rgba(164,197,93,0.3)', backgroundColor: 'rgba(164,197,93,0.05)', padding: 16, gap: 12, marginTop: 14, marginBottom: 24 }, prepareLiveRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },

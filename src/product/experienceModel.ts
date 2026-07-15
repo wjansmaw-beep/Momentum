@@ -74,6 +74,12 @@ export type Experience = {
     origin: 'editorial' | 'deterministic' | 'generated-draft';
     validationLabel: string;
   };
+  meaningThread?: {
+    horizon: 'near' | 'growth' | 'meaning';
+    label: string;
+    source: 'user-confirmed';
+    reason: string;
+  };
 };
 
 export const experienceFactLabels: Record<ExperienceKind, { duration: string; distance: string; effort: string }> = {
@@ -157,6 +163,25 @@ export const experiences: Experience[] = [
       { title: 'Rustig afronden', instruction: 'Leg het gewicht veilig neer, loop even uit en laat je ademhaling vanzelf zakken.', meta: '2 minuten', seconds: 45 },
     ],
     memoryPrompt: 'Was deze intensiteit vandaag passend?', keywords: ['sport', 'trainen', 'workout', 'kracht', 'kettlebell', 'bewegen', 'uitdaging'], company: ['solo', 'together'],
+  },
+  {
+    id: 'bodyweight-session', kind: 'movement', title: 'Sterk zonder materiaal',
+    promise: 'Een complete sessie met alleen je eigen lichaamsgewicht en een helder einde.',
+    wonder: 'Vier eenvoudige bewegingen worden samen een stevige training die vrijwel overal kan.',
+    image: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?auto=format&fit=crop&w=1200&q=88',
+    accent: '#C77B59', duration: 22, effort: 'Stevig', cta: 'Zet deze sessie klaar',
+    why: ['Geen materiaal nodig', 'Past met buffer in een vrij halfuur', 'Volledig stap voor stap uit te voeren'],
+    prepareTitle: 'Maak alleen wat ruimte', prepare: ['Vrije vloer van ongeveer twee passen', 'Water binnen bereik', 'Stevige ondergrond', 'Vereenvoudig of stop wanneer bewegen niet goed voelt'],
+    presenceMode: 'guided', presenceTitle: 'Begin beheerst', presenceCue: 'Techniek bepaalt het tempo; niet de klok.',
+    steps: [
+      { title: 'Rustig opwarmen', instruction: 'Loop op de plaats, maak rustige squats en draai je schouders los. Begin pas wanneer bewegen goed voelt.', meta: '3 minuten', seconds: 60 },
+      { title: 'Squat naar een stoel', instruction: 'Zak beheerst richting een stoel of denkbeeldige zitting. Kom rustig omhoog en stop wanneer controle verdwijnt.', meta: '3 rondes · 8 herhalingen', insight: { title: 'Maak de beweging passend', body: 'Een hogere stoel of kleinere beweging maakt de squat lichter. Die aanpassing is geen mislukking maar een manier om controle te bewaren.', topic: 'movement', sourceKind: 'editorial', sourceLabel: 'Momentum trainingsredactie' } },
+      { title: 'Schuine push-up', instruction: 'Plaats je handen tegen een stevige tafel of muur. Houd je lichaam lang en beweeg alleen zo diep als comfortabel blijft.', meta: '3 rondes · 6–10 herhalingen' },
+      { title: 'Uitstap naar achteren', instruction: 'Stap om en om rustig naar achteren en gebruik steun wanneer dat veiliger voelt.', meta: '3 rondes · 6 per zijde', insight: { title: 'Stabiliteit gaat voor diepte', body: 'Een kleine stap met rustige controle is waardevoller dan een diepe beweging waarbij je balans verliest.', topic: 'movement', sourceKind: 'editorial', sourceLabel: 'Momentum trainingsredactie' } },
+      { title: 'Bear hold of tafelplank', instruction: 'Kies de variant die beheerst voelt. Adem normaal en stop voordat je houding vervaagt.', meta: '3 rondes · 20 seconden', seconds: 20 },
+      { title: 'Neem je tijd terug', instruction: 'Loop rustig uit, laat je ademhaling zakken en rond af zonder nog een oefening toe te voegen.', meta: '2 minuten', seconds: 45 },
+    ],
+    memoryPrompt: 'Voelde deze sessie vandaag goed gedoseerd?', keywords: ['sport', 'trainen', 'workout', 'bodyweight', 'zonder materiaal', 'bewegen', 'uitdaging'], company: ['solo', 'together'],
   },
   {
     id: 'family-mission', kind: 'connect', title: 'De kleine vondstenmissie',

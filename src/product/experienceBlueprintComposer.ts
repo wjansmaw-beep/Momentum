@@ -15,6 +15,20 @@ export type BlueprintComposition = {
   interpretation: string;
 };
 
+export type IntentClarificationOption = { id: string; label: string; terms: string };
+export type IntentClarification = {
+  id: 'direction' | 'food-form' | 'movement-form' | 'outside-tone';
+  question: string;
+  reason: string;
+  options: IntentClarificationOption[];
+};
+
+export type ActiveIntentUnderstanding = {
+  domains: BlueprintDomain[];
+  confidence: 'high' | 'medium' | 'low';
+  clarification?: IntentClarification;
+};
+
 type DomainContract = {
   id: string;
   terms: string[];
@@ -91,8 +105,63 @@ export function detectBlueprintDomains(input: string): BlueprintDomain[] {
     .map((item) => item.domain);
 }
 
-export function composeExperienceBlueprints(input: string, context: PrototypeContext, candidates: Experience[]): BlueprintComposition {
-  const domains = detectBlueprintDomains(input);
+const hasAny = (input: string, terms: string[]) => terms.some((term) => input.includes(term));
+
+export function understandActiveIntent(input: string): ActiveIntentUnderstanding {
+  const normalized = normalize(input);
+  const domains = detectBlueprintDomains(normalized);
+  if (!normalized) return { domains, confidence: 'medium' };
+
+  if (!domains.length) return {
+    domains,
+    confidence: 'low',
+    clarification: {
+      id: 'direction',
+      question: 'Wat zou dit moment de moeite waard maken?',
+      reason: 'Je woorden geven nog geen betrouwbare richting. Eén keuze is genoeg.',
+      options: [
+        { id: 'calm', label: 'Rust en ruimte', terms: 'rust herstel buiten rustig' },
+        { id: 'energy', label: 'Energie en beweging', terms: 'bewegen workout buiten actief' },
+        { id: 'connection', label: 'Iets samen beleven', terms: 'samen gezin spel verbinding' },
+        { id: 'curiosity', label: 'Iets nieuws ontdekken', terms: 'leren cultuur natuur ontdekken' },
+      ],
+    },
+  };
+
+  const primary = domains[0];
+  if (primary === 'food' && !hasAny(normalized, ['shake', 'smoothie', 'voorraad', 'ingrediënt', 'warm', 'snel', 'ontbijt', 'diner'])) return {
+    domains, confidence: 'medium', clarification: {
+      id: 'food-form', question: 'Wat maakt eten nu passend?', reason: 'Dit bepaalt ingrediënten, voorbereiding en het soort begeleiding.', options: [
+        { id: 'pantry', label: 'Warm met wat ik al heb', terms: 'koken warme maaltijd voorraad ingrediënten' },
+        { id: 'shake', label: 'Snel en fris', terms: 'shake smoothie ontbijt snel fris' },
+        { id: 'together', label: 'Samen iets maken', terms: 'koken samen gezin verbinding' },
+      ],
+    },
+  };
+  if (primary === 'movement' && !hasAny(normalized, ['kettlebell', 'fiets', 'fietsen', 'hardlopen', 'rennen', 'zonder materiaal', 'bodyweight', 'buiten'])) return {
+    domains, confidence: 'medium', clarification: {
+      id: 'movement-form', question: 'Hoe wil je bewegen?', reason: 'Materiaal en omgeving veranderen de volledige sessie.', options: [
+        { id: 'bodyweight', label: 'Zonder materiaal', terms: 'workout bewegen bodyweight zonder materiaal' },
+        { id: 'strength', label: 'Kracht met kettlebell', terms: 'kracht workout kettlebell uitdaging' },
+        { id: 'outside', label: 'Buiten in beweging', terms: 'buiten fietsen wandelen actief' },
+      ],
+    },
+  };
+  if (primary === 'outside' && !hasAny(normalized, ['wandelen', 'wandeling', 'fiets', 'fietsen', 'vogels', 'snorkelen', 'route', 'zee', 'bos', 'strand'])) return {
+    domains, confidence: 'medium', clarification: {
+      id: 'outside-tone', question: 'Waar trekt buiten je nu het meest naartoe?', reason: 'Eén nuance voorkomt dat Momentum zomaar een activiteit kiest.', options: [
+        { id: 'quiet', label: 'Rustig kijken', terms: 'natuur wandelen rust vogels kijken' },
+        { id: 'active', label: 'Actief op pad', terms: 'buiten fietsen route bewegen actief' },
+        { id: 'learn', label: 'De plek beter begrijpen', terms: 'buiten cultuur leren geschiedenis natuur informatie' },
+      ],
+    },
+  };
+  return { domains, confidence: domains.length === 1 ? 'high' : 'medium' };
+}
+
+export function composeExperienceBlueprints(input: string, context: PrototypeContext, candidates: Experience[], clarificationTerms = ''): BlueprintComposition {
+  const combinedInput = `${input} ${clarificationTerms}`.trim();
+  const domains = detectBlueprintDomains(combinedInput);
   if (!domains.length) return { experiences: [], interpretedDomains: [], interpretation: input.trim() ? 'Je woorden vragen nog om één richting.' : 'Verras me met wat nu uitvoerbaar is.' };
 
   const composed = domains.flatMap((domain) => candidates

@@ -249,6 +249,8 @@ The four continuous tracks are Philosophy, Experience, Understanding, and Trust.
 
 **Implementation note (2026-07-15):** complete Experience composition is now separated from Guide composition. A first deterministic Blueprint Composer interprets explicit intent through reviewed domain contracts and validators before the existing guide, quality and ranking boundaries. Prepare, Memory and Profile are quieter consumer surfaces, with diagnostics separated into Momentum Lab. No external model or backend is active. See ADR-034.
 
+**Implementation note (2026-07-15):** active intent now asks at most one material clarification before recomposition, including food form, movement form, outside tone, or an unknown desired direction. A first complete bodyweight blueprint expands real execution without material. User-confirmed near, growth, and meaning directions may continue as a soft Meaning Thread through Promise, Prepare, and Memory without goals, streaks, or inferred purpose. See ADR-035.
+
 ## Advancement rule
 
 A phase may begin discovery before the prior phase is fully complete, but implementation may not use unresolved foundational questions as silent assumptions. Founder approval is required to lift the no-application-code gate.
