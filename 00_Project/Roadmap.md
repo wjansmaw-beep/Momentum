@@ -253,6 +253,8 @@ The four continuous tracks are Philosophy, Experience, Understanding, and Trust.
 
 **Implementation note (2026-07-15):** Active Intent can now request new capsule candidates through a provider-independent generation boundary. Untrusted drafts are sanitized, domain-validated, ranked against trusted candidates, and visibly disclosed; a complete device-local synthesis keeps the flow useful without an external endpoint. See ADR-036.
 
+**Implementation note (2026-07-15):** Generator Service v1 now implements the remote boundary with a validated fixture provider and an optional server-only OpenAI Responses provider using Structured Outputs. Web development can exercise the complete service path without a key; production gateway, attestation, distributed limits, and real model evaluation remain explicit gates. See ADR-037.
+
 ## Advancement rule
 
 A phase may begin discovery before the prior phase is fully complete, but implementation may not use unresolved foundational questions as silent assumptions. Founder approval is required to lift the no-application-code gate.

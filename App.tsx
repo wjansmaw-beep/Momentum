@@ -638,7 +638,7 @@ function DiscoverScreen({ context, candidatePool, learning, personal, onOpen }: 
           <PrimaryButton label={input.trim() ? 'Vind wat hierbij past' : 'Help me kiezen'} onPress={submitIntent} />
           <View style={styles.orRow}><View style={styles.orLine} /><Text style={styles.orText}>OF</Text><View style={styles.orLine} /></View>
           <SecondaryButton label="Verras me binnen deze tijd" onPress={surprise} />
-          <Text style={styles.intentPrivacy}>{remoteGenerationConfigured ? 'Voor een nieuwe capsule gaan alleen deze zin, je gekozen tijd en praktische momentkeuzes naar de beveiligde generator. Geen chatgeschiedenis, agenda-inhoud of herinneringen.' : 'Voor deze proef wordt je zin alleen lokaal geïnterpreteerd. Er wordt geen chatgeschiedenis gemaakt.'}</Text>
+          <Text style={styles.intentPrivacy}>{remoteGenerationConfigured ? 'Voor een nieuwe capsule gaan alleen deze zin, je gekozen tijd en praktische momentkeuzes naar de generatorservice. Geen chatgeschiedenis, agenda-inhoud of herinneringen.' : 'Voor deze proef wordt je zin alleen lokaal geïnterpreteerd. Er wordt geen chatgeschiedenis gemaakt.'}</Text>
         </View>
       ) : mode === 'clarify' && understanding.clarification ? (
         <View style={styles.clarificationPanel}>

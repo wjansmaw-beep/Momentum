@@ -1,8 +1,11 @@
 import { BlueprintDomain, detectBlueprintDomains, validateGeneratedDrafts } from './experienceBlueprintComposer';
 import { CapsuleStep, Experience, ExperienceKind, InsightTopic } from './experienceModel';
 import { PrototypeContext } from './localIntelligence';
+import { Platform } from 'react-native';
 
 declare const process: { env: { EXPO_PUBLIC_MOMENTUM_GENERATOR_URL?: string } };
+const developmentGeneratorUrl = Platform.OS === 'web' ? 'http://127.0.0.1:8787/v1/experience-drafts' : undefined;
+const generatorUrl = process.env.EXPO_PUBLIC_MOMENTUM_GENERATOR_URL || developmentGeneratorUrl;
 
 export type GenerationMode = 'remote' | 'local-synthesis';
 export type GenerationOutcome = {
@@ -65,7 +68,7 @@ function sanitizeStep(value: unknown): CapsuleStep | undefined {
   };
 }
 
-function sanitizeRemoteDraft(value: unknown, index: number, intent: string): Experience | undefined {
+function sanitizeRemoteDraft(value: unknown, index: number, intent: string, mode: 'model' | 'fixture', provider: string): Experience | undefined {
   if (!value || typeof value !== 'object') return undefined;
   const raw = value as Record<string, unknown>;
   const kind = text(raw.kind) as ExperienceKind;
@@ -103,13 +106,15 @@ function sanitizeRemoteDraft(value: unknown, index: number, intent: string): Exp
     memoryPrompt: text(raw.memoryPrompt, 160) || 'Wat maakte dit moment de moeite waard?',
     keywords: textList(raw.keywords, 12, 40),
     company: requestedCompanies.length ? requestedCompanies : ['solo'],
-    generation: { mode: 'remote', provider: 'secure-generator-endpoint', createdAt: new Date().toISOString(), disclosure: 'Nieuw samengesteld uit je huidige vraag; feiten zonder bron zijn niet als live informatie gebruikt.' },
+    generation: mode === 'model'
+      ? { mode: 'remote', provider, createdAt: new Date().toISOString(), disclosure: 'Nieuw samengesteld uit je huidige vraag; feiten zonder bron zijn niet als live informatie gebruikt.' }
+      : { mode: 'local-synthesis', provider, createdAt: new Date().toISOString(), disclosure: 'Door de lokale generatorservice samengesteld en door dezelfde capsulegrenzen gecontroleerd; geen externe AI of verzonnen live feiten.' },
   };
 }
 
-async function requestRemoteDrafts(request: GenerationRequest): Promise<Experience[]> {
-  const url = process.env.EXPO_PUBLIC_MOMENTUM_GENERATOR_URL;
-  if (!url) return [];
+async function requestRemoteDrafts(request: GenerationRequest): Promise<{ drafts: Experience[]; mode: 'model' | 'fixture' }> {
+  const url = generatorUrl;
+  if (!url) return { drafts: [], mode: 'fixture' };
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 9000);
   try {
@@ -121,8 +126,11 @@ async function requestRemoteDrafts(request: GenerationRequest): Promise<Experien
     });
     if (!response.ok) throw new Error(`Generator antwoordde met ${response.status}`);
     const payload: unknown = await response.json();
-    const rawDrafts = payload && typeof payload === 'object' && Array.isArray((payload as { drafts?: unknown[] }).drafts) ? (payload as { drafts: unknown[] }).drafts : [];
-    return rawDrafts.slice(0, 3).map((draft, index) => sanitizeRemoteDraft(draft, index, request.intent)).filter((draft): draft is Experience => Boolean(draft));
+    const envelope = payload && typeof payload === 'object' ? payload as { drafts?: unknown[]; mode?: unknown; provider?: unknown } : {};
+    const rawDrafts = Array.isArray(envelope.drafts) ? envelope.drafts : [];
+    const mode = envelope.mode === 'fixture' ? 'fixture' : 'model';
+    const provider = typeof envelope.provider === 'string' ? envelope.provider.slice(0, 80) : 'secure-generator-endpoint';
+    return { drafts: rawDrafts.slice(0, 3).map((draft, index) => sanitizeRemoteDraft(draft, index, request.intent, mode, provider)).filter((draft): draft is Experience => Boolean(draft)), mode };
   } finally {
     clearTimeout(timeout);
   }
@@ -180,19 +188,19 @@ function localSynthesis(request: GenerationRequest, candidates: Experience[]): E
   });
 }
 
-export const isRemoteGenerationConfigured = () => Boolean(process.env.EXPO_PUBLIC_MOMENTUM_GENERATOR_URL);
+export const isRemoteGenerationConfigured = () => Boolean(generatorUrl);
 
 export async function generateExperienceCandidates(intent: string, clarificationTerms: string, context: PrototypeContext, candidates: Experience[]): Promise<GenerationOutcome> {
   const domains = detectBlueprintDomains(`${intent} ${clarificationTerms}`);
   const request: GenerationRequest = { intent: intent.trim(), clarificationTerms, context: { dayPart: context.dayPart, company: context.company, availableMinutes: context.availableMinutes, hasKettlebell: context.hasKettlebell }, domains, contractVersion: 'experience-draft-v1' };
   if (!request.intent && !clarificationTerms) return { experiences: [], mode: 'local-synthesis', message: 'Geen expliciete richting om nieuwe inhoud voor te maken.', rejected: 0 };
 
-  const endpointConfigured = Boolean(process.env.EXPO_PUBLIC_MOMENTUM_GENERATOR_URL);
+  const endpointConfigured = Boolean(generatorUrl);
   if (endpointConfigured) {
     try {
       const remote = await requestRemoteDrafts(request);
-      const validated = validateGeneratedDrafts(remote, context);
-      if (validated.length) return { experiences: validated, mode: 'remote', message: 'Nieuwe capsule gemaakt en gecontroleerd.', rejected: remote.length - validated.length };
+      const validated = validateGeneratedDrafts(remote.drafts, context);
+      if (validated.length) return { experiences: validated, mode: remote.mode === 'model' ? 'remote' : 'local-synthesis', message: remote.mode === 'model' ? 'Nieuwe capsule gemaakt en gecontroleerd.' : 'Nieuwe capsule via de lokale generatorservice gemaakt en gecontroleerd.', rejected: remote.drafts.length - validated.length };
     } catch {
       // A failed generator must be silent and recover to the trusted local path.
     }

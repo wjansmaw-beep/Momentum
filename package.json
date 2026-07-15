@@ -9,6 +9,8 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
+    "generator": "node services/generator/server.mjs",
+    "generator:fixture": "node services/generator/server.mjs --fixture",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

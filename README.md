@@ -35,7 +35,7 @@ The first Living World slice uses:
 
 Calendar is the first private context source. In an iOS development build, the user can connect it from Profile; Momentum derives free windows locally and immediately discards titles, notes, locations, attendees, and identifiers. The web preview and Expo Go retain manual time input because real Calendar access is unavailable there.
 
-HealthKit, background location, accounts, and generative AI are not connected. Foreground approximate location is requested only after the user explicitly asks for nearby live context.
+HealthKit, background location, and accounts are not connected. A local Generator Service fixture now exercises complete adaptive capsules; an optional server-only OpenAI provider is configuration-ready but has not been runtime-tested without an API key. Foreground approximate location is requested only after the user explicitly asks for nearby live context.
 
 ## Run
 
@@ -61,12 +61,26 @@ EXPO_PUBLIC_EBIRD_API_KEY=your_token_here
 
 Restart Expo after changing the environment. `EXPO_PUBLIC_` variables are bundled into the client, so this is suitable only for the current development proof. Production must use a secure server-side adapter and never commit a token.
 
-## Optional capsule generator
+## Capsule Generator Service
 
-Discover works without an external generator: it locally combines validated experience building blocks. To connect a real generative service later, configure only an application-owned endpoint URL:
+For the complete local web flow, start the fixture service in a separate terminal:
 
 ```text
-EXPO_PUBLIC_MOMENTUM_GENERATOR_URL=https://your-service.example/generate-experiences
+npm run generator:fixture
 ```
 
-Never place a model-provider API key in an `EXPO_PUBLIC_` variable. The endpoint owns the secret and accepts the minimal `experience-draft-v1` request described in ADR-036. It returns an object with a `drafts` array containing complete Experience fields. The client treats the response as untrusted and may reject every draft. Live facts and route plans are not accepted from this endpoint.
+The web app automatically checks `http://127.0.0.1:8787/v1/experience-drafts`. When the service is unavailable, Discover falls back to device-local synthesis.
+
+To use the optional OpenAI provider, set `OPENAI_API_KEY` only in the server environment and run:
+
+```text
+npm run generator
+```
+
+The model can be changed with `OPENAI_MODEL`; the default is `gpt-5.6-terra`. To connect a remotely deployed application-owned service, configure only its public endpoint URL in Expo:
+
+```text
+EXPO_PUBLIC_MOMENTUM_GENERATOR_URL=https://your-service.example/v1/experience-drafts
+```
+
+Never place a model-provider API key in an `EXPO_PUBLIC_` variable. The service owns the secret and accepts the minimal `experience-draft-v1` request described in ADR-036 and ADR-037. Both server and client may reject every draft. Live facts and route plans are not accepted from this endpoint. See `13_Technical_Feasibility/Generator_Service_Runbook.md` before any public deployment.
