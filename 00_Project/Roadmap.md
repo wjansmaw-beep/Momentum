@@ -245,6 +245,8 @@ The four continuous tracks are Philosophy, Experience, Understanding, and Trust.
 
 **Implementation note (2026-07-15):** every candidate Experience now passes through an automatic Guide Composer. Dynamic Living World cards derive up to three guide moments from current source evidence, route structure, and reviewed experience-kind contracts; expired evidence is excluded and automatic composition is visible. This is deterministic groundwork for later grounded generative AI, not an external model integration. See ADR-032.
 
+**Implementation note (2026-07-15):** composed candidates now pass a structural quality gate before ranking. Incomplete cards are withheld, degraded source coverage falls back honestly, and local Profile controls expose aggregate composition status. Explicit reflection feedback now affects default guide depth and removes muted content from preparation as well as Presence. See ADR-033.
+
 ## Advancement rule
 
 A phase may begin discovery before the prior phase is fully complete, but implementation may not use unresolved foundational questions as silent assumptions. Founder approval is required to lift the no-application-code gate.
