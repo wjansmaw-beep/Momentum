@@ -123,6 +123,18 @@ Presence has two reversible visual states:
 
 The change is controlled by the person. Momentum does not punish reopening the guide and does not use a blank screen when active safety information requires attention.
 
+### Layered consultable guide
+
+Guide depth changes optional richness, never access to the essential current instruction:
+
+- **quiet** keeps the current instruction available and otherwise becomes still;
+- **guide** adds the current relevant insight and current source evidence;
+- **deep** may add further sourced insights and practical background across the Capsule.
+
+The person can open and close this guide from Presence, including with one action from phone-away. Muted insight topics remain absent. Expired live evidence is not phrased as current; when current coverage is unavailable, the Capsule names its editorial or evergreen basis.
+
+Shared preparation may locally check whether timing, pace, and practical details have been discussed. These checks are optional and do not imply remote readiness or block Presence.
+
 ## Interruption and safety
 
 Users can pause, cancel, or change plans without penalty. The capsule adapts to lost connectivity, changed weather, closed venues, and missed timing. Safety-critical changes override quietness, but alerts remain factual and actionable.

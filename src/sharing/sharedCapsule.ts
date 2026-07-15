@@ -31,6 +31,11 @@ export type SharedCapsuleState = {
   participants: SharedParticipant[];
   coordination: SharedCoordination;
   localOnly: true;
+  readiness: {
+    timing: boolean;
+    pace: boolean;
+    practical: boolean;
+  };
 };
 
 const inviteParameter = 'momentumInvite';
@@ -106,6 +111,7 @@ export function sharedStateFromInvite(invite: SharedCapsuleInvite, guestName: st
     role: 'guest',
     coordination: invite.coordination,
     localOnly: true,
+    readiness: { timing: false, pace: false, practical: false },
     participants: [
       { id: 'host', name: safeName(invite.hostName), role: 'host', status: 'ready' },
       { id: 'guest', name: safeName(guestName), role: 'guest', status: 'ready' },
@@ -119,6 +125,7 @@ export function hostSharedState(invite: SharedCapsuleInvite): SharedCapsuleState
     role: 'host',
     coordination: invite.coordination,
     localOnly: true,
+    readiness: { timing: false, pace: false, practical: false },
     participants: [
       { id: 'host', name: safeName(invite.hostName), role: 'host', status: 'ready' },
       { id: 'guest', name: 'Uitgenodigde', role: 'guest', status: 'invited' },

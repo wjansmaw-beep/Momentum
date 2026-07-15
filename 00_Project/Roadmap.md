@@ -239,6 +239,8 @@ The four continuous tracks are Philosophy, Experience, Understanding, and Trust.
 
 **Implementation note (2026-07-15):** shared preparation now persists locally across reloads, malformed and 72-hour-expired invitations fail explicitly, local participation can be withdrawn, and shared Memory keeps each person's reflection private. Remote revocation still requires a session service. See ADR-029.
 
+**Implementation note (2026-07-15):** Presence now has one reversible, layered guide for quiet, guide, and deep use. Current evidence is filtered by its own expiry, editorial and evergreen fallback are named honestly, and Shared Capsules can locally check timing, pace, and practical readiness without implying remote synchronization. Guide composition is separated from presentation for later native surfaces. See ADR-030.
+
 ## Advancement rule
 
 A phase may begin discovery before the prior phase is fully complete, but implementation may not use unresolved foundational questions as silent assumptions. Founder approval is required to lift the no-application-code gate.

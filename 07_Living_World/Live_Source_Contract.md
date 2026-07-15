@@ -30,7 +30,8 @@ The eBird adapter is optional and requires a configured token. It requests recen
 
 `live`, `stale`, `unavailable`, `not configured`, and `error` are distinct. The interface exposes them plainly. A missing source never silently becomes scenario data.
 
+At presentation time, every claim is checked against its recorded expiry. Expired evidence may remain visible only as clearly historical provenance in a deeper view; it is excluded from current promises and preparation. If no current source remains, Momentum falls back to a named editorial or global evergreen basis rather than implying equal live coverage everywhere.
+
 ## Expansion registry
 
 Tides, seasonal nature, events, markets, cultural programs, opening hours, crowds, and closures are registered as future adapters with owner, geographic scope, freshness need, license, and failure behavior before implementation.
-

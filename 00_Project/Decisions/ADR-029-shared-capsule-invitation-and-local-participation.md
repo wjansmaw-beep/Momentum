@@ -45,6 +45,8 @@ Without a backend, the host cannot know whether an invitation was accepted elsew
 
 The interface must never imply remote agreement or shared progress until a secure session service exists.
 
+Preparation may record optional timing, pace, and practical checks on the active device. These are conversation aids, not remote participant state; they do not block starting and are not added to the invitation payload.
+
 A shared preparation may be stored on the local device as the active Capsule draft. Reloading may resume that draft, but does not refresh anyone else's state. Local withdrawal removes the local draft; it cannot revoke a link already received elsewhere. Prototype links expire after 72 hours to limit accidental long-lived reuse. Production revocation requires a server-side token contract.
 
 ## Presence boundary

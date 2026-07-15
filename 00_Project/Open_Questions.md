@@ -78,7 +78,7 @@ Priority labels:
 - **Soon:** Which information types may be generated from sources, which require editorial review, and how is that distinction shown without clutter?
 - **Soon:** How many guide moments can a route contain before learning begins to compete with Presence or safety?
 - **Soon:** How should Momentum detect progress without converting goals into streaks, quotas, or identity judgments?
-- **Later:** Can users choose a deeper guide mode for history, nature, culture, food, or training while the default remains quiet?
+- **Partly resolved:** users can choose quiet, guide, or deep guidance and reopen the same guide from Presence. Topic-specific depth, audio timing, and editorial review workflows remain open. See ADR-030.
 - **Prototype direction:** reflection offers two explicit scopes: this experience only or the insight topic across experiences. Kind- and source-level scope remain unneeded until testing shows value.
 
 ## Trust, onboarding, and permissions
