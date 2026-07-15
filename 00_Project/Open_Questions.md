@@ -59,7 +59,7 @@ Priority labels:
 - **Prototype direction:** an active Capsule and current step persist locally and return through an explicit resume action; completion is never inferred from the handoff. Native return-state refinement remains open. See ADR-027.
 - **Soon:** Which experiences require safety or accessibility screening before acceptance?
 - **Later:** How should shared or family capsules work when participants have different needs and permissions?
-- **Partly resolved:** preparation can choose company, choose a shared meeting pattern, send a versioned web invitation, and accept locally as a guest. The payload excludes private selection context and live-source claims. Account identity, expiring secure tokens, native deep links, revocation, remote acceptance, shared progress, participant conflicts, and retention remain open. See ADR-028 and ADR-029.
+- **Partly resolved:** preparation can choose company, choose a shared meeting pattern, send a versioned web invitation, accept locally as a guest, survive reload, and be left locally. Prototype links expire after 72 hours. The payload excludes private selection context and live-source claims. Account identity, server-backed token expiry, cross-device revocation, native deep links, remote acceptance, shared progress, participant conflicts, and retention remain open. See ADR-028 and ADR-029.
 
 ## Memory and learning
 

@@ -15,6 +15,9 @@ Momentum may turn an accepted Experience Promise into a Shared Capsule before Pr
 - preparing and entering Presence as a guest;
 - showing the ready participants on the active device;
 - preserving a shared-memory label locally after reflection.
+- persisting an accepted or shared preparation locally so it can be resumed after reload;
+- expiring prototype invitations after 72 hours;
+- allowing the local organizer or guest to leave the shared preparation.
 
 This slice is deliberately account-free. It proves the experience and privacy language before choosing identity or synchronization infrastructure.
 
@@ -42,6 +45,8 @@ Without a backend, the host cannot know whether an invitation was accepted elsew
 
 The interface must never imply remote agreement or shared progress until a secure session service exists.
 
+A shared preparation may be stored on the local device as the active Capsule draft. Reloading may resume that draft, but does not refresh anyone else's state. Local withdrawal removes the local draft; it cannot revoke a link already received elsewhere. Prototype links expire after 72 hours to limit accidental long-lived reuse. Production revocation requires a server-side token contract.
+
 ## Presence boundary
 
 One device may carry the shared guide while everyone else puts their phone away. The active device shows who is locally part of the experience and retains the reversible guide/phone-away choice from ADR-028. The guide does not require every participant to keep Momentum open.
@@ -52,8 +57,9 @@ One device may carry the shared guide while everyone else puts their phone away.
 - If the experience is unavailable in the receiving version, Momentum explains this instead of substituting an unrelated experience.
 - A failed share or clipboard action does not create a false `invited` state.
 - Declining the invitation changes no durable preference.
+- Expired and malformed invitations explain the problem and never substitute another experience.
+- Local reflection stays private even when the resulting Memory records who was locally present.
 
 ## Deferred production contract
 
 Production synchronization requires a separate decision covering authenticated or guest identity, expiring invitation tokens, revocation, participant consent, conflict handling, data retention, abuse controls, and secure deep links. This ADR does not authorize that infrastructure.
-

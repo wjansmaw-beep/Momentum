@@ -112,6 +112,8 @@ The receiver may inspect the promise, duration, company, and meeting choice befo
 
 During Presence, one device can remain the consultable shared guide. Other participants do not need to keep Momentum open. A shared-memory label may be stored locally only for people who are locally marked ready.
 
+An accepted or shared preparation can be resumed after a local reload. Leaving that preparation removes only local state and must not claim to revoke an already delivered link. Prototype invitations expire visibly. After completion, each participant owns their own reflection; a shared Memory label never copies another person's note or feedback.
+
 ## Consultable Presence
 
 Presence has two reversible visual states:

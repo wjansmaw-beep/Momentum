@@ -34,6 +34,13 @@ export type SharedCapsuleState = {
 };
 
 const inviteParameter = 'momentumInvite';
+const inviteLifetimeMs = 72 * 60 * 60 * 1000;
+
+export type SharedInviteReadResult =
+  | { state: 'none' }
+  | { state: 'invalid' }
+  | { state: 'expired'; invite: SharedCapsuleInvite }
+  | { state: 'valid'; invite: SharedCapsuleInvite };
 
 const safeName = (value: string) => value.trim().slice(0, 40) || 'Iemand';
 
@@ -55,7 +62,7 @@ export function decodeSharedInvite(value: string | null | undefined): SharedCaps
   if (!value) return null;
   try {
     const parsed = JSON.parse(decodeURIComponent(value)) as Partial<SharedCapsuleInvite>;
-    if (parsed.version !== 1 || !parsed.invitationId || !parsed.experienceId || !parsed.title || !parsed.promise || !parsed.hostName || !parsed.duration) return null;
+    if (parsed.version !== 1 || !parsed.invitationId || !parsed.experienceId || !parsed.title || !parsed.promise || !parsed.hostName || !parsed.duration || !parsed.createdAt) return null;
     if (!['together', 'family'].includes(parsed.company ?? '')) return null;
     if (!['quiet', 'guide', 'deep'].includes(parsed.guideDepth ?? '')) return null;
     if (!['leave-together', 'meet-there'].includes(parsed.coordination ?? '')) return null;
@@ -65,9 +72,16 @@ export function decodeSharedInvite(value: string | null | undefined): SharedCaps
   }
 }
 
-export function readInviteFromCurrentUrl(): SharedCapsuleInvite | null {
-  if (typeof window === 'undefined') return null;
-  return decodeSharedInvite(new URLSearchParams(window.location.search).get(inviteParameter));
+export function readInviteFromCurrentUrl(): SharedInviteReadResult {
+  if (typeof window === 'undefined') return { state: 'none' };
+  const value = new URLSearchParams(window.location.search).get(inviteParameter);
+  if (!value) return { state: 'none' };
+  const invite = decodeSharedInvite(value);
+  if (!invite) return { state: 'invalid' };
+  const createdAt = new Date(invite.createdAt).getTime();
+  if (!Number.isFinite(createdAt)) return { state: 'invalid' };
+  if (Date.now() - createdAt > inviteLifetimeMs) return { state: 'expired', invite };
+  return { state: 'valid', invite };
 }
 
 export function buildInviteUrl(invite: SharedCapsuleInvite): string | null {
