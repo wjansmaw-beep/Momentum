@@ -1,0 +1,113 @@
+import { Company } from '../product/localIntelligence';
+
+export type SharedGuideDepth = 'quiet' | 'guide' | 'deep';
+export type SharedCoordination = 'leave-together' | 'meet-there';
+export type SharedRole = 'host' | 'guest';
+
+export type SharedParticipant = {
+  id: string;
+  name: string;
+  role: SharedRole;
+  status: 'ready' | 'invited';
+};
+
+export type SharedCapsuleInvite = {
+  version: 1;
+  invitationId: string;
+  experienceId: string;
+  title: string;
+  promise: string;
+  duration: number;
+  hostName: string;
+  company: Exclude<Company, 'solo'>;
+  guideDepth: SharedGuideDepth;
+  coordination: SharedCoordination;
+  createdAt: string;
+};
+
+export type SharedCapsuleState = {
+  invitationId: string;
+  role: SharedRole;
+  participants: SharedParticipant[];
+  coordination: SharedCoordination;
+  localOnly: true;
+};
+
+const inviteParameter = 'momentumInvite';
+
+const safeName = (value: string) => value.trim().slice(0, 40) || 'Iemand';
+
+export function createSharedInvite(input: Omit<SharedCapsuleInvite, 'version' | 'invitationId' | 'createdAt' | 'hostName'> & { hostName?: string }): SharedCapsuleInvite {
+  return {
+    ...input,
+    version: 1,
+    invitationId: `invite-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    createdAt: new Date().toISOString(),
+    hostName: safeName(input.hostName ?? ''),
+  };
+}
+
+export function encodeSharedInvite(invite: SharedCapsuleInvite): string {
+  return encodeURIComponent(JSON.stringify(invite));
+}
+
+export function decodeSharedInvite(value: string | null | undefined): SharedCapsuleInvite | null {
+  if (!value) return null;
+  try {
+    const parsed = JSON.parse(decodeURIComponent(value)) as Partial<SharedCapsuleInvite>;
+    if (parsed.version !== 1 || !parsed.invitationId || !parsed.experienceId || !parsed.title || !parsed.promise || !parsed.hostName || !parsed.duration) return null;
+    if (!['together', 'family'].includes(parsed.company ?? '')) return null;
+    if (!['quiet', 'guide', 'deep'].includes(parsed.guideDepth ?? '')) return null;
+    if (!['leave-together', 'meet-there'].includes(parsed.coordination ?? '')) return null;
+    return parsed as SharedCapsuleInvite;
+  } catch {
+    return null;
+  }
+}
+
+export function readInviteFromCurrentUrl(): SharedCapsuleInvite | null {
+  if (typeof window === 'undefined') return null;
+  return decodeSharedInvite(new URLSearchParams(window.location.search).get(inviteParameter));
+}
+
+export function buildInviteUrl(invite: SharedCapsuleInvite): string | null {
+  if (typeof window === 'undefined') return null;
+  const url = new URL(window.location.href);
+  url.search = '';
+  url.hash = '';
+  url.searchParams.set(inviteParameter, encodeSharedInvite(invite));
+  return url.toString();
+}
+
+export function clearInviteFromCurrentUrl() {
+  if (typeof window === 'undefined') return;
+  const url = new URL(window.location.href);
+  url.searchParams.delete(inviteParameter);
+  window.history.replaceState({}, '', url.toString());
+}
+
+export function sharedStateFromInvite(invite: SharedCapsuleInvite, guestName: string): SharedCapsuleState {
+  return {
+    invitationId: invite.invitationId,
+    role: 'guest',
+    coordination: invite.coordination,
+    localOnly: true,
+    participants: [
+      { id: 'host', name: safeName(invite.hostName), role: 'host', status: 'ready' },
+      { id: 'guest', name: safeName(guestName), role: 'guest', status: 'ready' },
+    ],
+  };
+}
+
+export function hostSharedState(invite: SharedCapsuleInvite): SharedCapsuleState {
+  return {
+    invitationId: invite.invitationId,
+    role: 'host',
+    coordination: invite.coordination,
+    localOnly: true,
+    participants: [
+      { id: 'host', name: safeName(invite.hostName), role: 'host', status: 'ready' },
+      { id: 'guest', name: 'Uitgenodigde', role: 'guest', status: 'invited' },
+    ],
+  };
+}

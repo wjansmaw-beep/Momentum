@@ -73,11 +73,22 @@ import {
 } from './src/context/calendarContext';
 import { clearLiveWorldCache, loadLiveWorldCache, saveLiveWorldCache, snapshotAgeMinutes } from './src/liveworld/liveCache';
 import { createWorldContext, ResolvedContentCatalog, resolveContentCatalog } from './src/content/contentCatalog';
+import {
+  buildInviteUrl,
+  clearInviteFromCurrentUrl,
+  createSharedInvite,
+  hostSharedState,
+  readInviteFromCurrentUrl,
+  SharedCapsuleInvite,
+  SharedCapsuleState,
+  SharedCoordination,
+  sharedStateFromInvite,
+} from './src/sharing/sharedCapsule';
 
-type FlowStage = 'promise' | 'prepare' | 'presence' | 'remember' | 'profile' | null;
-type Memory = { id: string; title: string; date: string; image: string; note: string };
+type FlowStage = 'invite' | 'promise' | 'prepare' | 'presence' | 'remember' | 'profile' | null;
+type Memory = { id: string; title: string; date: string; image: string; note: string; sharedWith?: string[] };
 type GuideDepth = 'quiet' | 'guide' | 'deep';
-type ActiveSession = { experienceId: string; stage: 'prepare' | 'presence'; stepIndex: number; origin: Surface; company?: Company; guideDepth?: GuideDepth; updatedAt: string };
+type ActiveSession = { experienceId: string; stage: 'prepare' | 'presence'; stepIndex: number; origin: Surface; company?: Company; guideDepth?: GuideDepth; shared?: SharedCapsuleState; updatedAt: string };
 type PrototypeEvidence = { started: number; completed: number; reflected: number; skippedReflection: number; lastUpdated?: string };
 
 const colors = {
@@ -103,6 +114,10 @@ export default function App() {
   const [personalProfile, setPersonalProfile] = useState<PersonalProfile>(defaultPersonalProfile);
   const [personalHydrated, setPersonalHydrated] = useState(false);
   const [activeSession, setActiveSession] = useState<ActiveSession | null>(null);
+  const [completedSession, setCompletedSession] = useState<ActiveSession | null>(null);
+  const [incomingInvite, setIncomingInvite] = useState<SharedCapsuleInvite | null>(null);
+  const [sharedDraft, setSharedDraft] = useState<SharedCapsuleState | null>(null);
+  const [inviteGuestMode, setInviteGuestMode] = useState(false);
   const [evidence, setEvidence] = useState<PrototypeEvidence>({ started: 0, completed: 0, reflected: 0, skippedReflection: 0 });
   const [sessionHydrated, setSessionHydrated] = useState(false);
   const [evidenceHydrated, setEvidenceHydrated] = useState(false);
@@ -145,6 +160,8 @@ export default function App() {
       loadPlaceContext(snapshot).then((enhanced) => { setLiveWorld(enhanced); setLiveMessage('Live bronnen bijgewerkt'); saveLiveWorldCache(enhanced).catch(() => undefined); }).catch(() => undefined);
     }).catch(() => { setLiveLoading(false); setLiveMessage('Live bronnen konden niet worden bijgewerkt'); });
     loadCalendarContext(false).then(setCalendarContext).catch(() => undefined);
+    const invite = readInviteFromCurrentUrl();
+    if (invite) { setIncomingInvite(invite); setFlowStage('invite'); }
   }, []);
 
   useEffect(() => {
@@ -237,12 +254,13 @@ export default function App() {
   const openExperience = (experience: Experience, from: Surface, stage: FlowStage = 'promise') => {
     setSelected(experience);
     setOrigin(from);
+    setSharedDraft(null);
     setFlowStage(stage);
   };
 
-  const startPresence = (company: Company, guideDepth: GuideDepth) => {
+  const startPresence = (company: Company, guideDepth: GuideDepth, shared?: SharedCapsuleState) => {
     const isNew = activeSession?.experienceId !== selected.id;
-    setActiveSession({ experienceId: selected.id, stage: 'presence', stepIndex: isNew ? 0 : activeSession?.stepIndex ?? 0, origin, company, guideDepth, updatedAt: new Date().toISOString() });
+    setActiveSession({ experienceId: selected.id, stage: 'presence', stepIndex: isNew ? 0 : activeSession?.stepIndex ?? 0, origin, company, guideDepth, shared, updatedAt: new Date().toISOString() });
     if (isNew) setEvidence((current) => ({ ...current, started: current.started + 1, lastUpdated: new Date().toISOString() }));
     setFlowStage('presence');
   };
@@ -254,7 +272,29 @@ export default function App() {
 
   const finishPresence = () => {
     setEvidence((current) => ({ ...current, completed: current.completed + 1, lastUpdated: new Date().toISOString() }));
+    setCompletedSession(activeSession);
     setActiveSession(null); setFlowStage('remember');
+  };
+
+  const acceptIncomingInvite = (guestName: string) => {
+    if (!incomingInvite) return;
+    const invitedExperience = candidatePool.find((item) => item.id === incomingInvite.experienceId) ?? experiences.find((item) => item.id === incomingInvite.experienceId);
+    if (!invitedExperience) return;
+    const shared = sharedStateFromInvite(incomingInvite, guestName);
+    setInviteGuestMode(true);
+    setSelected(invitedExperience);
+    setOrigin('now');
+    setPrototypeContext((current) => ({ ...current, company: incomingInvite.company }));
+    setSharedDraft(shared);
+    setIncomingInvite(null);
+    clearInviteFromCurrentUrl();
+    setFlowStage('prepare');
+  };
+
+  const declineIncomingInvite = () => {
+    setIncomingInvite(null);
+    clearInviteFromCurrentUrl();
+    setFlowStage(null);
   };
 
   const closeFlow = () => setFlowStage(null);
@@ -265,17 +305,19 @@ export default function App() {
       date: 'Vandaag',
       image: selected.image,
       note: input.note || 'Een moment dat de moeite waard was.',
+      sharedWith: completedSession?.shared?.participants.filter((participant) => participant.status === 'ready' && participant.role !== completedSession.shared?.role).map((participant) => participant.name),
     };
     setMemories((current) => [memory, ...current.filter((item) => item.id !== selected.id)].slice(0, 12));
     setPersonalProfile((current) => applyReflection(current, selected, input));
     setEvidence((current) => ({ ...current, reflected: current.reflected + 1, lastUpdated: new Date().toISOString() }));
     setFlowStage(null);
+    setCompletedSession(null);
     setSurface('lifebook');
   };
 
   const skipReflection = () => {
     setEvidence((current) => ({ ...current, skippedReflection: current.skippedReflection + 1, lastUpdated: new Date().toISOString() }));
-    setFlowStage(null); setSurface(origin);
+    setCompletedSession(null); setFlowStage(null); setSurface(origin);
   };
 
   const finishOnboarding = (profile: PersonalProfile) => {
@@ -290,7 +332,8 @@ export default function App() {
   };
 
   if (!personalHydrated) return <View style={styles.root} />;
-  if (!personalProfile.onboardingComplete) return <OnboardingScreen initial={personalProfile} onComplete={finishOnboarding} />;
+  if (flowStage === 'invite' && incomingInvite) return <IncomingInviteScreen invite={incomingInvite} available={candidatePool.some((item) => item.id === incomingInvite.experienceId) || experiences.some((item) => item.id === incomingInvite.experienceId)} onAccept={acceptIncomingInvite} onDecline={declineIncomingInvite} />;
+  if (!personalProfile.onboardingComplete && !inviteGuestMode) return <OnboardingScreen initial={personalProfile} onComplete={finishOnboarding} />;
 
   return (
     <View style={[styles.root, { minHeight: height }]}>
@@ -309,14 +352,40 @@ export default function App() {
             </>
           )}
           {flowStage === 'promise' && <PromiseScreen experience={selected} onClose={closeFlow} onAccept={() => setFlowStage('prepare')} />}
-          {flowStage === 'prepare' && <PrepareScreen experience={selected} initialCompany={(activeSession?.experienceId === selected.id ? activeSession.company : personalProfile.defaultCompany) ?? 'solo'} initialGuideDepth={activeSession?.experienceId === selected.id ? activeSession.guideDepth : undefined} onBack={() => setFlowStage('promise')} onStart={startPresence} />}
-          {flowStage === 'presence' && <PresenceScreen experience={selected} personal={personalProfile} company={activeSession?.company ?? personalProfile.defaultCompany} guideDepth={activeSession?.guideDepth ?? 'guide'} initialStep={activeSession?.experienceId === selected.id ? activeSession.stepIndex : 0} onStepChange={(stepIndex) => setActiveSession((current) => current && current.experienceId === selected.id ? { ...current, stage: 'presence', stepIndex, updatedAt: new Date().toISOString() } : current)} onBack={() => { setActiveSession((current) => current ? { ...current, stage: 'prepare', updatedAt: new Date().toISOString() } : current); setFlowStage('prepare'); }} onFinish={finishPresence} />}
+          {flowStage === 'prepare' && <PrepareScreen experience={selected} hostName={personalProfile.firstName || 'Iemand'} initialCompany={(activeSession?.experienceId === selected.id ? activeSession.company : sharedDraft ? 'together' : personalProfile.defaultCompany) ?? 'solo'} initialGuideDepth={activeSession?.experienceId === selected.id ? activeSession.guideDepth : undefined} initialShared={activeSession?.experienceId === selected.id ? activeSession.shared : sharedDraft ?? undefined} onBack={() => setFlowStage('promise')} onStart={startPresence} />}
+          {flowStage === 'presence' && <PresenceScreen experience={selected} personal={personalProfile} company={activeSession?.company ?? personalProfile.defaultCompany} guideDepth={activeSession?.guideDepth ?? 'guide'} shared={activeSession?.shared} initialStep={activeSession?.experienceId === selected.id ? activeSession.stepIndex : 0} onStepChange={(stepIndex) => setActiveSession((current) => current && current.experienceId === selected.id ? { ...current, stage: 'presence', stepIndex, updatedAt: new Date().toISOString() } : current)} onBack={() => { setActiveSession((current) => current ? { ...current, stage: 'prepare', updatedAt: new Date().toISOString() } : current); setFlowStage('prepare'); }} onFinish={finishPresence} />}
           {flowStage === 'remember' && <RememberScreen experience={selected} onSkip={skipReflection} onSave={finishExperience} />}
           {flowStage === 'profile' && <ProfileScreen personal={personalProfile} evidence={evidence} context={prototypeContext} calendar={calendarContext} calendarLoading={calendarLoading} liveWorld={liveWorld} contentCatalog={contentCatalog} liveLoading={liveLoading} liveMessage={liveMessage} onChange={setPrototypeContext} onPersonalChange={setPersonalProfile} onForgetReflection={(id) => setPersonalProfile((current) => forgetReflection(current, id))} onForgetLearningEvent={(id) => setPersonalProfile((current) => forgetLearningEvent(current, id))} onResetEvidence={() => setEvidence({ started: 0, completed: 0, reflected: 0, skippedReflection: 0 })} onResetLearning={() => setPersonalProfile((current) => resetLearning(current))} onRedoOnboarding={() => setPersonalProfile((current) => ({ ...current, onboardingComplete: false }))} onClearLiveCache={() => { clearLiveWorldCache().catch(() => undefined); setLiveMessage('Regionale live cache gewist'); }} onConnectCalendar={connectCalendar} onRefresh={() => refreshLiveWorld()} onUseLocation={useApproximateLocation} onClose={closeFlow} />}
         </View>
       </SafeAreaView>
     </View>
   );
+}
+
+function IncomingInviteScreen({ invite, available, onAccept, onDecline }: { invite: SharedCapsuleInvite; available: boolean; onAccept: (guestName: string) => void; onDecline: () => void }) {
+  const [guestName, setGuestName] = useState('');
+  return <View style={styles.root}>
+    <StatusBar style="light" />
+    <View pointerEvents="none" style={styles.ambientGold} />
+    <SafeAreaView style={styles.safe}>
+      <ScrollView contentContainerStyle={styles.inviteScreen} showsVerticalScrollIndicator={false}>
+        <Text style={styles.eyebrow}>UITNODIGING VAN {invite.hostName.toUpperCase()}</Text>
+        <Text style={styles.inviteHeadline}>Dit moment kunnen jullie samen beleven.</Text>
+        <View style={styles.invitePromiseCard}>
+          <Text style={styles.expectationLabel}>GEDEELDE EXPERIENCE CAPSULE</Text>
+          <Text style={styles.inviteTitle}>{invite.title}</Text>
+          <Text style={styles.invitePromise}>{invite.promise}</Text>
+          <View style={styles.factStrip}><MiniFact value={`${invite.duration} min`} label="totaal" /><MiniFact value={invite.company === 'family' ? 'Gezin' : 'Samen'} label="gezelschap" /><MiniFact value={invite.coordination === 'meet-there' ? 'Startpunt' : 'Samen'} label="afspraak" /></View>
+        </View>
+        <View style={styles.inviteTrustCard}><Text style={styles.inviteTrustTitle}>Jouw gegevens blijven van jou</Text><Text style={styles.inviteTrustBody}>Deze uitnodiging bevat alleen de ervaring en gezamenlijke afspraak. Jouw profiel, agenda, locatiegeschiedenis en voorkeuren worden niet met {invite.hostName} gedeeld.</Text></View>
+        <Text style={styles.fieldLabel}>HOE MOGEN WE JE IN DEZE ERVARING NOEMEN?</Text>
+        <TextInput value={guestName} onChangeText={setGuestName} placeholder="Je voornaam" placeholderTextColor="rgba(174,180,174,0.55)" style={styles.inviteNameInput} />
+        {available ? <PrimaryButton label="Ik ga mee" onPress={() => onAccept(guestName)} /> : <View style={styles.unavailableInvite}><Text style={styles.unavailableInviteTitle}>Deze kaart is hier nog niet beschikbaar</Text><Text style={styles.unavailableInviteBody}>Open de uitnodiging op een apparaat met dezelfde Momentum-versie. Live informatie wordt altijd opnieuw gecontroleerd.</Text></View>}
+        <SecondaryButton label="Niet nu" onPress={onDecline} />
+        <Text style={styles.invitePrototypeNote}>In deze prototypefase wordt deelname alleen op dit apparaat bijgehouden. Veilige synchronisatie volgt pas met een expliciet account- en privacyontwerp.</Text>
+      </ScrollView>
+    </SafeAreaView>
+  </View>;
 }
 
 function OnboardingScreen({ initial, onComplete }: { initial: PersonalProfile; onComplete: (profile: PersonalProfile) => void }) {
@@ -543,7 +612,7 @@ function LifeBookScreen({ memories, onOpen }: { memories: Memory[]; onOpen: (ite
       <View style={styles.memoryGrid}>
         {memories.map((memory) => {
           const experience = experiences.find((item) => item.title === memory.title) ?? byId('wadden-light');
-          return <Pressable key={memory.id} onPress={() => onOpen(experience)} style={styles.memoryCard}><ImageBackground source={{ uri: memory.image }} style={styles.memoryImage} imageStyle={styles.memoryImageStyle}><View style={styles.imageShade} /><View style={styles.memoryCopy}><Text style={styles.memoryDate}>{memory.date}</Text><Text style={styles.memoryTitle}>{memory.title}</Text><Text style={styles.memoryNote}>{memory.note}</Text></View></ImageBackground></Pressable>;
+          return <Pressable key={memory.id} onPress={() => onOpen(experience)} style={styles.memoryCard}><ImageBackground source={{ uri: memory.image }} style={styles.memoryImage} imageStyle={styles.memoryImageStyle}><View style={styles.imageShade} /><View style={styles.memoryCopy}><Text style={styles.memoryDate}>{memory.date}</Text><Text style={styles.memoryTitle}>{memory.title}</Text><Text style={styles.memoryNote}>{memory.note}</Text>{memory.sharedWith?.length ? <Text style={styles.memoryShared}>Samen met {memory.sharedWith.join(', ')}</Text> : null}</View></ImageBackground></Pressable>;
         })}
       </View>
       <View style={styles.learningCard}><Text style={styles.learningTitle}>Een voorzichtig patroon</Text><Text style={styles.learningBody}>Momenten met buitenlucht en een helder einde lijken vaak de moeite waard. Jij kunt dit later bekijken, corrigeren of verwijderen.</Text></View>
@@ -572,14 +641,36 @@ function PromiseScreen({ experience, onClose, onAccept }: { experience: Experien
   );
 }
 
-function PrepareScreen({ experience, initialCompany, initialGuideDepth, onBack, onStart }: { experience: Experience; initialCompany: Company; initialGuideDepth?: GuideDepth; onBack: () => void; onStart: (company: Company, guideDepth: GuideDepth) => void }) {
+function PrepareScreen({ experience, hostName, initialCompany, initialGuideDepth, initialShared, onBack, onStart }: { experience: Experience; hostName: string; initialCompany: Company; initialGuideDepth?: GuideDepth; initialShared?: SharedCapsuleState; onBack: () => void; onStart: (company: Company, guideDepth: GuideDepth, shared?: SharedCapsuleState) => void }) {
   const supportedCompanies = experience.company;
   const [company, setCompany] = useState<Company>(supportedCompanies.includes(initialCompany) ? initialCompany : supportedCompanies[0]);
   const [guideDepth, setGuideDepth] = useState<GuideDepth>(initialGuideDepth ?? (experience.presenceMode === 'quiet' ? 'quiet' : 'guide'));
+  const [coordination, setCoordination] = useState<SharedCoordination>(initialShared?.coordination ?? 'leave-together');
+  const [shared, setShared] = useState<SharedCapsuleState | undefined>(initialShared);
+  const [shareStatus, setShareStatus] = useState('');
   const companyChoices: Array<{ id: Company; label: string }> = [{ id: 'solo', label: 'Alleen' }, { id: 'together', label: 'Samen' }, { id: 'family', label: 'Met gezin' }];
   const shareExperience = async () => {
-    const companion = company === 'solo' ? 'alleen' : company === 'family' ? 'met gezin' : 'samen';
-    await Share.share({ title: experience.title, message: `Ga je mee?\n\n${experience.title}\n${experience.promise}\n${experience.duration} minuten · ${companion}\n\nIk bereid deze ervaring voor in Momentum.` }).catch(() => undefined);
+    if (company === 'solo') return;
+    const companion = company === 'family' ? 'met gezin' : 'samen';
+    const invite = createSharedInvite({ experienceId: experience.id, title: experience.title, promise: experience.promise, duration: experience.duration, hostName, company, guideDepth, coordination });
+    const inviteUrl = buildInviteUrl(invite);
+    const message = `Ga je mee?\n\n${experience.title}\n${experience.promise}\n${experience.duration} minuten · ${companion}\n${coordination === 'meet-there' ? 'We ontmoeten elkaar bij het startpunt.' : 'We vertrekken samen.'}\n\n${inviteUrl ? `Open de uitnodiging:\n${inviteUrl}` : 'Open Momentum om samen af te stemmen.'}`;
+    try {
+      if (Platform.OS === 'web' && inviteUrl && typeof navigator !== 'undefined' && navigator.clipboard) {
+        await navigator.clipboard.writeText(inviteUrl);
+        setShareStatus('Uitnodigingslink gekopieerd. Je kunt hem nu zelf versturen.');
+      } else {
+        await Share.share({ title: experience.title, message });
+        setShareStatus('Uitnodiging geopend in het deelmenu.');
+      }
+      setShared(hostSharedState(invite));
+    } catch {
+      setShareStatus('Delen lukte niet. Probeer het opnieuw vanaf dit toestel.');
+    }
+  };
+  const chooseCompany = (value: Company) => {
+    setCompany(value);
+    if (value === 'solo') setShared(undefined);
   };
   return (
     <ScrollView contentContainerStyle={styles.flowScroll} showsVerticalScrollIndicator={false}>
@@ -587,8 +678,21 @@ function PrepareScreen({ experience, initialCompany, initialGuideDepth, onBack, 
       <Text style={styles.eyebrow}>JE ERVARING</Text><Text style={styles.flowTitle}>{experience.prepareTitle}</Text><Text style={styles.screenSubtitle}>Eerst wat je gaat beleven. Daarna alleen wat nodig is om te beginnen.</Text>
       <View style={styles.expectationCard}><Text style={styles.expectationLabel}>DIT WACHT OP JE</Text><Text style={styles.expectationTitle}>{experience.wonder}</Text><Text style={styles.expectationBody}>{experience.promise}</Text></View>
       {experience.liveEvidence?.length ? <View style={styles.prepareLiveCard}><Text style={styles.liveEvidenceTitle}>WAT DE WERELD NU LAAT ZIEN</Text>{experience.liveEvidence.slice(0, 3).map((evidence) => <View key={`${evidence.sourceName}-${evidence.label}`} style={styles.prepareLiveRow}><View style={styles.liveEvidenceDot} /><View style={styles.flex}><Text style={styles.liveEvidenceLabel}>{evidence.label}</Text><Text style={styles.liveEvidenceMeta}>{evidence.sourceName} · {evidence.certainty === 'observation' ? 'recente waarneming' : 'actuele verwachting'}</Text></View></View>)}</View> : <View style={styles.editorialDepthCard}><Text style={styles.expectationLabel}>WAAR JE OP KUNT LETTEN</Text><Text style={styles.editorialDepthText}>{experience.steps.find((step) => step.insight)?.insight?.title ?? experience.wonder}</Text><Text style={styles.editorialDepthSource}>{experience.steps.find((step) => step.insight)?.insight?.sourceLabel ?? 'Momentum ervaringsredactie'}</Text></View>}
-      <Text style={styles.fieldLabel}>MET WIE BELEEF JE DIT?</Text><View style={styles.chipRow}>{companyChoices.filter((item) => supportedCompanies.includes(item.id)).map((item) => <ChoiceChip key={item.id} label={item.label} selected={company === item.id} onPress={() => setCompany(item.id)} />)}</View>
-      <Pressable onPress={shareExperience} style={styles.shareCard}><View style={styles.shareMark}><Text style={styles.shareMarkText}>↗</Text></View><View style={styles.flex}><Text style={styles.shareTitle}>Nodig iemand uit</Text><Text style={styles.shareBody}>Deel de belofte, tijd en voorbereiding. Gedeelde voortgang volgt later met accounts.</Text></View><Text style={styles.arrow}>→</Text></Pressable>
+      <Text style={styles.fieldLabel}>MET WIE BELEEF JE DIT?</Text><View style={styles.chipRow}>{companyChoices.filter((item) => supportedCompanies.includes(item.id)).map((item) => <ChoiceChip key={item.id} label={item.label} selected={company === item.id} onPress={() => chooseCompany(item.id)} />)}</View>
+      {company !== 'solo' && <View style={styles.sharedPlanCard}>
+        <Text style={styles.expectationLabel}>SAMEN AFSTEMMEN</Text>
+        <Text style={styles.sharedPlanTitle}>Hoe komen jullie samen bij het begin?</Text>
+        <View style={styles.guideDepthList}>
+          <Pressable onPress={() => setCoordination('leave-together')} style={[styles.guideDepthChoice, coordination === 'leave-together' && styles.guideDepthChoiceSelected]}><View style={styles.flex}><Text style={styles.guideDepthTitle}>Samen vertrekken</Text><Text style={styles.guideDepthBody}>Eén toestel kan de voorbereiding en gids dragen.</Text></View><Text style={styles.guideDepthMark}>{coordination === 'leave-together' ? '●' : '○'}</Text></Pressable>
+          <Pressable onPress={() => setCoordination('meet-there')} style={[styles.guideDepthChoice, coordination === 'meet-there' && styles.guideDepthChoiceSelected]}><View style={styles.flex}><Text style={styles.guideDepthTitle}>Ontmoet bij het startpunt</Text><Text style={styles.guideDepthBody}>Iedereen regelt de eigen reis; de ervaring begint samen.</Text></View><Text style={styles.guideDepthMark}>{coordination === 'meet-there' ? '●' : '○'}</Text></Pressable>
+        </View>
+        {shared ? <View style={styles.participantList}>
+          {shared.participants.map((participant) => <View key={participant.id} style={styles.participantRow}><View style={[styles.participantAvatar, participant.status === 'ready' && styles.participantAvatarReady]}><Text style={styles.participantAvatarText}>{participant.name.slice(0, 1).toUpperCase()}</Text></View><View style={styles.flex}><Text style={styles.participantName}>{participant.name}</Text><Text style={styles.participantStatus}>{participant.role === 'host' ? 'Organiseert' : participant.status === 'ready' ? 'Doet mee op dit toestel' : 'Uitnodiging gedeeld · reactie nog niet gesynchroniseerd'}</Text></View></View>)}
+          <Text style={styles.localSharedNote}>Alleen deze ervaring wordt gedeeld. Profiel, agenda, locatiegeschiedenis en redenen achter de aanbeveling blijven privé.</Text>
+        </View> : null}
+        {shared?.role !== 'guest' && <Pressable onPress={shareExperience} style={styles.shareCard}><View style={styles.shareMark}><Text style={styles.shareMarkText}>↗</Text></View><View style={styles.flex}><Text style={styles.shareTitle}>{shared ? 'Deel uitnodiging opnieuw' : 'Nodig iemand uit'}</Text><Text style={styles.shareBody}>De ontvanger kan de kaart openen, bekijken en lokaal deelnemen.</Text></View><Text style={styles.arrow}>→</Text></Pressable>}
+        {shareStatus ? <Text style={styles.shareStatus}>{shareStatus}</Text> : null}
+      </View>}
       <Text style={styles.fieldLabel}>HOEVEEL BEGELEIDING WIL JE?</Text><View style={styles.guideDepthList}>
         {([{ id: 'quiet', title: 'Rustig', body: 'Alleen openen en daarna ruimte maken.' }, { id: 'guide', title: 'Gids', body: 'Nuttige informatie op het juiste moment.' }, { id: 'deep', title: 'Verdieping', body: 'Meer verhalen, uitleg en dingen om op te letten.' }] as Array<{ id: GuideDepth; title: string; body: string }>).map((item) => <Pressable key={item.id} onPress={() => setGuideDepth(item.id)} style={[styles.guideDepthChoice, guideDepth === item.id && styles.guideDepthChoiceSelected]}><View style={styles.flex}><Text style={styles.guideDepthTitle}>{item.title}</Text><Text style={styles.guideDepthBody}>{item.body}</Text></View><Text style={styles.guideDepthMark}>{guideDepth === item.id ? '●' : '○'}</Text></Pressable>)}
       </View>
@@ -599,12 +703,12 @@ function PrepareScreen({ experience, initialCompany, initialGuideDepth, onBack, 
         <Text style={styles.routeGuard}>{experience.routePlan.natureGuard}</Text>
       </View>}
       <View style={styles.commitmentCard}><Text style={styles.commitmentLabel}>TOTALE VERPLICHTING</Text><Text style={styles.commitmentValue}>{experience.duration} minuten · {experience.effort.toLowerCase()}</Text>{experience.distance && <Text style={styles.commitmentBody}>{experience.distance} is meegenomen voordat je begint.</Text>}</View>
-      <PrimaryButton label="Ik ga nu" onPress={() => onStart(company, guideDepth)} />
+      <PrimaryButton label={company === 'solo' ? 'Ik ga nu' : 'Wij gaan beginnen'} onPress={() => onStart(company, guideDepth, shared ? { ...shared, coordination } : undefined)} />
     </ScrollView>
   );
 }
 
-function PresenceScreen({ experience, personal, company, guideDepth, initialStep, onStepChange, onBack, onFinish }: { experience: Experience; personal: PersonalProfile; company: Company; guideDepth: GuideDepth; initialStep: number; onStepChange: (stepIndex: number) => void; onBack: () => void; onFinish: () => void }) {
+function PresenceScreen({ experience, personal, company, guideDepth, shared, initialStep, onStepChange, onBack, onFinish }: { experience: Experience; personal: PersonalProfile; company: Company; guideDepth: GuideDepth; shared?: SharedCapsuleState; initialStep: number; onStepChange: (stepIndex: number) => void; onBack: () => void; onFinish: () => void }) {
   const [stepIndex, setStepIndex] = useState(Math.min(initialStep, Math.max(0, experience.steps.length - 1)));
   const [remaining, setRemaining] = useState(experience.steps[Math.min(initialStep, Math.max(0, experience.steps.length - 1))]?.seconds ?? 0);
   const [timerRunning, setTimerRunning] = useState(false);
@@ -642,6 +746,7 @@ function PresenceScreen({ experience, personal, company, guideDepth, initialStep
   if (phoneAway) return <View style={styles.phoneAwayScreen}>
     <Text style={styles.phoneAwayEyebrow}>PRESENCE</Text><Text style={styles.phoneAwayTitle}>{experience.title}</Text><Text style={styles.phoneAwayCue}>{current.title}</Text>
     {current.seconds ? <Text style={styles.phoneAwayTimer}>{formatTime(remaining)}</Text> : <View style={[styles.phoneAwayOrb, { borderColor: experience.accent }]}><Text style={[styles.phoneAwayOrbText, { color: experience.accent }]}>·</Text></View>}
+    {shared && <Text style={styles.phoneAwayTogether}>{shared.participants.filter((participant) => participant.status === 'ready').map((participant) => participant.name).join(' + ')} · samen aanwezig</Text>}
     <Text style={styles.phoneAwayBody}>Je hoeft nu niets te bedienen. De gids blijft met één tik beschikbaar.</Text>
     <Pressable onPress={() => setPhoneAway(false)} style={styles.reopenGuide}><Text style={styles.reopenGuideText}>Raadpleeg de gids</Text></Pressable>
   </View>;
@@ -654,6 +759,7 @@ function PresenceScreen({ experience, personal, company, guideDepth, initialStep
       <ScrollView contentContainerStyle={styles.capsuleStep} showsVerticalScrollIndicator={false}>
         <Text style={styles.eyebrow}>{experience.presenceMode === 'handoff' ? 'ROUTE & PRESENCE' : experience.presenceMode === 'quiet' ? 'QUIET GUIDE' : 'STAP VOOR STAP'}</Text>
         <Text style={styles.capsuleStepCount}>Stap {stepIndex + 1} van {experience.steps.length} · {company === 'solo' ? 'alleen' : company === 'family' ? 'met gezin' : 'samen'} · {guideDepth === 'deep' ? 'verdieping' : guideDepth === 'quiet' ? 'rustig' : 'gids'}</Text>
+        {shared && <View style={styles.presenceTogetherCard}><View style={styles.presenceTogetherAvatars}>{shared.participants.filter((participant) => participant.status === 'ready').map((participant) => <View key={participant.id} style={styles.presenceTogetherAvatar}><Text style={styles.participantAvatarText}>{participant.name.slice(0, 1).toUpperCase()}</Text></View>)}</View><View style={styles.flex}><Text style={styles.presenceTogetherTitle}>Eén gedeelde ervaring</Text><Text style={styles.presenceTogetherBody}>{shared.coordination === 'meet-there' ? 'Jullie ontmoetten elkaar bij het begin.' : 'Jullie begonnen samen.'} Deze gids loopt alleen op dit toestel.</Text></View></View>}
         <Text style={styles.presenceTitle}>{current.title}</Text>
         {current.meta && <View style={[styles.stepMetaPill, { borderColor: experience.accent }]}><Text style={styles.stepMetaText}>{current.meta}</Text></View>}
         <Text style={styles.presenceCue}>{current.instruction}</Text>
@@ -886,13 +992,14 @@ const styles = StyleSheet.create({
   miniFact: { minWidth: 70 }, miniFactValue: { color: colors.bone, fontSize: 13, fontWeight: '600' }, miniFactLabel: { color: 'rgba(244,238,227,0.62)', fontSize: 9, marginTop: 3 },
   primaryButton: { minHeight: 56, borderRadius: 19, backgroundColor: colors.green, paddingHorizontal: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, primaryButtonText: { color: '#10160D', fontSize: 16, fontWeight: '700' }, primaryArrow: { color: '#10160D', fontSize: 22 },
   secondaryButton: { minHeight: 50, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14 }, secondaryButtonText: { color: colors.bone, fontSize: 14, fontWeight: '600' }, pressed: { opacity: 0.74, transform: [{ scale: 0.992 }] },
+  inviteScreen: { width: '100%', maxWidth: 620, alignSelf: 'center', paddingHorizontal: 22, paddingTop: 72, paddingBottom: 50 }, inviteHeadline: { color: colors.bone, fontSize: 42, lineHeight: 47, fontWeight: '300', letterSpacing: -1.1, marginTop: 12 }, invitePromiseCard: { borderRadius: 28, borderWidth: 1, borderColor: 'rgba(217,179,107,0.38)', backgroundColor: 'rgba(16,26,29,0.9)', padding: 21, marginTop: 28 }, inviteTitle: { color: colors.bone, fontSize: 31, lineHeight: 36, fontWeight: '300', marginTop: 12 }, invitePromise: { color: colors.muted, fontSize: 15, lineHeight: 22, marginTop: 9 }, inviteTrustCard: { borderRadius: 21, borderWidth: 1, borderColor: 'rgba(164,197,93,0.3)', backgroundColor: 'rgba(164,197,93,0.06)', padding: 17, marginVertical: 20 }, inviteTrustTitle: { color: colors.green, fontSize: 14, fontWeight: '700' }, inviteTrustBody: { color: colors.muted, fontSize: 11, lineHeight: 18, marginTop: 6 }, inviteNameInput: { minHeight: 54, borderRadius: 18, borderWidth: 1, borderColor: colors.line, backgroundColor: 'rgba(4,10,12,0.48)', color: colors.bone, paddingHorizontal: 16, fontSize: 16, marginBottom: 15 }, invitePrototypeNote: { color: 'rgba(174,180,174,0.58)', fontSize: 9, lineHeight: 15, textAlign: 'center', marginTop: 14 }, unavailableInvite: { borderRadius: 20, borderWidth: 1, borderColor: 'rgba(217,179,107,0.32)', padding: 17 }, unavailableInviteTitle: { color: colors.bone, fontSize: 14, fontWeight: '700' }, unavailableInviteBody: { color: colors.muted, fontSize: 11, lineHeight: 17, marginTop: 6 },
   whyButton: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 4 }, whyButtonText: { color: colors.muted, fontSize: 13 }, whyChevron: { color: colors.gold, fontSize: 18 }, whyPanel: { borderRadius: 18, borderWidth: 1, borderColor: colors.line, backgroundColor: 'rgba(164,197,93,0.06)', padding: 15, gap: 8 }, whyReason: { color: colors.bone, fontSize: 12, lineHeight: 18 }, proofNote: { color: 'rgba(174,180,174,0.58)', fontSize: 9, lineHeight: 14, marginTop: 3 }, quietAction: { minHeight: 38, alignItems: 'center', justifyContent: 'center' }, quietActionText: { color: colors.muted, fontSize: 12 },
   silentCard: { minHeight: 520, borderRadius: 30, borderWidth: 1, borderColor: colors.line, padding: 24, justifyContent: 'center', backgroundColor: 'rgba(16,26,29,0.6)' }, silentTitle: { color: colors.bone, fontSize: 36, lineHeight: 42, fontWeight: '300' },
   spaceCard: { marginTop: 16, minHeight: 90, borderRadius: 25, borderWidth: 1, borderColor: 'rgba(217,179,107,0.3)', backgroundColor: 'rgba(16,26,29,0.75)', padding: 16, flexDirection: 'row', alignItems: 'center' }, spaceIcon: { width: 45, height: 45, borderRadius: 23, borderWidth: 1, borderColor: colors.gold, alignItems: 'center', justifyContent: 'center', marginRight: 13 }, spaceIconText: { color: colors.gold, fontSize: 19 }, spaceTitle: { color: colors.bone, fontSize: 17, fontWeight: '600' }, spaceBody: { color: colors.muted, fontSize: 11, lineHeight: 16, marginTop: 3 }, arrow: { color: colors.gold, fontSize: 25 },
   daySummary: { borderRadius: 22, borderWidth: 1, borderColor: colors.line, backgroundColor: 'rgba(16,26,29,0.78)', padding: 17, marginBottom: 26 }, daySummaryTitle: { color: colors.bone, fontSize: 17 }, daySummaryBody: { color: colors.muted, fontSize: 12, lineHeight: 18, marginTop: 5 }, timeline: { gap: 0 }, timelineRow: { flexDirection: 'row' }, timelineRail: { width: 28, alignItems: 'center' }, timelineDot: { width: 10, height: 10, borderRadius: 5, marginTop: 3 }, timelineLine: { flex: 1, width: 1, backgroundColor: colors.line, marginVertical: 7 }, timelineContent: { flex: 1, paddingBottom: 20 }, timelineTime: { color: colors.gold, fontSize: 9, letterSpacing: 1.3, fontWeight: '700', marginBottom: 9 }, dayCardImage: { minHeight: 190, justifyContent: 'flex-end' }, dayCardImageStyle: { borderRadius: 22 }, dayCardCopy: { padding: 17 }, dayCardTitle: { color: colors.bone, fontSize: 25, lineHeight: 29, fontWeight: '300' }, dayCardPromise: { color: 'rgba(244,238,227,0.8)', fontSize: 12, lineHeight: 17, marginTop: 6, maxWidth: 330 }, dayCardMeta: { color: colors.bone, fontSize: 11, marginTop: 12 }, quietDay: { borderTopWidth: 1, borderColor: colors.line, paddingTop: 20, marginTop: 2 }, quietDayTitle: { color: colors.bone, fontSize: 16 }, quietDayBody: { color: colors.muted, fontSize: 12, lineHeight: 18, marginTop: 5 },
   calendarWindows: { borderRadius: 22, borderWidth: 1, borderColor: 'rgba(217,179,107,0.3)', backgroundColor: 'rgba(217,179,107,0.05)', padding: 17, marginBottom: 16, gap: 9 }, calendarWindowText: { color: colors.bone, fontSize: 11, lineHeight: 17 },
   intentPanel: { borderRadius: 28, borderWidth: 1, borderColor: colors.line, backgroundColor: 'rgba(16,26,29,0.88)', padding: 20 }, fieldLabel: { color: colors.gold, fontSize: 9, letterSpacing: 1.5, fontWeight: '700', marginTop: 6, marginBottom: 12 }, chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 24 }, choiceChip: { borderRadius: 99, borderWidth: 1, borderColor: colors.line, paddingHorizontal: 15, paddingVertical: 11 }, choiceChipSelected: { borderColor: colors.green, backgroundColor: 'rgba(164,197,93,0.16)' }, choiceChipText: { color: colors.muted, fontSize: 13 }, choiceChipTextSelected: { color: colors.bone }, intentInput: { minHeight: 118, borderRadius: 20, borderWidth: 1, borderColor: colors.line, backgroundColor: 'rgba(4,10,12,0.48)', color: colors.bone, fontSize: 16, lineHeight: 23, padding: 16, textAlignVertical: 'top', marginBottom: 14 }, orRow: { flexDirection: 'row', alignItems: 'center', marginTop: 13 }, orLine: { flex: 1, height: 1, backgroundColor: colors.line }, orText: { color: colors.muted, fontSize: 9, marginHorizontal: 12 }, intentPrivacy: { color: 'rgba(174,180,174,0.6)', fontSize: 10, lineHeight: 15, textAlign: 'center', marginTop: 10 }, interpretation: { borderRadius: 18, borderWidth: 1, borderColor: colors.line, padding: 15, marginBottom: 24 }, interpretationLabel: { color: colors.green, fontSize: 9, letterSpacing: 1.4, fontWeight: '700' }, interpretationText: { color: colors.bone, fontSize: 13, lineHeight: 19, marginTop: 7 }, sectionLabel: { color: colors.gold, fontSize: 9, letterSpacing: 1.5, fontWeight: '700', marginTop: 6, marginBottom: 10 }, experienceTile: { marginBottom: 20 }, tileImage: { minHeight: 210, justifyContent: 'flex-end' }, tileImageLarge: { minHeight: 310 }, tileImageStyle: { borderRadius: 25 }, tileCopy: { padding: 18 }, tileTitle: { color: colors.bone, fontSize: 29, lineHeight: 33, fontWeight: '300', marginTop: 12 }, tilePromise: { color: 'rgba(244,238,227,0.82)', fontSize: 13, lineHeight: 19, marginTop: 7 }, tileMeta: { color: colors.bone, fontSize: 11, marginTop: 14 }, finiteNote: { color: colors.muted, fontSize: 10, textAlign: 'center', marginTop: 2 },
-  lifeSummary: { flexDirection: 'row', alignItems: 'center', borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.line, paddingVertical: 18, marginBottom: 28 }, lifeSummaryBig: { color: colors.green, fontSize: 48, fontWeight: '200', marginRight: 16 }, lifeSummaryTitle: { color: colors.bone, fontSize: 16 }, lifeSummaryBody: { color: colors.muted, fontSize: 11, marginTop: 4 }, memoryGrid: { gap: 14 }, memoryCard: { minHeight: 230 }, memoryImage: { minHeight: 230, justifyContent: 'flex-end' }, memoryImageStyle: { borderRadius: 24 }, memoryCopy: { padding: 18 }, memoryDate: { color: colors.gold, fontSize: 9, letterSpacing: 1.2 }, memoryTitle: { color: colors.bone, fontSize: 27, lineHeight: 31, fontWeight: '300', marginTop: 7 }, memoryNote: { color: 'rgba(244,238,227,0.74)', fontSize: 12, lineHeight: 17, marginTop: 6 }, learningCard: { borderRadius: 22, borderWidth: 1, borderColor: colors.line, backgroundColor: 'rgba(164,197,93,0.06)', padding: 18, marginTop: 22 }, learningTitle: { color: colors.green, fontSize: 14, fontWeight: '700' }, learningBody: { color: colors.muted, fontSize: 12, lineHeight: 19, marginTop: 7 },
+  lifeSummary: { flexDirection: 'row', alignItems: 'center', borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.line, paddingVertical: 18, marginBottom: 28 }, lifeSummaryBig: { color: colors.green, fontSize: 48, fontWeight: '200', marginRight: 16 }, lifeSummaryTitle: { color: colors.bone, fontSize: 16 }, lifeSummaryBody: { color: colors.muted, fontSize: 11, marginTop: 4 }, memoryGrid: { gap: 14 }, memoryCard: { minHeight: 230 }, memoryImage: { minHeight: 230, justifyContent: 'flex-end' }, memoryImageStyle: { borderRadius: 24 }, memoryCopy: { padding: 18 }, memoryDate: { color: colors.gold, fontSize: 9, letterSpacing: 1.2 }, memoryTitle: { color: colors.bone, fontSize: 27, lineHeight: 31, fontWeight: '300', marginTop: 7 }, memoryNote: { color: 'rgba(244,238,227,0.74)', fontSize: 12, lineHeight: 17, marginTop: 6 }, memoryShared: { color: colors.green, fontSize: 10, marginTop: 8 }, learningCard: { borderRadius: 22, borderWidth: 1, borderColor: colors.line, backgroundColor: 'rgba(164,197,93,0.06)', padding: 18, marginTop: 22 }, learningTitle: { color: colors.green, fontSize: 14, fontWeight: '700' }, learningBody: { color: colors.muted, fontSize: 12, lineHeight: 19, marginTop: 7 },
   bottomNav: { position: 'absolute', left: 14, right: 14, bottom: 10, minHeight: 72, borderRadius: 26, borderWidth: 1, borderColor: colors.line, backgroundColor: 'rgba(9,17,20,0.96)', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 6 }, navItem: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 5, minHeight: 62 }, navIcon: { color: colors.muted, fontSize: 18 }, navLabel: { color: colors.muted, fontSize: 10 }, navActive: { color: colors.green },
   backButton: { alignSelf: 'flex-start', minHeight: 42, justifyContent: 'center', marginBottom: 12 }, backButtonText: { color: colors.muted, fontSize: 14 }, detailHero: { height: 430, justifyContent: 'flex-end', marginHorizontal: -22, marginTop: -66, marginBottom: 24 }, detailHeroImage: { borderBottomLeftRadius: 30, borderBottomRightRadius: 30 }, detailHeroCopy: { padding: 22, paddingTop: 120 }, detailTitle: { color: colors.bone, fontSize: 42, lineHeight: 45, fontWeight: '300', letterSpacing: -1.3, marginTop: 13 }, detailPromise: { color: 'rgba(244,238,227,0.84)', fontSize: 16, lineHeight: 23, marginTop: 10 }, wonderHeadline: { color: colors.gold, fontSize: 10, letterSpacing: 1.4, fontWeight: '700' }, wonderLarge: { color: colors.bone, fontSize: 21, lineHeight: 30, fontWeight: '300', marginTop: 10 }, factStrip: { flexDirection: 'row', gap: 14, borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.line, paddingVertical: 16, marginVertical: 22 },
   liveEvidenceCard: { borderRadius: 22, borderWidth: 1, borderColor: 'rgba(164,197,93,0.32)', backgroundColor: 'rgba(164,197,93,0.06)', padding: 16, gap: 12, marginBottom: 20 }, liveEvidenceTitle: { color: colors.green, fontSize: 9, letterSpacing: 1.35, fontWeight: '700' }, liveEvidenceRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 }, liveEvidenceDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.green, marginTop: 5 }, liveEvidenceLabel: { color: colors.bone, fontSize: 12, lineHeight: 17 }, liveEvidenceMeta: { color: colors.muted, fontSize: 9, marginTop: 3 }, liveEvidenceCaution: { color: colors.gold, fontSize: 10, lineHeight: 15, borderTopWidth: 1, borderTopColor: colors.line, paddingTop: 10 },
@@ -900,14 +1007,15 @@ const styles = StyleSheet.create({
   expectationCard: { borderRadius: 26, borderWidth: 1, borderColor: 'rgba(217,179,107,0.34)', backgroundColor: 'rgba(217,179,107,0.06)', padding: 20, marginTop: 24 }, expectationLabel: { color: colors.gold, fontSize: 9, letterSpacing: 1.5, fontWeight: '700' }, expectationTitle: { color: colors.bone, fontSize: 24, lineHeight: 31, fontWeight: '300', marginTop: 10 }, expectationBody: { color: colors.muted, fontSize: 13, lineHeight: 20, marginTop: 9 },
   prepareLiveCard: { borderRadius: 22, borderWidth: 1, borderColor: 'rgba(164,197,93,0.3)', backgroundColor: 'rgba(164,197,93,0.05)', padding: 16, gap: 12, marginTop: 14, marginBottom: 24 }, prepareLiveRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   editorialDepthCard: { borderRadius: 22, borderWidth: 1, borderColor: colors.line, backgroundColor: 'rgba(16,26,29,0.74)', padding: 17, marginTop: 14, marginBottom: 24 }, editorialDepthText: { color: colors.bone, fontSize: 17, lineHeight: 24, marginTop: 8 }, editorialDepthSource: { color: colors.muted, fontSize: 9, marginTop: 8 },
-  shareCard: { minHeight: 84, borderRadius: 22, borderWidth: 1, borderColor: 'rgba(217,179,107,0.3)', backgroundColor: 'rgba(16,26,29,0.8)', padding: 14, flexDirection: 'row', alignItems: 'center', marginTop: -12, marginBottom: 24 }, shareMark: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, borderColor: colors.gold, alignItems: 'center', justifyContent: 'center', marginRight: 12 }, shareMarkText: { color: colors.gold, fontSize: 18 }, shareTitle: { color: colors.bone, fontSize: 15, fontWeight: '700' }, shareBody: { color: colors.muted, fontSize: 10, lineHeight: 15, marginTop: 3 },
+  sharedPlanCard: { borderRadius: 25, borderWidth: 1, borderColor: 'rgba(217,179,107,0.28)', backgroundColor: 'rgba(217,179,107,0.04)', padding: 16, marginTop: -12, marginBottom: 24 }, sharedPlanTitle: { color: colors.bone, fontSize: 20, lineHeight: 26, fontWeight: '300', marginTop: 8, marginBottom: 14 }, participantList: { borderTopWidth: 1, borderTopColor: colors.line, paddingTop: 12, marginBottom: 14 }, participantRow: { flexDirection: 'row', alignItems: 'center', minHeight: 52 }, participantAvatar: { width: 34, height: 34, borderRadius: 17, borderWidth: 1, borderColor: colors.gold, alignItems: 'center', justifyContent: 'center', marginRight: 11 }, participantAvatarReady: { borderColor: colors.green, backgroundColor: 'rgba(164,197,93,0.12)' }, participantAvatarText: { color: colors.bone, fontSize: 12, fontWeight: '700' }, participantName: { color: colors.bone, fontSize: 13, fontWeight: '700' }, participantStatus: { color: colors.muted, fontSize: 9, lineHeight: 14, marginTop: 2 }, localSharedNote: { color: 'rgba(174,180,174,0.62)', fontSize: 9, lineHeight: 14, marginTop: 8 },
+  shareCard: { minHeight: 84, borderRadius: 22, borderWidth: 1, borderColor: 'rgba(217,179,107,0.3)', backgroundColor: 'rgba(16,26,29,0.8)', padding: 14, flexDirection: 'row', alignItems: 'center' }, shareMark: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, borderColor: colors.gold, alignItems: 'center', justifyContent: 'center', marginRight: 12 }, shareMarkText: { color: colors.gold, fontSize: 18 }, shareTitle: { color: colors.bone, fontSize: 15, fontWeight: '700' }, shareBody: { color: colors.muted, fontSize: 10, lineHeight: 15, marginTop: 3 }, shareStatus: { color: colors.green, fontSize: 9, lineHeight: 14, marginTop: 10 },
   guideDepthList: { gap: 9, marginBottom: 24 }, guideDepthChoice: { minHeight: 68, borderRadius: 20, borderWidth: 1, borderColor: colors.line, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center' }, guideDepthChoiceSelected: { borderColor: colors.green, backgroundColor: 'rgba(164,197,93,0.1)' }, guideDepthTitle: { color: colors.bone, fontSize: 15, fontWeight: '700' }, guideDepthBody: { color: colors.muted, fontSize: 10, marginTop: 4 }, guideDepthMark: { color: colors.green, fontSize: 16 },
   prepareCard: { borderRadius: 25, borderWidth: 1, borderColor: colors.line, backgroundColor: 'rgba(16,26,29,0.82)', padding: 18, gap: 18, marginBottom: 28 }, prepareRow: { flexDirection: 'row', alignItems: 'center' }, prepareBullet: { width: 7, height: 7, borderRadius: 4, marginRight: 13 }, stepNumber: { width: 34, height: 34, borderRadius: 17, borderWidth: 1, alignItems: 'center', justifyContent: 'center', marginRight: 13 }, stepNumberText: { color: colors.bone, fontSize: 12 }, prepareText: { color: colors.bone, fontSize: 16, flex: 1 }, commitmentCard: { borderRadius: 20, borderWidth: 1, borderColor: colors.line, padding: 16, marginBottom: 22 }, commitmentLabel: { color: colors.gold, fontSize: 9, letterSpacing: 1.3, fontWeight: '700' }, commitmentValue: { color: colors.bone, fontSize: 17, marginTop: 7 }, commitmentBody: { color: colors.muted, fontSize: 11, marginTop: 5 },
   routePlanCard: { borderRadius: 22, borderWidth: 1, borderColor: 'rgba(217,179,107,0.35)', backgroundColor: 'rgba(217,179,107,0.05)', padding: 16, marginBottom: 20 }, routePlanTitle: { color: colors.bone, fontSize: 20, lineHeight: 25, marginTop: 8 }, routeBudget: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 16 }, routeGuard: { color: colors.muted, fontSize: 11, lineHeight: 17, marginTop: 14, borderTopWidth: 1, borderTopColor: colors.line, paddingTop: 12 },
   presenceScreen: { flex: 1, padding: 22, paddingTop: 12, paddingBottom: 24 }, presenceTopRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }, phoneAwayButton: { minHeight: 42, paddingHorizontal: 14, borderRadius: 21, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' }, phoneAwayButtonText: { color: colors.green, fontSize: 11, fontWeight: '700' }, presenceTitle: { color: colors.bone, fontSize: 38, lineHeight: 43, fontWeight: '300', textAlign: 'center' }, presenceCue: { color: colors.muted, fontSize: 16, lineHeight: 24, textAlign: 'center', maxWidth: 370, marginTop: 18 }, presenceUnit: { color: colors.muted, fontSize: 9, letterSpacing: 1.5 }, presenceFooter: { color: colors.muted, fontSize: 10, lineHeight: 15, textAlign: 'center', marginTop: 10 },
-  phoneAwayScreen: { flex: 1, padding: 28, alignItems: 'center', justifyContent: 'center', backgroundColor: '#050A0C' }, phoneAwayEyebrow: { color: colors.green, fontSize: 9, letterSpacing: 2.2, fontWeight: '700' }, phoneAwayTitle: { color: colors.bone, fontSize: 28, lineHeight: 34, fontWeight: '300', textAlign: 'center', marginTop: 14 }, phoneAwayCue: { color: colors.muted, fontSize: 15, textAlign: 'center', marginTop: 14 }, phoneAwayTimer: { color: colors.bone, fontSize: 62, fontWeight: '200', fontVariant: ['tabular-nums'], marginTop: 34 }, phoneAwayOrb: { width: 130, height: 130, borderRadius: 65, borderWidth: 2, alignItems: 'center', justifyContent: 'center', marginTop: 34 }, phoneAwayOrbText: { fontSize: 48 }, phoneAwayBody: { color: 'rgba(174,180,174,0.64)', fontSize: 11, lineHeight: 17, textAlign: 'center', maxWidth: 300, marginTop: 26 }, reopenGuide: { minHeight: 48, borderRadius: 24, borderWidth: 1, borderColor: colors.line, paddingHorizontal: 22, alignItems: 'center', justifyContent: 'center', marginTop: 26 }, reopenGuideText: { color: colors.bone, fontSize: 13, fontWeight: '700' },
+  phoneAwayScreen: { flex: 1, padding: 28, alignItems: 'center', justifyContent: 'center', backgroundColor: '#050A0C' }, phoneAwayEyebrow: { color: colors.green, fontSize: 9, letterSpacing: 2.2, fontWeight: '700' }, phoneAwayTitle: { color: colors.bone, fontSize: 28, lineHeight: 34, fontWeight: '300', textAlign: 'center', marginTop: 14 }, phoneAwayCue: { color: colors.muted, fontSize: 15, textAlign: 'center', marginTop: 14 }, phoneAwayTimer: { color: colors.bone, fontSize: 62, fontWeight: '200', fontVariant: ['tabular-nums'], marginTop: 34 }, phoneAwayOrb: { width: 130, height: 130, borderRadius: 65, borderWidth: 2, alignItems: 'center', justifyContent: 'center', marginTop: 34 }, phoneAwayOrbText: { fontSize: 48 }, phoneAwayTogether: { color: colors.green, fontSize: 11, marginTop: 20 }, phoneAwayBody: { color: 'rgba(174,180,174,0.64)', fontSize: 11, lineHeight: 17, textAlign: 'center', maxWidth: 300, marginTop: 26 }, reopenGuide: { minHeight: 48, borderRadius: 24, borderWidth: 1, borderColor: colors.line, paddingHorizontal: 22, alignItems: 'center', justifyContent: 'center', marginTop: 26 }, reopenGuideText: { color: colors.bone, fontSize: 13, fontWeight: '700' },
   capsuleProgress: { flexDirection: 'row', gap: 5, marginBottom: 12 }, capsuleProgressPart: { height: 3, flex: 1, borderRadius: 2, backgroundColor: 'rgba(244,238,227,0.12)' },
-  capsuleStep: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 18 }, capsuleStepCount: { color: colors.muted, fontSize: 11, marginBottom: 14 },
+  capsuleStep: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 18 }, capsuleStepCount: { color: colors.muted, fontSize: 11, marginBottom: 14 }, presenceTogetherCard: { width: '100%', maxWidth: 430, minHeight: 64, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(164,197,93,0.25)', backgroundColor: 'rgba(164,197,93,0.06)', padding: 12, flexDirection: 'row', alignItems: 'center', marginBottom: 20 }, presenceTogetherAvatars: { flexDirection: 'row', marginRight: 11 }, presenceTogetherAvatar: { width: 31, height: 31, borderRadius: 16, borderWidth: 1, borderColor: colors.green, backgroundColor: colors.panel, alignItems: 'center', justifyContent: 'center', marginRight: -6 }, presenceTogetherTitle: { color: colors.bone, fontSize: 12, fontWeight: '700' }, presenceTogetherBody: { color: colors.muted, fontSize: 9, lineHeight: 14, marginTop: 3 },
   stepMetaPill: { borderWidth: 1, borderRadius: 99, paddingHorizontal: 13, paddingVertical: 8, marginTop: 18 }, stepMetaText: { color: colors.bone, fontSize: 11, fontWeight: '600' },
   stepTimer: { width: 205, height: 205, borderRadius: 103, borderWidth: 3, alignItems: 'center', justifyContent: 'center', marginTop: 32 }, stepTimerValue: { color: colors.bone, fontSize: 48, fontWeight: '200', fontVariant: ['tabular-nums'] }, timerControl: { marginTop: 13, minHeight: 35, paddingHorizontal: 16, borderRadius: 18, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' }, timerControlText: { color: colors.bone, fontSize: 11, fontWeight: '700' },
   quietStepOrb: { width: 130, height: 130, borderRadius: 65, borderWidth: 2, alignItems: 'center', justifyContent: 'center', marginTop: 34 }, quietStepSymbol: { fontSize: 42, fontWeight: '200' },

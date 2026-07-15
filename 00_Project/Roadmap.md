@@ -235,6 +235,8 @@ The four continuous tracks are Philosophy, Experience, Understanding, and Trust.
 
 **Implementation note (2026-07-14):** the first prototype now precomputes a finite Now suggestion set, keeps one card visible, adds richer expectation-first preparation, company and system sharing, three guide-depth choices, and a reversible phone-away Presence state. Synchronized participation and deep links remain future work. See ADR-028.
 
+**Implementation note (2026-07-15):** Shared Capsule v1 now creates a versioned web invitation, provides a privacy-first receiving and acceptance flow, supports leave-together or meet-there preparation, carries local participants into Presence, and can label a local memory as shared. Acceptance and progress remain device-local; accounts, secure tokens, native deep links, and remote synchronization remain deferred. See ADR-029.
+
 ## Advancement rule
 
 A phase may begin discovery before the prior phase is fully complete, but implementation may not use unresolved foundational questions as silent assumptions. Founder approval is required to lift the no-application-code gate.

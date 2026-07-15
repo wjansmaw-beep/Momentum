@@ -103,6 +103,15 @@ Leaving Momentum is not leaving the experience.
 
 Before starting, a person may share the experience promise, time commitment, practical preparation, and meeting intent. A future synchronized Capsule may show acceptance and shared execution state, but it may never expose either participant's private profile, inferred needs, calendar, health context, or ranking reasons. Until identity and deep-link contracts exist, the product labels sharing as an invitation rather than shared progress.
 
+The first invitation pattern distinguishes two coordination choices:
+
+- **leave together:** one device may carry preparation, route, and guide;
+- **meet there:** each person handles their own travel and the Capsule begins together at the agreed start.
+
+The receiver may inspect the promise, duration, company, and meeting choice before accepting. Joining requires only a local display name in the prototype. The host remains `invited` until real synchronization can truthfully confirm acceptance. A receiving device re-resolves approved experience content and independently refreshes live context; an invitation never transports private ranking context or stale live claims.
+
+During Presence, one device can remain the consultable shared guide. Other participants do not need to keep Momentum open. A shared-memory label may be stored locally only for people who are locally marked ready.
+
 ## Consultable Presence
 
 Presence has two reversible visual states:
