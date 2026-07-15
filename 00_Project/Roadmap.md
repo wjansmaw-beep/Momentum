@@ -247,6 +247,8 @@ The four continuous tracks are Philosophy, Experience, Understanding, and Trust.
 
 **Implementation note (2026-07-15):** composed candidates now pass a structural quality gate before ranking. Incomplete cards are withheld, degraded source coverage falls back honestly, and local Profile controls expose aggregate composition status. Explicit reflection feedback now affects default guide depth and removes muted content from preparation as well as Presence. See ADR-033.
 
+**Implementation note (2026-07-15):** complete Experience composition is now separated from Guide composition. A first deterministic Blueprint Composer interprets explicit intent through reviewed domain contracts and validators before the existing guide, quality and ranking boundaries. Prepare, Memory and Profile are quieter consumer surfaces, with diagnostics separated into Momentum Lab. No external model or backend is active. See ADR-034.
+
 ## Advancement rule
 
 A phase may begin discovery before the prior phase is fully complete, but implementation may not use unresolved foundational questions as silent assumptions. Founder approval is required to lift the no-application-code gate.

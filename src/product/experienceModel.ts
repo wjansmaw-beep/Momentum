@@ -68,6 +68,22 @@ export type Experience = {
     mode: 'curated' | 'composed';
     label: string;
   };
+  blueprint?: {
+    id: string;
+    domain: ExperienceKind;
+    origin: 'editorial' | 'deterministic' | 'generated-draft';
+    validationLabel: string;
+  };
+};
+
+export const experienceFactLabels: Record<ExperienceKind, { duration: string; distance: string; effort: string }> = {
+  outside: { duration: 'buiten', distance: 'bereik', effort: 'tempo' },
+  food: { duration: 'bereiding', distance: 'benodigd', effort: 'moeite' },
+  movement: { duration: 'bewegen', distance: 'benodigd', effort: 'intensiteit' },
+  restore: { duration: 'herstel', distance: 'plek', effort: 'intensiteit' },
+  connect: { duration: 'samen', distance: 'plek', effort: 'sfeer' },
+  learn: { duration: 'ontdekken', distance: 'plek', effort: 'aandacht' },
+  culture: { duration: 'beleven', distance: 'bereik', effort: 'sfeer' },
 };
 
 export const experiences: Experience[] = [
