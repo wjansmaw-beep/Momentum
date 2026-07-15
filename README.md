@@ -60,3 +60,13 @@ EXPO_PUBLIC_EBIRD_API_KEY=your_token_here
 ```
 
 Restart Expo after changing the environment. `EXPO_PUBLIC_` variables are bundled into the client, so this is suitable only for the current development proof. Production must use a secure server-side adapter and never commit a token.
+
+## Optional capsule generator
+
+Discover works without an external generator: it locally combines validated experience building blocks. To connect a real generative service later, configure only an application-owned endpoint URL:
+
+```text
+EXPO_PUBLIC_MOMENTUM_GENERATOR_URL=https://your-service.example/generate-experiences
+```
+
+Never place a model-provider API key in an `EXPO_PUBLIC_` variable. The endpoint owns the secret and accepts the minimal `experience-draft-v1` request described in ADR-036. It returns an object with a `drafts` array containing complete Experience fields. The client treats the response as untrusted and may reject every draft. Live facts and route plans are not accepted from this endpoint.

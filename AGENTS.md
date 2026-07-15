@@ -4,7 +4,7 @@ These instructions apply to the entire repository.
 
 ## Current phase
 
-The Founder approved the document foundation on 2026-07-10 and requested the first application slice. On 2026-07-14 the Founder explicitly advanced the product into the Premium Living Guide direction, and on 2026-07-15 approved the account-free Shared Capsule prototype, layered consultable guide, richer guide moments, automatic deterministic guide and Experience Blueprint composition, the pre-ranking candidate quality gate, adaptive active intent, and Meaning Thread continuity. Application code may implement accepted decisions through ADR-035. Accounts, production synchronization, external generative model activation, new external integrations, or other unrecorded scope still require explicit approval.
+The Founder approved the document foundation on 2026-07-10 and requested the first application slice. On 2026-07-14 the Founder explicitly advanced the product into the Premium Living Guide direction, and on 2026-07-15 approved the account-free Shared Capsule prototype, layered consultable guide, richer guide moments, automatic deterministic guide and Experience Blueprint composition, the pre-ranking candidate quality gate, adaptive active intent, Meaning Thread continuity, and generative capsule candidates behind a validated provider-independent boundary. Application code may implement accepted decisions through ADR-036. Accounts, production synchronization, a production model/provider choice, evidence-grounded live generation, new external integrations, or other unrecorded scope still require explicit approval.
 
 ## Read before acting
 

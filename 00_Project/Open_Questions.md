@@ -3,6 +3,11 @@
 Status: Operational, living document  
 Version: 1.0
 
+## Generative capsules
+
+- **Resolved for the current prototype:** generation is a candidate source behind schema sanitization, domain validation, comparative ranking, and explicit disclosure. Missing or failed remote generation falls back to local synthesis. See ADR-036.
+- **Still open:** which production model and server runtime should implement the secure endpoint, what retention and abuse-monitoring policy is proportional, and when verified Living World evidence may enter an evidence-grounded generation envelope.
+
 ## Resolved direction — personal model (2026-07-12)
 
 - The smallest useful onboarding is permission-free and asks only consciously chosen preferences and practical constraints.

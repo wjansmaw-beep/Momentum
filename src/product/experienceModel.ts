@@ -80,6 +80,12 @@ export type Experience = {
     source: 'user-confirmed';
     reason: string;
   };
+  generation?: {
+    mode: 'remote' | 'local-synthesis';
+    provider: string;
+    createdAt: string;
+    disclosure: string;
+  };
 };
 
 export const experienceFactLabels: Record<ExperienceKind, { duration: string; distance: string; effort: string }> = {

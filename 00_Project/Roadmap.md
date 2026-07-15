@@ -251,6 +251,8 @@ The four continuous tracks are Philosophy, Experience, Understanding, and Trust.
 
 **Implementation note (2026-07-15):** active intent now asks at most one material clarification before recomposition, including food form, movement form, outside tone, or an unknown desired direction. A first complete bodyweight blueprint expands real execution without material. User-confirmed near, growth, and meaning directions may continue as a soft Meaning Thread through Promise, Prepare, and Memory without goals, streaks, or inferred purpose. See ADR-035.
 
+**Implementation note (2026-07-15):** Active Intent can now request new capsule candidates through a provider-independent generation boundary. Untrusted drafts are sanitized, domain-validated, ranked against trusted candidates, and visibly disclosed; a complete device-local synthesis keeps the flow useful without an external endpoint. See ADR-036.
+
 ## Advancement rule
 
 A phase may begin discovery before the prior phase is fully complete, but implementation may not use unresolved foundational questions as silent assumptions. Founder approval is required to lift the no-application-code gate.

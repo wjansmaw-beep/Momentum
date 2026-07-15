@@ -92,6 +92,7 @@ import { composeGuideMoments } from './src/guidance/guideComposer';
 import { auditCandidatePool, CompositionSummary } from './src/guidance/compositionAudit';
 import { colors, typography } from './src/design/theme';
 import { attachMeaningThread } from './src/product/meaningThread';
+import { generateExperienceCandidates, GenerationOutcome, isRemoteGenerationConfigured } from './src/product/generativeExperience';
 
 type FlowStage = 'invite' | 'promise' | 'prepare' | 'presence' | 'remember' | 'profile' | null;
 type Memory = { id: string; title: string; date: string; image: string; note: string; sharedWith?: string[]; meaning?: string };
@@ -372,7 +373,7 @@ export default function App() {
             <>
               {surface === 'now' && <NowScreen firstName={personalProfile.firstName} suggestions={nowSuggestions} resumableExperience={resumableExperience} context={effectiveContext} calendar={calendarContext} liveWorld={liveWorld} liveLoading={liveLoading} onResume={resumeSession} onDiscardSession={() => setActiveSession(null)} onOpen={(item, stage) => openExperience(item, 'now', stage)} onProfile={() => setFlowStage('profile')} onDiscover={() => setSurface('discover')} onFeedback={(item, outcome) => setPersonalProfile((current) => applyLearning(current, item, outcome))} />}
               {surface === 'today' && <TodayScreen decisions={dayDecisions} calendar={calendarContext} onOpen={(item) => openExperience(item, 'today')} />}
-              {surface === 'discover' && <DiscoverScreen context={prototypeContext} candidatePool={candidatePool} learning={learningContext} onOpen={(item) => openExperience(item, 'discover')} />}
+              {surface === 'discover' && <DiscoverScreen context={prototypeContext} candidatePool={candidatePool} learning={learningContext} personal={personalProfile} onOpen={(item) => openExperience(item, 'discover')} />}
               {surface === 'lifebook' && <LifeBookScreen memories={memories} onOpen={(item) => { setPersonalProfile((current) => applyLearning(current, item, 'repeat')); openExperience(item, 'lifebook'); }} />}
               <BottomNav surface={surface} onChange={setSurface} />
             </>
@@ -586,23 +587,37 @@ function TodayScreen({ decisions, calendar, onOpen }: { decisions: TodayDecision
   );
 }
 
-function DiscoverScreen({ context, candidatePool, learning, onOpen }: { context: PrototypeContext; candidatePool: Experience[]; learning: PersonalLearningContext; onOpen: (item: Experience) => void }) {
+function DiscoverScreen({ context, candidatePool, learning, personal, onOpen }: { context: PrototypeContext; candidatePool: Experience[]; learning: PersonalLearningContext; personal: PersonalProfile; onOpen: (item: Experience) => void }) {
   const [minutes, setMinutes] = useState(60);
   const [input, setInput] = useState('');
   const [mode, setMode] = useState<'idle' | 'clarify' | 'result'>('idle');
   const [clarificationChoice, setClarificationChoice] = useState<IntentClarificationOption | null>(null);
+  const [generation, setGeneration] = useState<GenerationOutcome | null>(null);
+  const [generating, setGenerating] = useState(false);
+  const remoteGenerationConfigured = isRemoteGenerationConfigured();
   const understanding = useMemo(() => understandActiveIntent(input), [input]);
   const effectiveIntent = `${input} ${clarificationChoice?.terms ?? ''}`.trim();
   const explicitCompany: Company = /kind|kinderen|gezin/i.test(effectiveIntent) ? 'family' : /samen|partner|vriend/i.test(effectiveIntent) ? 'together' : context.company;
   const intentContext = useMemo(() => ({ ...context, company: explicitCompany, availableMinutes: minutes }), [context, explicitCompany, minutes]);
   const blueprintComposition = useMemo(() => composeExperienceBlueprints(input, intentContext, candidatePool, clarificationChoice?.terms), [candidatePool, clarificationChoice?.terms, input, intentContext]);
-  const intentPool = useMemo(() => blueprintComposition.experiences.length ? [...blueprintComposition.experiences, ...candidatePool] : candidatePool, [blueprintComposition.experiences, candidatePool]);
+  const generatedExperiences = useMemo(() => (generation?.experiences ?? []).map((experience) => attachMeaningThread(experience, personal)), [generation, personal]);
+  const intentPool = useMemo(() => [...generatedExperiences, ...blueprintComposition.experiences, ...candidatePool].filter((experience, index, all) => all.findIndex((item) => item.id === experience.id) === index), [blueprintComposition.experiences, candidatePool, generatedExperiences]);
   const result = useMemo(() => rankForMoment(intentContext, effectiveIntent, [], intentPool, learning), [effectiveIntent, intentContext, intentPool, learning]);
   const primary = result.selected?.experience;
   const alternative = result.alternative?.experience;
-  const submitIntent = () => { setClarificationChoice(null); setMode(understanding.clarification ? 'clarify' : 'result'); };
-  const chooseClarification = (option: IntentClarificationOption) => { setClarificationChoice(option); setMode('result'); };
-  const surprise = () => { setInput(''); setClarificationChoice(null); setMode('result'); };
+  useEffect(() => {
+    if (mode !== 'result' || (!input.trim() && !clarificationChoice)) { setGeneration(null); setGenerating(false); return; }
+    let active = true;
+    setGenerating(true);
+    setGeneration(null);
+    generateExperienceCandidates(input, clarificationChoice?.terms ?? '', intentContext, candidatePool)
+      .then((outcome) => { if (active) setGeneration(outcome); })
+      .finally(() => { if (active) setGenerating(false); });
+    return () => { active = false; };
+  }, [candidatePool, clarificationChoice, input, intentContext, mode]);
+  const submitIntent = () => { setClarificationChoice(null); setGeneration(null); setMode(understanding.clarification ? 'clarify' : 'result'); };
+  const chooseClarification = (option: IntentClarificationOption) => { setClarificationChoice(option); setGeneration(null); setMode('result'); };
+  const surprise = () => { setInput(''); setClarificationChoice(null); setGeneration(null); setMode('result'); };
   return (
     <ScrollView contentContainerStyle={styles.screenScroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
       <ScreenHeader eyebrow="JIJ GEEFT RICHTING" title="Waar heb je ruimte voor?" subtitle="Zeg het in je eigen woorden. Momentum maakt er geen categorie van." />
@@ -623,7 +638,7 @@ function DiscoverScreen({ context, candidatePool, learning, onOpen }: { context:
           <PrimaryButton label={input.trim() ? 'Vind wat hierbij past' : 'Help me kiezen'} onPress={submitIntent} />
           <View style={styles.orRow}><View style={styles.orLine} /><Text style={styles.orText}>OF</Text><View style={styles.orLine} /></View>
           <SecondaryButton label="Verras me binnen deze tijd" onPress={surprise} />
-          <Text style={styles.intentPrivacy}>Voor deze proef wordt je zin alleen lokaal geïnterpreteerd. Er wordt geen chatgeschiedenis gemaakt.</Text>
+          <Text style={styles.intentPrivacy}>{remoteGenerationConfigured ? 'Voor een nieuwe capsule gaan alleen deze zin, je gekozen tijd en praktische momentkeuzes naar de beveiligde generator. Geen chatgeschiedenis, agenda-inhoud of herinneringen.' : 'Voor deze proef wordt je zin alleen lokaal geïnterpreteerd. Er wordt geen chatgeschiedenis gemaakt.'}</Text>
         </View>
       ) : mode === 'clarify' && understanding.clarification ? (
         <View style={styles.clarificationPanel}>
@@ -640,15 +655,16 @@ function DiscoverScreen({ context, candidatePool, learning, onOpen }: { context:
             <Text style={styles.interpretationLabel}>ZO HEB IK JE MOMENT BEGREPEN</Text>
             {input.trim() && <Text style={styles.intentQuote}>“{input.trim()}”</Text>}
             <Text style={styles.interpretationText}>{blueprintComposition.interpretation} · {minutes} minuten · {explicitCompany === 'solo' ? 'alleen' : explicitCompany === 'family' ? 'met gezin' : 'samen'}{clarificationChoice ? ` · ${clarificationChoice.label.toLowerCase()}` : ''}</Text>
-            {primary?.blueprint && <Text style={styles.blueprintTrust}>Samengesteld met {primary.blueprint.validationLabel.toLowerCase()}.</Text>}
+            {!generating && primary?.blueprint && <Text style={styles.blueprintTrust}>Samengesteld met {primary.blueprint.validationLabel.toLowerCase()}.</Text>}
           </View>
-          {primary ? <>
+          {generating ? <View style={styles.generationCard}><Text style={styles.generationMark}>✦</Text><View style={styles.flex}><Text style={styles.generationTitle}>Momentum maakt een nieuwe combinatie</Text><Text style={styles.generationBody}>Je huidige vraag wordt vertaald naar een complete capsule en daarna gecontroleerd.</Text></View></View> : generation ? <View style={styles.generationCard}><Text style={styles.generationMark}>{generation.mode === 'remote' ? 'AI' : '◎'}</Text><View style={styles.flex}><Text style={styles.generationTitle}>{generation.mode === 'remote' ? 'Nieuw voor dit moment gemaakt' : 'Lokaal nieuw gecombineerd'}</Text><Text style={styles.generationBody}>{generation.message} Alleen complete kandidaten gaan door.</Text></View></View> : null}
+          {!generating && (primary ? <>
             <Text style={styles.sectionLabel}>MIJN BESTE VOORSTEL · VERTROUWEN {result.confidence.toUpperCase()}</Text>
             <ExperienceTile experience={primary} large onPress={() => onOpen(primary)} />
             <View style={styles.selectionReasons}>{result.selected?.reasons.map((reason) => <Text key={reason.text} style={styles.selectionReason}>• {reason.text}</Text>)}</View>
             {alternative && <><Text style={styles.sectionLabel}>EEN ECHT ANDERE RICHTING</Text><ExperienceTile experience={alternative} onPress={() => onOpen(alternative)} /></>}
-          </> : <View style={styles.silentCard}><Text style={styles.eyebrow}>GEEN EERLIJK VOORSTEL</Text><Text style={styles.silentTitle}>Binnen deze ruimte past nu niets compleet.</Text><Text style={styles.screenSubtitle}>Vergroot de beschikbare tijd of pas één praktische beperking aan.</Text></View>}
-          <SecondaryButton label="Pas mijn woorden aan" onPress={() => { setClarificationChoice(null); setMode('idle'); }} />
+          </> : <View style={styles.silentCard}><Text style={styles.eyebrow}>GEEN EERLIJK VOORSTEL</Text><Text style={styles.silentTitle}>Binnen deze ruimte past nu niets compleet.</Text><Text style={styles.screenSubtitle}>Vergroot de beschikbare tijd of pas één praktische beperking aan.</Text></View>)}
+          <SecondaryButton label="Pas mijn woorden aan" onPress={() => { setClarificationChoice(null); setGeneration(null); setMode('idle'); }} />
           <Text style={styles.finiteNote}>Momentum toont bewust geen eindeloze lijst.</Text>
         </View>
       )}
@@ -684,6 +700,7 @@ function PromiseScreen({ experience, onClose, onAccept }: { experience: Experien
       <Text style={styles.wonderLarge}>{experience.wonder}</Text>
       <View style={styles.factStrip}><MiniFact value={`${experience.duration} min`} label="totaal" /><MiniFact value={experience.effort} label="inspanning" /><MiniFact value={experience.timeWindow ?? 'nu mogelijk'} label="moment" /></View>
       {experience.blueprint && <View style={styles.blueprintBadge}><Text style={styles.blueprintBadgeMark}>✓</Text><View style={styles.flex}><Text style={styles.blueprintBadgeTitle}>Complete ervaring</Text><Text style={styles.blueprintBadgeBody}>{experience.blueprint.validationLabel}. Je houdt altijd zelf de regie.</Text></View></View>}
+      {experience.generation && <View style={styles.generationDisclosure}><Text style={styles.generationDisclosureLabel}>{experience.generation.mode === 'remote' ? 'GEGENEREERD EN GECONTROLEERD' : 'LOKAAL GECOMBINEERD'}</Text><Text style={styles.generationDisclosureBody}>{experience.generation.disclosure}</Text></View>}
       {experience.meaningThread && <MeaningThreadCard experience={experience} />}
       {freshEvidence.length ? <View style={styles.liveEvidenceCard}>
         <Text style={styles.liveEvidenceTitle}>LIVE WORLD · BRONBEWIJS</Text>
@@ -1119,6 +1136,7 @@ const styles = StyleSheet.create({
   calendarWindows: { borderRadius: 22, borderWidth: 1, borderColor: 'rgba(217,179,107,0.3)', backgroundColor: 'rgba(217,179,107,0.05)', padding: 17, marginBottom: 16, gap: 9 }, calendarWindowText: { color: colors.bone, fontSize: 11, lineHeight: 17 },
   intentPanel: { borderRadius: 28, borderWidth: 1, borderColor: colors.line, backgroundColor: 'rgba(16,26,29,0.88)', padding: 20 }, fieldLabel: { color: colors.gold, fontSize: 11, letterSpacing: 1.35, fontWeight: '700', marginTop: 8, marginBottom: 12 }, chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 24 }, choiceChip: { minHeight: 44, borderRadius: 99, borderWidth: 1, borderColor: colors.line, paddingHorizontal: 15, paddingVertical: 11, justifyContent: 'center' }, choiceChipSelected: { borderColor: colors.green, backgroundColor: 'rgba(164,197,93,0.16)' }, choiceChipText: { color: colors.muted, fontSize: 13 }, choiceChipTextSelected: { color: colors.bone }, intentInput: { minHeight: 118, borderRadius: 20, borderWidth: 1, borderColor: colors.line, backgroundColor: 'rgba(4,10,12,0.48)', color: colors.bone, fontSize: 16, lineHeight: 23, padding: 16, textAlignVertical: 'top', marginBottom: 14 }, orRow: { flexDirection: 'row', alignItems: 'center', marginTop: 13 }, orLine: { flex: 1, height: 1, backgroundColor: colors.line }, orText: { color: colors.muted, fontSize: 11, marginHorizontal: 12 }, intentPrivacy: { color: 'rgba(174,180,174,0.68)', fontSize: 11, lineHeight: 17, textAlign: 'center', marginTop: 10 }, interpretation: { borderRadius: 18, borderWidth: 1, borderColor: colors.line, padding: 15, marginBottom: 24 }, interpretationLabel: { color: colors.green, fontSize: 11, letterSpacing: 1.25, fontWeight: '700' }, interpretationText: { color: colors.bone, fontSize: 13, lineHeight: 19, marginTop: 7 }, sectionLabel: { color: colors.gold, fontSize: 11, letterSpacing: 1.35, fontWeight: '700', marginTop: 8, marginBottom: 10 }, experienceTile: { marginBottom: 20 }, tileImage: { minHeight: 210, justifyContent: 'flex-end' }, tileImageLarge: { minHeight: 310 }, tileImageStyle: { borderRadius: 25 }, tileCopy: { padding: 18 }, tileTitle: { color: colors.bone, fontSize: 29, lineHeight: 35, fontWeight: '400', fontFamily: editorialFont, marginTop: 12 }, tilePromise: { color: 'rgba(244,238,227,0.82)', fontSize: 13, lineHeight: 19, marginTop: 7 }, tileMeta: { color: colors.bone, fontSize: 12, marginTop: 14 }, finiteNote: { color: colors.muted, fontSize: 11, textAlign: 'center', marginTop: 2 },
   clarificationPanel: { borderRadius: 28, borderWidth: 1, borderColor: 'rgba(217,179,107,0.3)', backgroundColor: 'rgba(16,26,29,0.9)', padding: 20 }, clarificationTitle: { color: colors.bone, fontFamily: editorialFont, fontSize: 30, lineHeight: 37, marginTop: 13 }, clarificationBody: { color: colors.muted, fontSize: 14, lineHeight: 21, marginTop: 10 }, intentQuote: { color: colors.gold, fontFamily: editorialFont, fontSize: 16, lineHeight: 23, marginTop: 12 }, clarificationOptions: { gap: 9, marginTop: 24, marginBottom: 18 }, clarificationOption: { minHeight: 58, borderRadius: 18, borderWidth: 1, borderColor: colors.line, backgroundColor: 'rgba(4,10,12,0.34)', paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center' }, clarificationOptionText: { color: colors.bone, fontSize: 15, fontWeight: '600', flex: 1 },
+  generationCard: { minHeight: 74, borderRadius: 22, borderWidth: 1, borderColor: 'rgba(164,197,93,0.28)', backgroundColor: 'rgba(164,197,93,0.06)', padding: 15, marginBottom: 22, flexDirection: 'row', alignItems: 'center', gap: 12 }, generationMark: { width: 34, color: colors.green, fontSize: 18, fontWeight: '700', textAlign: 'center' }, generationTitle: { color: colors.bone, fontSize: 14, fontWeight: '700' }, generationBody: { color: colors.muted, fontSize: 10, lineHeight: 15, marginTop: 4 }, generationDisclosure: { borderRadius: 18, borderWidth: 1, borderColor: 'rgba(164,197,93,0.2)', backgroundColor: 'rgba(164,197,93,0.04)', padding: 14, marginTop: -8, marginBottom: 20 }, generationDisclosureLabel: { color: colors.green, fontSize: 9, letterSpacing: 1.15, fontWeight: '700' }, generationDisclosureBody: { color: colors.muted, fontSize: 10, lineHeight: 15, marginTop: 6 },
   lifeSummary: { flexDirection: 'row', alignItems: 'center', borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.line, paddingVertical: 18, marginBottom: 28 }, lifeSummaryBig: { color: colors.green, fontSize: 48, fontWeight: '200', marginRight: 16 }, lifeSummaryTitle: { color: colors.bone, fontSize: 16 }, lifeSummaryBody: { color: colors.muted, fontSize: 11, marginTop: 4 }, memoryGrid: { gap: 14 }, memoryCard: { minHeight: 230 }, memoryImage: { minHeight: 230, justifyContent: 'flex-end' }, memoryImageStyle: { borderRadius: 24 }, memoryCopy: { padding: 18 }, memoryDate: { color: colors.gold, fontSize: 11, letterSpacing: 1.1 }, memoryTitle: { color: colors.bone, fontFamily: editorialFont, fontSize: 27, lineHeight: 33, fontWeight: '400', marginTop: 7 }, memoryNote: { color: 'rgba(244,238,227,0.78)', fontSize: 12, lineHeight: 18, marginTop: 6 }, memoryMeaning: { color: colors.gold, fontSize: 11, lineHeight: 16, marginTop: 9 }, memoryShared: { color: colors.green, fontSize: 11, marginTop: 8 }, learningCard: { borderRadius: 22, borderWidth: 1, borderColor: colors.line, backgroundColor: 'rgba(164,197,93,0.06)', padding: 18, marginTop: 22 }, learningTitle: { color: colors.green, fontSize: 14, fontWeight: '700' }, learningBody: { color: colors.muted, fontSize: 12, lineHeight: 19, marginTop: 7 },
   bottomNav: { position: 'absolute', left: 14, right: 14, bottom: 10, minHeight: 72, borderRadius: 26, borderWidth: 1, borderColor: colors.line, backgroundColor: 'rgba(9,17,20,0.96)', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 6 }, navItem: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 5, minHeight: 62 }, navIcon: { color: colors.muted, fontSize: 18 }, navLabel: { color: colors.muted, fontSize: 10 }, navActive: { color: colors.green },
   backButton: { alignSelf: 'flex-start', minHeight: 44, justifyContent: 'center', marginBottom: 12 }, backButtonText: { color: colors.muted, fontSize: 14 }, detailHero: { height: 430, justifyContent: 'flex-end', marginHorizontal: -22, marginTop: -66, marginBottom: 24 }, detailHeroImage: { borderBottomLeftRadius: 30, borderBottomRightRadius: 30 }, detailHeroCopy: { padding: 22, paddingTop: 120 }, detailTitle: { color: colors.bone, fontSize: 42, lineHeight: 49, fontWeight: '400', fontFamily: editorialFont, letterSpacing: -0.8, marginTop: 13 }, detailPromise: { color: 'rgba(244,238,227,0.84)', fontSize: 16, lineHeight: 23, marginTop: 10 }, wonderHeadline: { color: colors.gold, fontSize: 11, letterSpacing: 1.3, fontWeight: '700' }, wonderLarge: { color: colors.bone, fontSize: 21, lineHeight: 30, fontWeight: '400', fontFamily: editorialFont, marginTop: 10 }, factStrip: { flexDirection: 'row', gap: 14, borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.line, paddingVertical: 16, marginVertical: 22 },
