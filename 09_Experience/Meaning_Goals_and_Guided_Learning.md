@@ -153,6 +153,8 @@ An experience may contain a Meaning Thread with at most three parts:
 
 The Meaning Thread is optional. Presence wins when information would interrupt attention, safety, conversation, play, rest, or flow.
 
+For the representative prototype, a Capsule contains at most three stage-specific guide moments. Preparation may preview their character, Presence surfaces only the current moment, and a deeper consultable guide may collect the rest. Memory may repeat at most two titles as an optional recognition cue, never as proof that learning occurred.
+
 ## Information quality
 
 Every learning element declares its basis:
@@ -185,4 +187,3 @@ The layer succeeds when someone can say:
 - “This connected to something I care about.”
 
 It fails when the user spends more time consuming explanations than living the experience, feels judged by a goal, or cannot distinguish fact from generated interpretation.
-

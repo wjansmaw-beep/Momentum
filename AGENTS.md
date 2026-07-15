@@ -4,7 +4,7 @@ These instructions apply to the entire repository.
 
 ## Current phase
 
-The Founder approved the document foundation on 2026-07-10 and requested the first application slice. On 2026-07-14 the Founder explicitly advanced the product into the Premium Living Guide direction, and on 2026-07-15 approved the account-free Shared Capsule prototype and layered consultable guide. Application code may implement accepted decisions through ADR-030. Accounts, production synchronization, new external integrations, or other unrecorded scope still require explicit approval.
+The Founder approved the document foundation on 2026-07-10 and requested the first application slice. On 2026-07-14 the Founder explicitly advanced the product into the Premium Living Guide direction, and on 2026-07-15 approved the account-free Shared Capsule prototype, layered consultable guide, and richer guide moments. Application code may implement accepted decisions through ADR-031. Accounts, production synchronization, new external integrations, or other unrecorded scope still require explicit approval.
 
 ## Read before acting
 

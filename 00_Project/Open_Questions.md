@@ -76,7 +76,7 @@ Priority labels:
 - **Soon:** What is the smallest onboarding or later conversation that can invite direction without asking someone to define their life purpose?
 - **Partly resolved:** Profile now supports review, edit, deletion through editing, and pause/resume without a fifth primary surface. Expiry and review timing remain open.
 - **Soon:** Which information types may be generated from sources, which require editorial review, and how is that distinction shown without clutter?
-- **Soon:** How many guide moments can a route contain before learning begins to compete with Presence or safety?
+- **Prototype resolved:** representative Capsules use at most three stage-specific guide moments; Presence shows only the current one and deeper content remains explicitly consultable. Field validation may lower this per experience type. See ADR-031.
 - **Soon:** How should Momentum detect progress without converting goals into streaks, quotas, or identity judgments?
 - **Partly resolved:** users can choose quiet, guide, or deep guidance and reopen the same guide from Presence. Topic-specific depth, audio timing, and editorial review workflows remain open. See ADR-030.
 - **Prototype direction:** reflection offers two explicit scopes: this experience only or the insight topic across experiences. Kind- and source-level scope remain unneeded until testing shows value.

@@ -1,12 +1,17 @@
-import React from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useState } from 'react';
+import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ExperienceGuide, GuideDepth } from './experienceGuide';
 
 const palette = { ink: '#071013', panel: '#101A1D', bone: '#F4EEE3', muted: '#AEB4AE', green: '#A4C55D', gold: '#D9B36B', line: 'rgba(244,238,227,0.14)' };
 
 export function ExperienceGuidePanel({ guide, depth, accent, onClose }: { guide: ExperienceGuide; depth: GuideDepth; accent: string; onClose: () => void }) {
+  const [sourceStatus, setSourceStatus] = useState('');
   const activeEvidence = guide.evidence.filter((item) => item.freshness === 'current');
   const visibleInsights = depth === 'deep' ? guide.furtherInsights : [];
+  const observedLabel = (value: string) => {
+    const date = new Date(value);
+    return Number.isFinite(date.getTime()) ? date.toLocaleString('nl-NL', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'tijd onbekend';
+  };
   return <View style={styles.overlay} accessibilityViewIsModal>
     <View style={styles.header}>
       <View style={styles.flex}><Text style={styles.eyebrow}>RAADPLEEGBARE GIDS</Text><Text style={styles.title}>{guide.title}</Text></View>
@@ -24,7 +29,8 @@ export function ExperienceGuidePanel({ guide, depth, accent, onClose }: { guide:
       </View> : null}
       {depth !== 'quiet' && activeEvidence.length ? <View style={styles.card}>
         <Text style={styles.section}>WAT DE WERELD NU LAAT ZIEN</Text>
-        {activeEvidence.map((item) => <View key={`${item.sourceName}-${item.label}`} style={styles.item}><View style={[styles.dot, { backgroundColor: accent }]} /><View style={styles.flex}><Text style={styles.itemTitle}>{item.label}</Text><Text style={styles.source}>{item.sourceName} · {item.freshnessLabel}</Text></View></View>)}
+        {activeEvidence.map((item) => <Pressable accessibilityRole="link" accessibilityLabel={`Open bron ${item.sourceName}`} onPress={async () => { setSourceStatus(''); try { await Linking.openURL(item.sourceUrl); } catch { setSourceStatus('De bron kon niet worden geopend. De ervaring blijft zonder deze bron bruikbaar.'); } }} key={`${item.sourceName}-${item.label}`} style={styles.item}><View style={[styles.dot, { backgroundColor: accent }]} /><View style={styles.flex}><Text style={styles.itemTitle}>{item.label}</Text><Text style={styles.source}>{item.sourceName} · {item.freshnessLabel} · {observedLabel(item.observedAt)}</Text><Text style={[styles.source, { color: accent }]}>Bekijk bron ↗</Text></View></Pressable>)}
+        {sourceStatus ? <Text accessibilityLiveRegion="polite" style={styles.caution}>{sourceStatus}</Text> : null}
         <Text style={styles.caution}>Een waarneming of verwachting is context, geen garantie. Volg ter plaatse altijd actuele aanwijzingen.</Text>
       </View> : null}
       {depth === 'deep' && visibleInsights.length ? <View style={styles.card}>
