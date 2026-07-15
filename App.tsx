@@ -86,6 +86,7 @@ import {
 } from './src/sharing/sharedCapsule';
 import { ExperienceGuidePanel } from './src/guidance/ExperienceGuidePanel';
 import { buildExperienceGuide, currentEvidence, GuideDepth } from './src/guidance/experienceGuide';
+import { composeGuideMoments } from './src/guidance/guideComposer';
 
 type FlowStage = 'invite' | 'promise' | 'prepare' | 'presence' | 'remember' | 'profile' | null;
 type Memory = { id: string; title: string; date: string; image: string; note: string; sharedWith?: string[] };
@@ -193,9 +194,10 @@ export default function App() {
   const effectiveContext = useMemo(() => calendarContext.state === 'live' && calendarContext.currentFreeMinutes
     ? { ...prototypeContext, availableMinutes: Math.max(15, Math.min(120, calendarContext.currentFreeMinutes)) }
     : prototypeContext, [calendarContext.currentFreeMinutes, calendarContext.state, prototypeContext]);
-  const liveExperiences = useMemo(() => liveWorld && selectionLocationConfirmed ? [composeLiveExperience(liveWorld, effectiveContext), composeNearbyPlaceExperience(liveWorld, effectiveContext)].filter((item): item is Experience => Boolean(item)) : [], [effectiveContext, liveWorld, selectionLocationConfirmed]);
+  const liveExperiences = useMemo(() => liveWorld && selectionLocationConfirmed ? [composeLiveExperience(liveWorld, effectiveContext), composeNearbyPlaceExperience(liveWorld, effectiveContext)].filter((item): item is Experience => Boolean(item)).map((item) => composeGuideMoments(item)) : [], [effectiveContext, liveWorld, selectionLocationConfirmed]);
   const contentCatalog = useMemo(() => resolveContentCatalog(createWorldContext(liveWorld?.coordinates ?? defaultRegion.coordinates, new Date(), 'nl', selectionLocationConfirmed)), [liveWorld?.coordinates, selectionLocationConfirmed]);
-  const candidatePool = useMemo(() => [...liveExperiences, ...contentCatalog.experiences], [contentCatalog.experiences, liveExperiences]);
+  const guidedCatalogExperiences = useMemo(() => contentCatalog.experiences.map((item) => composeGuideMoments(item)), [contentCatalog.experiences]);
+  const candidatePool = useMemo(() => [...liveExperiences, ...guidedCatalogExperiences], [guidedCatalogExperiences, liveExperiences]);
   const learningContext = useMemo(() => ({
     kindAffinity: personalProfile.kindAffinity,
     blockedExperienceIds: personalProfile.blockedExperienceIds,
@@ -222,7 +224,7 @@ export default function App() {
     return items.length ? items : [{ experience: primaryExperience, decision: primaryDecision }];
   }, [candidatePool, effectiveContext, learningContext, primaryDecision, primaryExperience]);
   const resumableExperience = activeSession ? candidatePool.find((experience) => experience.id === activeSession.experienceId) ?? experiences.find((experience) => experience.id === activeSession.experienceId) : undefined;
-  const dayDecisions = useMemo(() => buildToday(effectiveContext, liveExperiences, learningContext, calendarContext.state === 'live' ? calendarContext.freeWindows : undefined, contentCatalog.experiences), [calendarContext.freeWindows, calendarContext.state, contentCatalog.experiences, effectiveContext, learningContext, liveExperiences]);
+  const dayDecisions = useMemo(() => buildToday(effectiveContext, liveExperiences, learningContext, calendarContext.state === 'live' ? calendarContext.freeWindows : undefined, guidedCatalogExperiences), [calendarContext.freeWindows, calendarContext.state, effectiveContext, guidedCatalogExperiences, learningContext, liveExperiences]);
 
   const connectCalendar = async () => {
     setCalendarLoading(true);
@@ -739,7 +741,7 @@ function PrepareScreen({ experience, hostName, initialCompany, initialGuideDepth
         <Text style={styles.expectationLabel}>ZO BLIJFT DE GIDS BESCHIKBAAR</Text>
         <Text style={styles.guidePreviewTitle}>{guideDepth === 'quiet' ? 'Alleen wanneer jij hem opent' : guideDepth === 'guide' ? 'Eén inzicht op het juiste moment' : `${guideInsights.length} gidsmomenten om verder te kijken`}</Text>
         <Text style={styles.guidePreviewBody}>{guideDepth === 'quiet' ? 'Je ziet de huidige stap. Uitleg en bronnen blijven op de achtergrond.' : guideDepth === 'guide' ? (guideInsights[0]?.title ?? 'De huidige aanwijzing blijft leidend.') : guideInsights.slice(0, 3).map((item) => item.title).join(' · ')}</Text>
-        <Text style={styles.guidePreviewSource}>{guide.coverageLabel}. Je kunt tijdens de ervaring altijd terugschakelen naar je omgeving.</Text>
+        <Text style={styles.guidePreviewSource}>{guide.coverageLabel}{guide.compositionLabel ? ` · ${guide.compositionLabel}` : ''}. Je kunt tijdens de ervaring altijd terugschakelen naar je omgeving.</Text>
       </View>
       <Text style={styles.fieldLabel}>PRAKTISCH VOOR JE VERTREKT</Text><View style={styles.prepareCard}>{experience.prepare.map((item) => <View key={item} style={styles.prepareRow}><View style={[styles.prepareBullet, { backgroundColor: experience.accent }]} /><Text style={styles.prepareText}>{item}</Text></View>)}</View>
       {experience.routePlan && <View style={styles.routePlanCard}>

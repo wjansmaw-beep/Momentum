@@ -18,6 +18,7 @@ export type ExperienceGuide = {
   evidence: GuideEvidence[];
   coverage: 'live' | 'editorial' | 'hybrid' | 'evergreen';
   coverageLabel: string;
+  compositionLabel?: string;
 };
 
 export function evidenceFreshness(evidence: LiveEvidence, now = Date.now()): GuideEvidence {
@@ -63,5 +64,6 @@ export function buildExperienceGuide(experience: Experience, stepIndex: number, 
     evidence,
     coverage,
     coverageLabel,
+    compositionLabel: experience.guideOrigin?.label,
   };
 }

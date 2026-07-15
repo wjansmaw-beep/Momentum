@@ -19,6 +19,7 @@ export function ExperienceGuidePanel({ guide, depth, accent, onClose }: { guide:
     </View>
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <View style={[styles.coverage, { borderColor: accent }]}><Text style={[styles.coverageText, { color: accent }]}>{guide.coverageLabel}</Text></View>
+      {guide.compositionLabel ? <Text style={styles.composition}>{guide.compositionLabel}. Feiten blijven gekoppeld aan hun bron.</Text> : null}
       <Text style={styles.section}>NU BELANGRIJK</Text>
       <Text style={styles.stepTitle}>{guide.currentStep.title}</Text>
       <Text style={styles.body}>{guide.currentStep.instruction}</Text>
@@ -54,5 +55,5 @@ const styles = StyleSheet.create({
   content: { paddingBottom: 40, gap: 14 }, coverage: { alignSelf: 'flex-start', borderWidth: 1, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7 }, coverageText: { fontSize: 10, fontWeight: '700' },
   section: { color: palette.green, fontSize: 9, letterSpacing: 1.35, fontWeight: '700', marginBottom: 6 }, stepTitle: { color: palette.bone, fontSize: 23, fontWeight: '700' }, body: { color: palette.bone, fontSize: 14, lineHeight: 21 },
   card: { borderRadius: 20, borderWidth: 1, borderColor: palette.line, backgroundColor: palette.panel, padding: 16, gap: 9 }, cardTitle: { color: palette.bone, fontSize: 16, fontWeight: '700' }, source: { color: palette.muted, fontSize: 10, lineHeight: 15 },
-  item: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 }, dot: { width: 7, height: 7, borderRadius: 4, marginTop: 6 }, itemTitle: { color: palette.bone, fontSize: 13, lineHeight: 18 }, caution: { color: palette.gold, fontSize: 10, lineHeight: 15, marginTop: 3 }, insight: { gap: 6, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: palette.line }, expired: { color: palette.muted, fontSize: 10, lineHeight: 15 },
+  item: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 }, dot: { width: 7, height: 7, borderRadius: 4, marginTop: 6 }, itemTitle: { color: palette.bone, fontSize: 13, lineHeight: 18 }, caution: { color: palette.gold, fontSize: 10, lineHeight: 15, marginTop: 3 }, composition: { color: palette.muted, fontSize: 10, lineHeight: 15, marginTop: -6 }, insight: { gap: 6, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: palette.line }, expired: { color: palette.muted, fontSize: 10, lineHeight: 15 },
 });

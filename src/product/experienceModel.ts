@@ -64,6 +64,10 @@ export type Experience = {
   company: Array<'solo' | 'together' | 'family'>;
   liveEvidence?: LiveEvidence[];
   routePlan?: RoutePlan;
+  guideOrigin?: {
+    mode: 'curated' | 'composed';
+    label: string;
+  };
 };
 
 export const experiences: Experience[] = [
