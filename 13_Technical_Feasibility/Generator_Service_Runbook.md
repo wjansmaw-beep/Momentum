@@ -19,6 +19,13 @@ npm run web
 
 The web app automatically uses `http://127.0.0.1:8787/v1/experience-drafts`. If the service stops, Discover falls back to device-local synthesis without breaking the experience flow.
 
+The same endpoint supports two explicit request modes:
+
+- `active-intent`: requires the person's current words or clarification;
+- `contextual-suggestion`: accepts no free profile text and requires exactly one locally selected approved domain.
+
+Both return the same `experience-draft-v1` response contract. Do not broaden the contextual request with goals, reflection, calendar content, location, live facts, or hidden ranking signals.
+
 ## Real model provider
 
 Set server-only environment variables before running `npm run generator`:

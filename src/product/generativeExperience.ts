@@ -16,6 +16,7 @@ export type GenerationOutcome = {
 };
 
 type GenerationRequest = {
+  requestMode: 'active-intent' | 'contextual-suggestion';
   intent: string;
   clarificationTerms: string;
   context: Pick<PrototypeContext, 'dayPart' | 'company' | 'availableMinutes' | 'hasKettlebell'>;
@@ -68,7 +69,7 @@ function sanitizeStep(value: unknown): CapsuleStep | undefined {
   };
 }
 
-function sanitizeRemoteDraft(value: unknown, index: number, intent: string, mode: 'model' | 'fixture', provider: string): Experience | undefined {
+function sanitizeRemoteDraft(value: unknown, index: number, intent: string, requestMode: GenerationRequest['requestMode'], mode: 'model' | 'fixture', provider: string): Experience | undefined {
   if (!value || typeof value !== 'object') return undefined;
   const raw = value as Record<string, unknown>;
   const kind = text(raw.kind) as ExperienceKind;
@@ -107,8 +108,8 @@ function sanitizeRemoteDraft(value: unknown, index: number, intent: string, mode
     keywords: textList(raw.keywords, 12, 40),
     company: requestedCompanies.length ? requestedCompanies : ['solo'],
     generation: mode === 'model'
-      ? { mode: 'remote', provider, createdAt: new Date().toISOString(), disclosure: 'Nieuw samengesteld uit je huidige vraag; feiten zonder bron zijn niet als live informatie gebruikt.' }
-      : { mode: 'local-synthesis', provider, createdAt: new Date().toISOString(), disclosure: 'Door de lokale generatorservice samengesteld en door dezelfde capsulegrenzen gecontroleerd; geen externe AI of verzonnen live feiten.' },
+      ? { mode: 'remote', provider, createdAt: new Date().toISOString(), disclosure: requestMode === 'contextual-suggestion' ? 'Nieuw samengesteld uit één richting die jij eerder koos en minimale momentcontext; live feiten komen alleen uit afzonderlijke bronnen.' : 'Nieuw samengesteld uit je huidige vraag; feiten zonder bron zijn niet als live informatie gebruikt.' }
+      : { mode: 'local-synthesis', provider, createdAt: new Date().toISOString(), disclosure: requestMode === 'contextual-suggestion' ? 'Door de lokale generatorservice samengesteld uit één gekozen richting en praktische momentcontext; geen externe AI of verzonnen live feiten.' : 'Door de lokale generatorservice samengesteld en door dezelfde capsulegrenzen gecontroleerd; geen externe AI of verzonnen live feiten.' },
   };
 }
 
@@ -131,7 +132,7 @@ async function requestRemoteDrafts(request: GenerationRequest): Promise<{ drafts
     const rawDrafts = Array.isArray(envelope.drafts) ? envelope.drafts : [];
     const mode = envelope.mode === 'fixture' ? 'fixture' : 'model';
     const provider = typeof envelope.provider === 'string' ? envelope.provider.slice(0, 80) : 'secure-generator-endpoint';
-    return { drafts: rawDrafts.slice(0, 3).map((draft, index) => sanitizeRemoteDraft(draft, index, request.intent, mode, provider)).filter((draft): draft is Experience => Boolean(draft)), mode };
+    return { drafts: rawDrafts.slice(0, 3).map((draft, index) => sanitizeRemoteDraft(draft, index, request.intent || request.domains.join('-'), request.requestMode, mode, provider)).filter((draft): draft is Experience => Boolean(draft)), mode };
   } finally {
     clearTimeout(timeout);
   }
@@ -181,10 +182,10 @@ function localSynthesis(request: GenerationRequest, candidates: Experience[]): E
       title: language.title,
       promise: language.promise,
       wonder: language.wonder,
-      why: ['Nieuw gecombineerd vanuit je eigen woorden', `Past met buffer binnen ${request.context.availableMinutes} minuten`, ...source.why].slice(0, 3),
+      why: [request.requestMode === 'contextual-suggestion' ? 'Nieuw samengesteld vanuit een richting die jij zelf koos' : 'Nieuw gecombineerd vanuit je eigen woorden', `Past met buffer binnen ${request.context.availableMinutes} minuten`, ...source.why].slice(0, 3),
       liveEvidence: undefined,
       routePlan: undefined,
-      generation: { mode: 'local-synthesis' as const, provider: 'device-local-approved-building-blocks', createdAt: new Date().toISOString(), disclosure: 'Lokaal samengesteld uit gecontroleerde ervaringsbouwstenen; geen externe AI of verzonnen live feiten.' },
+      generation: { mode: 'local-synthesis' as const, provider: 'device-local-approved-building-blocks', createdAt: new Date().toISOString(), disclosure: request.requestMode === 'contextual-suggestion' ? 'Lokaal samengesteld uit één richting die jij eerder koos en praktische momentcontext; geen externe AI of verzonnen live feiten.' : 'Lokaal samengesteld uit gecontroleerde ervaringsbouwstenen; geen externe AI of verzonnen live feiten.' },
     }];
   });
 }
@@ -193,7 +194,7 @@ export const isRemoteGenerationConfigured = () => Boolean(generatorUrl);
 
 export async function generateExperienceCandidates(intent: string, clarificationTerms: string, context: PrototypeContext, candidates: Experience[]): Promise<GenerationOutcome> {
   const domains = detectBlueprintDomains(`${intent} ${clarificationTerms}`);
-  const request: GenerationRequest = { intent: intent.trim(), clarificationTerms, context: { dayPart: context.dayPart, company: context.company, availableMinutes: context.availableMinutes, hasKettlebell: context.hasKettlebell }, domains, contractVersion: 'experience-draft-v1' };
+  const request: GenerationRequest = { requestMode: 'active-intent', intent: intent.trim(), clarificationTerms, context: { dayPart: context.dayPart, company: context.company, availableMinutes: context.availableMinutes, hasKettlebell: context.hasKettlebell }, domains, contractVersion: 'experience-draft-v1' };
   if (!request.intent && !clarificationTerms) return { experiences: [], mode: 'local-synthesis', message: 'Geen expliciete richting om nieuwe inhoud voor te maken.', rejected: 0 };
 
   const endpointConfigured = Boolean(generatorUrl);
@@ -216,4 +217,22 @@ export async function generateExperienceCandidates(intent: string, clarification
     message: endpointConfigured ? 'De generator was niet betrouwbaar bereikbaar; een lokale gecontroleerde combinatie is gebruikt.' : 'Nieuwe combinatie lokaal gemaakt uit gecontroleerde ervaringsbouwstenen.',
     rejected: local.length - validated.length,
   };
+}
+
+export async function generateContextualSuggestion(domain: BlueprintDomain, context: PrototypeContext, candidates: Experience[]): Promise<GenerationOutcome> {
+  const request: GenerationRequest = {
+    requestMode: 'contextual-suggestion', intent: '', clarificationTerms: '', domains: [domain], contractVersion: 'experience-draft-v1',
+    context: { dayPart: context.dayPart, company: context.company, availableMinutes: context.availableMinutes, hasKettlebell: context.hasKettlebell },
+  };
+  if (generatorUrl) {
+    try {
+      const remote = await requestRemoteDrafts(request);
+      const validated = validateGeneratedDrafts(remote.drafts.filter((draft) => draft.kind === domain), context);
+      if (validated.length) return { experiences: validated, mode: remote.mode === 'model' ? 'remote' : 'local-synthesis', message: 'Een frisse mogelijkheid voor dit moment is samengesteld en gecontroleerd.', rejected: remote.drafts.length - validated.length };
+    } catch {
+      // Contextual generation must remain optional and recover locally.
+    }
+  }
+  const local = validateGeneratedDrafts(localSynthesis(request, candidates), context);
+  return { experiences: local, mode: 'local-synthesis', message: 'Een frisse mogelijkheid is lokaal samengesteld uit gecontroleerde bouwstenen.', rejected: 0 };
 }

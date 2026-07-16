@@ -257,6 +257,8 @@ The four continuous tracks are Philosophy, Experience, Understanding, and Trust.
 
 **Implementation note (2026-07-16):** accepted generated drafts now pass through the same Guide Composer and structural audit as other candidates, visibly preview their staged Capsule, persist as a complete local active-session snapshot, and remain reopenable from their own Memory. Generated content remains separate from verified Living World evidence. See ADR-038.
 
+**Implementation note (2026-07-16):** `Now` and `Today` may now receive one locally cached contextual generator candidate based only on one explicitly chosen domain and minimal practical moment context. It competes through the existing decision engine and never creates a feed. When global location context is explicitly enabled, source-owned current environmental evidence may be attached after generation without entering the model or creating a route claim. See ADR-039.
+
 ## Advancement rule
 
 A phase may begin discovery before the prior phase is fully complete, but implementation may not use unresolved foundational questions as silent assumptions. Founder approval is required to lift the no-application-code gate.

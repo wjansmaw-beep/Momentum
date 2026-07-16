@@ -2,7 +2,8 @@ export function buildPrompt(request) {
   return `Je bent de capsule-ontwerper van Momentum. Maak precies één complete, Nederlandstalige ervaring die iemand snel uit de app en het echte leven in helpt.
 
 Menselijk moment:
-- Eigen woorden: ${request.intent || '(geen extra woorden)'}
+- Aanleiding: ${request.requestMode === 'contextual-suggestion' ? 'begrensd contextueel voorstel bij openen; er zijn geen vrije profielteksten meegestuurd' : 'actieve intentie van de gebruiker'}
+- Eigen woorden: ${request.intent || '(geen; gebruik alleen de gekozen richting en praktische context)'}
 - Verduidelijking: ${request.clarificationTerms || '(geen)'}
 - Tijd: ${request.context.availableMinutes} minuten inclusief minimaal 5 minuten buffer
 - Dagdeel: ${request.context.dayPart}

@@ -9,6 +9,7 @@ Version: 1.0
 - **Partly resolved:** Generator Service v1 uses a local fixture and an optional OpenAI Responses provider with a configurable model. The provider key stays server-side and model storage is disabled. See ADR-037.
 - **Still open:** production hosting, gateway and app-attestation, distributed rate limits, redacted observability, the final model after real evaluation, and when verified Living World evidence may enter an evidence-grounded generation envelope.
 - **Resolved for local continuity:** an accepted generated Capsule is Guide-composed, structurally audited, stored with an active local session, and preserved with its optional Memory. It does not silently become editorial or live-source truth. See ADR-038.
+- **Resolved for bounded initiative:** opening Momentum may produce one cached contextual candidate from one explicitly chosen domain and minimal practical context. No private free text or location enters that request. Verified environmental evidence may be attached only afterwards by its owning adapter. See ADR-039.
 
 ## Resolved direction — personal model (2026-07-12)
 

@@ -66,6 +66,7 @@ import {
   LiveWorldSnapshot,
   loadLiveWorld,
   loadPlaceContext,
+  overlayVerifiedWorldContext,
 } from './src/liveworld/liveWorld';
 import {
   CalendarContextSnapshot,
@@ -92,12 +93,13 @@ import { composeGuideMoments } from './src/guidance/guideComposer';
 import { auditCandidatePool, CompositionSummary } from './src/guidance/compositionAudit';
 import { colors, typography } from './src/design/theme';
 import { attachMeaningThread } from './src/product/meaningThread';
-import { generateExperienceCandidates, GenerationOutcome, isRemoteGenerationConfigured } from './src/product/generativeExperience';
+import { generateContextualSuggestion, generateExperienceCandidates, GenerationOutcome, isRemoteGenerationConfigured } from './src/product/generativeExperience';
 
 type FlowStage = 'invite' | 'promise' | 'prepare' | 'presence' | 'remember' | 'profile' | null;
 type Memory = { id: string; title: string; date: string; image: string; note: string; sharedWith?: string[]; meaning?: string; experienceSnapshot?: Experience };
 type ActiveSession = { experienceId: string; experienceSnapshot?: Experience; stage: 'prepare' | 'presence'; stepIndex: number; origin: Surface; company?: Company; guideDepth?: GuideDepth; shared?: SharedCapsuleState; updatedAt: string };
 type PrototypeEvidence = { started: number; completed: number; reflected: number; skippedReflection: number; lastUpdated?: string };
+type ContextualSuggestionCache = { signature: string; expiresAt: string; experience: Experience };
 
 const editorialFont = typography.editorial;
 const memoryKey = 'momentum.memories.v2';
@@ -105,6 +107,7 @@ const contextKey = 'momentum.prototype-context.v1';
 const personalProfileKey = 'momentum.personal-profile.v1';
 const activeSessionKey = 'momentum.active-session.v1';
 const evidenceKey = 'momentum.prototype-evidence.v1';
+const contextualSuggestionKey = 'momentum.contextual-suggestion.v1';
 const timeOptions = [15, 30, 60, 120];
 const defaultRegion = { coordinates: { latitude: 53.325, longitude: 5.999 }, label: 'Dokkum proefcontext · niet gebruikt voor keuzes' };
 
@@ -137,6 +140,7 @@ export default function App() {
     { id: 'seed-1', title: 'Licht boven het Wad', date: '8 juli', image: byId('wadden-light').image, note: 'De lucht werd stiller dan verwacht.' },
     { id: 'seed-2', title: 'Een sterk halfuur', date: '5 juli', image: byId('kettlebell-focus').image, note: 'Kort, scherp en precies genoeg.' },
   ]);
+  const [contextualGenerated, setContextualGenerated] = useState<Experience | null>(null);
 
   useEffect(() => {
     if (typeof document !== 'undefined') {
@@ -202,8 +206,13 @@ export default function App() {
   const guidedCatalogExperiences = useMemo(() => contentCatalog.experiences.map((item) => composeGuideMoments(item)), [contentCatalog.experiences]);
   const contextualBlueprints = useMemo(() => composeContextualBlueprints(effectiveContext, guidedCatalogExperiences, personalProfile.preferredKinds).map((item) => attachMeaningThread(item, personalProfile)), [effectiveContext, guidedCatalogExperiences, personalProfile]);
   const meaningfulLiveExperiences = useMemo(() => liveExperiences.map((item) => attachMeaningThread(item, personalProfile)), [liveExperiences, personalProfile]);
-  const compositionAudit = useMemo(() => auditCandidatePool([...meaningfulLiveExperiences, ...contextualBlueprints]), [contextualBlueprints, meaningfulLiveExperiences]);
-  const candidatePool = compositionAudit.accepted.length ? compositionAudit.accepted : guidedCatalogExperiences;
+  const baseCompositionAudit = useMemo(() => auditCandidatePool([...meaningfulLiveExperiences, ...contextualBlueprints]), [contextualBlueprints, meaningfulLiveExperiences]);
+  const baseCandidatePool = baseCompositionAudit.accepted.length ? baseCompositionAudit.accepted : guidedCatalogExperiences;
+  const contextualPrepared = useMemo(() => contextualGenerated
+    ? attachMeaningThread(composeGuideMoments(overlayVerifiedWorldContext(contextualGenerated, selectionLocationConfirmed ? liveWorld ?? undefined : undefined)), personalProfile)
+    : null, [contextualGenerated, liveWorld, personalProfile, selectionLocationConfirmed]);
+  const compositionAudit = useMemo(() => auditCandidatePool([...(contextualPrepared ? [contextualPrepared] : []), ...baseCandidatePool]), [baseCandidatePool, contextualPrepared]);
+  const candidatePool = compositionAudit.accepted.length ? compositionAudit.accepted : baseCandidatePool;
   const learningContext = useMemo(() => ({
     kindAffinity: personalProfile.kindAffinity,
     blockedExperienceIds: personalProfile.blockedExperienceIds,
@@ -230,7 +239,40 @@ export default function App() {
     return items.length ? items : [{ experience: primaryExperience, decision: primaryDecision }];
   }, [candidatePool, effectiveContext, learningContext, primaryDecision, primaryExperience]);
   const resumableExperience = activeSession ? activeSession.experienceSnapshot ?? candidatePool.find((experience) => experience.id === activeSession.experienceId) ?? experiences.find((experience) => experience.id === activeSession.experienceId) : undefined;
-  const dayDecisions = useMemo(() => buildToday(effectiveContext, meaningfulLiveExperiences, learningContext, calendarContext.state === 'live' ? calendarContext.freeWindows : undefined, contextualBlueprints), [calendarContext.freeWindows, calendarContext.state, contextualBlueprints, effectiveContext, learningContext, meaningfulLiveExperiences]);
+  const dayDecisions = useMemo(() => buildToday(effectiveContext, meaningfulLiveExperiences, learningContext, calendarContext.state === 'live' ? calendarContext.freeWindows : undefined, [...(contextualPrepared ? [contextualPrepared] : []), ...contextualBlueprints]), [calendarContext.freeWindows, calendarContext.state, contextualBlueprints, contextualPrepared, effectiveContext, learningContext, meaningfulLiveExperiences]);
+
+  const contextualDomain = useMemo(() => {
+    const choices = personalProfile.preferredKinds.length ? personalProfile.preferredKinds : (['outside', 'restore', 'learn'] as ExperienceKind[]);
+    const dateKey = new Date().toISOString().slice(0, 10);
+    const seed = Array.from(`${dateKey}-${effectiveContext.dayPart}`).reduce((sum, character) => sum + character.charCodeAt(0), 0);
+    return choices[seed % choices.length];
+  }, [effectiveContext.dayPart, personalProfile.preferredKinds]);
+  const contextualSignature = `${new Date().toISOString().slice(0, 10)}:${effectiveContext.dayPart}:${effectiveContext.company}:${Math.round(effectiveContext.availableMinutes / 15) * 15}:${contextualDomain}`;
+
+  useEffect(() => {
+    if (!personalHydrated || !contextHydrated || !personalProfile.onboardingComplete || activeSession) return;
+    let active = true;
+    AsyncStorage.getItem(contextualSuggestionKey).then(async (stored) => {
+      if (!active) return;
+      if (stored) {
+        try {
+          const cached = JSON.parse(stored) as ContextualSuggestionCache;
+          if (cached.signature === contextualSignature && Date.parse(cached.expiresAt) > Date.now() && cached.experience) {
+            setContextualGenerated(cached.experience); return;
+          }
+        } catch {
+          AsyncStorage.removeItem(contextualSuggestionKey).catch(() => undefined);
+        }
+      }
+      const outcome = await generateContextualSuggestion(contextualDomain, effectiveContext, baseCandidatePool);
+      const experience = outcome.experiences[0];
+      if (!active || !experience) return;
+      setContextualGenerated(experience);
+      const cache: ContextualSuggestionCache = { signature: contextualSignature, expiresAt: new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString(), experience };
+      AsyncStorage.setItem(contextualSuggestionKey, JSON.stringify(cache)).catch(() => undefined);
+    }).catch(() => undefined);
+    return () => { active = false; };
+  }, [activeSession, baseCandidatePool, contextHydrated, contextualDomain, contextualSignature, effectiveContext, personalHydrated, personalProfile.onboardingComplete]);
 
   const connectCalendar = async () => {
     setCalendarLoading(true);
@@ -508,7 +550,7 @@ function NowScreen({ firstName, suggestions, resumableExperience, context, calen
         <View style={styles.heroCard}>
           <ImageBackground source={{ uri: experience.image }} style={styles.heroImage} imageStyle={styles.heroImageStyle}>
             <View style={styles.imageShade} />
-            <View style={styles.heroTop}><Pill label={`${experienceKindLabels[experience.kind].toUpperCase()} MOMENT`} accent={experience.accent} /><Text style={styles.heroTime}>{suggestionIndex === 0 ? 'BESTE MATCH' : 'ANDERE BLIK'}</Text></View>
+            <View style={styles.heroTop}><Pill label={`${experienceKindLabels[experience.kind].toUpperCase()} MOMENT`} accent={experience.accent} /><Text style={styles.heroTime}>{experience.generation ? 'VOOR DIT MOMENT GEMAAKT' : suggestionIndex === 0 ? 'BESTE MATCH' : 'ANDERE BLIK'}</Text></View>
             <View style={styles.heroBottom}>
               <Text style={styles.heroTitle}>{experience.title}</Text>
               <Text style={styles.heroPromise}>{experience.promise}</Text>
@@ -574,7 +616,7 @@ function TodayScreen({ decisions, calendar, onOpen }: { decisions: TodayDecision
                     <Text style={styles.dayCardTitle}>{item.title}</Text>
                     <Text style={styles.dayCardPromise}>{item.promise}</Text>
                     <Text style={styles.dayCardMeta}>{item.duration} min · {item.effort} · lokaal gekozen  →</Text>
-                    {directionReason && <Text style={styles.directionMatch}>Past bij een richting die jij zelf benoemde</Text>}
+                    {item.generation ? <Text style={styles.directionMatch}>Nieuw samengesteld voor dit dagdeel</Text> : directionReason && <Text style={styles.directionMatch}>Past bij een richting die jij zelf benoemde</Text>}
                   </View>
                 </ImageBackground>
               </View>
@@ -972,7 +1014,8 @@ function ProfileScreen({ personal, evidence, composition, context, calendar, cal
     <SecondaryButton label="Wis alleen wat Momentum heeft geleerd" onPress={onResetLearning} />
     <SecondaryButton label="Doorloop mijn startkeuzes opnieuw" onPress={onRedoOnboarding} />
     <Text style={styles.fieldLabel}>KOPPELINGEN & PRIVACY</Text>
-    <View style={styles.personalCard}><ProfileRow label="Globale omgeving" value={locationConfirmed ? liveWorld?.regionLabel ?? 'Gekoppeld' : 'Niet gekoppeld'} /><ProfileRow label="Agenda" value={calendar.state === 'live' ? 'Lokaal gekoppeld' : calendar.state === 'denied' ? 'Niet toegestaan' : 'Niet gekoppeld'} /><ProfileRow label="Weer" value={locationConfirmed && liveWorld?.weather ? 'Live gekoppeld' : 'Wereldwijde fallback'} /><ProfileRow label="Gezondheid" value="Niet gekoppeld" /></View>
+    <View style={styles.personalCard}><ProfileRow label="Globale omgeving" value={locationConfirmed ? liveWorld?.regionLabel ?? 'Gekoppeld' : 'Niet gekoppeld'} /><ProfileRow label="Agenda" value={calendar.state === 'live' ? 'Lokaal gekoppeld' : calendar.state === 'denied' ? 'Niet toegestaan' : 'Niet gekoppeld'} /><ProfileRow label="Weer" value={locationConfirmed && liveWorld?.weather ? 'Live gekoppeld' : 'Wereldwijde fallback'} /><ProfileRow label="Frisse capsules" value={isRemoteGenerationConfigured() ? 'Begrensde generatorservice' : 'Alleen lokaal'} /><ProfileRow label="Gezondheid" value="Niet gekoppeld" /></View>
+    <Text style={styles.sourcePrivacy}>Voor een frisse capsule bij openen gebruikt de generator hooguit één richting die jij zelf koos, dagdeel, beschikbare tijd, gezelschap en expliciet materiaal. Geen doelen, reflecties, agenda-inhoud of locatie.</Text>
     {calendar.state !== 'live' && <SecondaryButton label={calendarLoading ? 'Agenda wordt gecontroleerd…' : Platform.OS === 'web' ? 'Agenda vereist een development build' : 'Koppel mijn agenda'} onPress={onConnectCalendar} />}
     <SecondaryButton label={locationConfirmed ? 'Werk mijn globale omgeving bij' : 'Gebruik mijn globale omgeving'} onPress={onUseLocation} />
     <Pressable accessibilityRole="button" accessibilityState={{ expanded: labOpen }} onPress={() => setLabOpen((value) => !value)} style={styles.labDisclosure}><View style={styles.flex}><Text style={styles.labDisclosureTitle}>Momentum Lab</Text><Text style={styles.labDisclosureBody}>Testcontext, bronstatus en lokale compositiediagnostiek.</Text></View><Text style={styles.whyChevron}>{labOpen ? '⌃' : '⌄'}</Text></Pressable>

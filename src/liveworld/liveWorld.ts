@@ -311,6 +311,25 @@ export function composeLiveExperience(snapshot: LiveWorldSnapshot, context: Prot
   };
 }
 
+export function overlayVerifiedWorldContext(experience: Experience, snapshot?: LiveWorldSnapshot): Experience {
+  if (!snapshot || experience.kind !== 'outside' || !experience.generation || !snapshotFresh(snapshot, 180)) return experience;
+  const evidence: LiveEvidence[] = [];
+  if (snapshot.weather) evidence.push({
+    label: `${snapshot.weather.temperature}°C · wind ${Math.round(snapshot.weather.windSpeed)} km/u · zicht ${Math.round(snapshot.weather.visibilityMeters / 1000)} km`,
+    sourceName: 'Open-Meteo', sourceUrl: 'https://open-meteo.com/', observedAt: snapshot.weather.observedAt, retrievedAt: snapshot.retrievedAt, expiresAt: isoInHours(2), certainty: 'forecast',
+  });
+  if (snapshot.airQuality) evidence.push({
+    label: `Europese luchtindex ${Math.round(snapshot.airQuality.europeanAqi)}`,
+    sourceName: 'Open-Meteo Air Quality', sourceUrl: 'https://open-meteo.com/en/docs/air-quality-api', observedAt: snapshot.airQuality.observedAt, retrievedAt: snapshot.retrievedAt, expiresAt: isoInHours(6), certainty: 'forecast',
+  });
+  if (!evidence.length) return experience;
+  return {
+    ...experience,
+    why: ['Actuele omgevingscontext apart gecontroleerd', ...experience.why].slice(0, 3),
+    liveEvidence: evidence,
+  };
+}
+
 const distanceKm = (a: Coordinates, b: Coordinates) => {
   const rad = (value: number) => value * Math.PI / 180; const earth = 6371;
   const dLat = rad(b.latitude - a.latitude); const dLon = rad(b.longitude - a.longitude);
