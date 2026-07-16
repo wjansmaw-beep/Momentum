@@ -126,7 +126,8 @@ async function requestRemoteDrafts(request: GenerationRequest): Promise<{ drafts
     });
     if (!response.ok) throw new Error(`Generator antwoordde met ${response.status}`);
     const payload: unknown = await response.json();
-    const envelope = payload && typeof payload === 'object' ? payload as { drafts?: unknown[]; mode?: unknown; provider?: unknown } : {};
+    const envelope = payload && typeof payload === 'object' ? payload as { contractVersion?: unknown; drafts?: unknown[]; mode?: unknown; provider?: unknown } : {};
+    if (envelope.contractVersion !== 'experience-draft-v1' || !['fixture', 'model'].includes(String(envelope.mode))) throw new Error('Generatorcontract niet herkend');
     const rawDrafts = Array.isArray(envelope.drafts) ? envelope.drafts : [];
     const mode = envelope.mode === 'fixture' ? 'fixture' : 'model';
     const provider = typeof envelope.provider === 'string' ? envelope.provider.slice(0, 80) : 'secure-generator-endpoint';
@@ -199,7 +200,8 @@ export async function generateExperienceCandidates(intent: string, clarification
   if (endpointConfigured) {
     try {
       const remote = await requestRemoteDrafts(request);
-      const validated = validateGeneratedDrafts(remote.drafts, context);
+      const directionBoundDrafts = remote.drafts.filter((draft) => !domains.length || domains.includes(draft.kind));
+      const validated = validateGeneratedDrafts(directionBoundDrafts, context);
       if (validated.length) return { experiences: validated, mode: remote.mode === 'model' ? 'remote' : 'local-synthesis', message: remote.mode === 'model' ? 'Nieuwe capsule gemaakt en gecontroleerd.' : 'Nieuwe capsule via de lokale generatorservice gemaakt en gecontroleerd.', rejected: remote.drafts.length - validated.length };
     } catch {
       // A failed generator must be silent and recover to the trusted local path.

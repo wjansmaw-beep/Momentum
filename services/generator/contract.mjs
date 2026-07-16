@@ -95,6 +95,7 @@ export function validateDrafts(value, request) {
   const source = value && typeof value === 'object' && Array.isArray(value.drafts) ? value.drafts : [];
   const accepted = source.slice(0, 1).flatMap((draft) => {
     if (!draft || typeof draft !== 'object' || !experienceKinds.includes(draft.kind)) return [];
+    if (request.domains.length && !request.domains.includes(draft.kind)) return [];
     const steps = Array.isArray(draft.steps) ? draft.steps.slice(0, 8).flatMap((step) => {
       if (!step || typeof step !== 'object') return [];
       const title = clean(step.title, 80); const instruction = clean(step.instruction, 320);

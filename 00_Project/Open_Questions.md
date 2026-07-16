@@ -8,6 +8,7 @@ Version: 1.0
 - **Resolved for the current prototype:** generation is a candidate source behind schema sanitization, domain validation, comparative ranking, and explicit disclosure. Missing or failed remote generation falls back to local synthesis. See ADR-036.
 - **Partly resolved:** Generator Service v1 uses a local fixture and an optional OpenAI Responses provider with a configurable model. The provider key stays server-side and model storage is disabled. See ADR-037.
 - **Still open:** production hosting, gateway and app-attestation, distributed rate limits, redacted observability, the final model after real evaluation, and when verified Living World evidence may enter an evidence-grounded generation envelope.
+- **Resolved for local continuity:** an accepted generated Capsule is Guide-composed, structurally audited, stored with an active local session, and preserved with its optional Memory. It does not silently become editorial or live-source truth. See ADR-038.
 
 ## Resolved direction — personal model (2026-07-12)
 
