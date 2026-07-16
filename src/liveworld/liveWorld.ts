@@ -83,7 +83,10 @@ type AirQualityResponse = { current?: { time: string; european_aqi?: number; pm2
 type OverpassElement = { id: number; lat?: number; lon?: number; center?: { lat: number; lon: number }; tags?: Record<string, string> };
 type OverpassResponse = { elements?: OverpassElement[] };
 
-const isoInHours = (hours: number) => new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
+const isoAfter = (base: string, hours: number) => {
+  const timestamp = Date.parse(base);
+  return new Date((Number.isFinite(timestamp) ? timestamp : 0) + hours * 60 * 60 * 1000).toISOString();
+};
 const safeFetch = async (url: string, init?: RequestInit, timeoutMs = 12000) => {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
@@ -263,19 +266,19 @@ const weatherSuitableForOutside = (weather?: WeatherSignal) =>
 const formatClock = (value: string) => value ? new Date(value).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' }) : 'onbekend';
 
 export function composeLiveExperience(snapshot: LiveWorldSnapshot, context: PrototypeContext): Experience | undefined {
-  if (!snapshotFresh(snapshot, 180) || !weatherSuitableForOutside(snapshot.weather) || (snapshot.airQuality?.europeanAqi ?? 0) > 80) return undefined;
+  if (!snapshotFresh(snapshot, 120) || !weatherSuitableForOutside(snapshot.weather) || (snapshot.airQuality?.europeanAqi ?? 0) > 80) return undefined;
   const base = byId('wadden-light');
   const bird = snapshot.birdObservations.find((item) => item.publicLocation);
   const weather = snapshot.weather!;
   const marine = snapshot.marine;
   const retrievedAt = snapshot.retrievedAt;
   const evidence: LiveEvidence[] = [
-    { label: `${weather.temperature}°C · wind ${Math.round(weather.windSpeed)} km/u · zicht ${Math.round(weather.visibilityMeters / 1000)} km`, sourceName: 'Open-Meteo', sourceUrl: 'https://open-meteo.com/', observedAt: weather.observedAt, retrievedAt, expiresAt: isoInHours(2), certainty: 'forecast' },
+    { label: `${weather.temperature}°C · wind ${Math.round(weather.windSpeed)} km/u · zicht ${Math.round(weather.visibilityMeters / 1000)} km`, sourceName: 'Open-Meteo', sourceUrl: 'https://open-meteo.com/', observedAt: weather.observedAt, retrievedAt, expiresAt: isoAfter(retrievedAt, 2), certainty: 'forecast' },
   ];
-  if (marine) evidence.push({ label: `Modelwaterstand ${marine.trend === 'rising' ? 'stijgend' : marine.trend === 'falling' ? 'dalend' : marine.trend === 'steady' ? 'vrijwel gelijk' : 'onbekend'} · golf ${marine.waveHeight.toFixed(1)} m`, sourceName: 'Open-Meteo Marine', sourceUrl: 'https://open-meteo.com/en/docs/marine-weather-api', observedAt: marine.observedAt, retrievedAt, expiresAt: isoInHours(3), certainty: 'forecast' });
+  if (marine) evidence.push({ label: `Modelwaterstand ${marine.trend === 'rising' ? 'stijgend' : marine.trend === 'falling' ? 'dalend' : marine.trend === 'steady' ? 'vrijwel gelijk' : 'onbekend'} · golf ${marine.waveHeight.toFixed(1)} m`, sourceName: 'Open-Meteo Marine', sourceUrl: 'https://open-meteo.com/en/docs/marine-weather-api', observedAt: marine.observedAt, retrievedAt, expiresAt: isoAfter(retrievedAt, 3), certainty: 'forecast' });
   if (snapshot.airQuality) {
     const airLabel = { good: 'goed', fair: 'redelijk', moderate: 'matig', poor: 'slecht', 'very-poor': 'zeer slecht' }[snapshot.airQuality.category];
-    evidence.push({ label: `Europese luchtindex ${Math.round(snapshot.airQuality.europeanAqi)} · ${airLabel}`, sourceName: 'Open-Meteo Air Quality', sourceUrl: 'https://open-meteo.com/en/docs/air-quality-api', observedAt: snapshot.airQuality.observedAt, retrievedAt, expiresAt: isoInHours(6), certainty: 'forecast' });
+    evidence.push({ label: `Europese luchtindex ${Math.round(snapshot.airQuality.europeanAqi)} · ${airLabel}`, sourceName: 'Open-Meteo Air Quality', sourceUrl: 'https://open-meteo.com/en/docs/air-quality-api', observedAt: snapshot.airQuality.observedAt, retrievedAt, expiresAt: isoAfter(retrievedAt, 6), certainty: 'forecast' });
   }
   const routePlan: RoutePlan = {
     mode: 'walking', destinationName: bird?.locationName ?? `natuurgebied bij ${snapshot.regionLabel}`,
@@ -284,7 +287,7 @@ export function composeLiveExperience(snapshot: LiveWorldSnapshot, context: Prot
     returnMinutes: 15, bufferMinutes: 5,
     natureGuard: bird ? 'Openbare bronlocatie; blijf op openbare paden en zoek nooit naar een nest.' : 'Kaarten zoekt een openbaar natuurgebied; controleer toegang en omstandigheden voor vertrek.',
   };
-  if (bird) evidence.unshift({ label: `${bird.commonName} gemeld bij ${bird.locationName}`, sourceName: 'eBird', sourceUrl: 'https://ebird.org/', observedAt: bird.observedAt, retrievedAt, expiresAt: isoInHours(12), certainty: 'observation' });
+  if (bird) evidence.unshift({ label: `${bird.commonName} gemeld bij ${bird.locationName}`, sourceName: 'eBird', sourceUrl: 'https://ebird.org/', observedAt: bird.observedAt, retrievedAt, expiresAt: isoAfter(retrievedAt, 12), certainty: 'observation' });
 
   return {
     ...base,
@@ -316,17 +319,18 @@ export function overlayVerifiedWorldContext(experience: Experience, snapshot?: L
   const evidence: LiveEvidence[] = [];
   if (snapshot.weather) evidence.push({
     label: `${snapshot.weather.temperature}°C · wind ${Math.round(snapshot.weather.windSpeed)} km/u · zicht ${Math.round(snapshot.weather.visibilityMeters / 1000)} km`,
-    sourceName: 'Open-Meteo', sourceUrl: 'https://open-meteo.com/', observedAt: snapshot.weather.observedAt, retrievedAt: snapshot.retrievedAt, expiresAt: isoInHours(2), certainty: 'forecast',
+    sourceName: 'Open-Meteo', sourceUrl: 'https://open-meteo.com/', observedAt: snapshot.weather.observedAt, retrievedAt: snapshot.retrievedAt, expiresAt: isoAfter(snapshot.retrievedAt, 2), certainty: 'forecast',
   });
   if (snapshot.airQuality) evidence.push({
     label: `Europese luchtindex ${Math.round(snapshot.airQuality.europeanAqi)}`,
-    sourceName: 'Open-Meteo Air Quality', sourceUrl: 'https://open-meteo.com/en/docs/air-quality-api', observedAt: snapshot.airQuality.observedAt, retrievedAt: snapshot.retrievedAt, expiresAt: isoInHours(6), certainty: 'forecast',
+    sourceName: 'Open-Meteo Air Quality', sourceUrl: 'https://open-meteo.com/en/docs/air-quality-api', observedAt: snapshot.airQuality.observedAt, retrievedAt: snapshot.retrievedAt, expiresAt: isoAfter(snapshot.retrievedAt, 6), certainty: 'forecast',
   });
-  if (!evidence.length) return experience;
+  const currentEvidence = evidence.filter((item) => Date.parse(item.expiresAt) > Date.now());
+  if (!currentEvidence.length) return experience;
   return {
     ...experience,
     why: ['Actuele omgevingscontext apart gecontroleerd', ...experience.why].slice(0, 3),
-    liveEvidence: evidence,
+    liveEvidence: currentEvidence,
   };
 }
 
@@ -370,7 +374,7 @@ export function composeNearbyPlaceExperience(snapshot: LiveWorldSnapshot, contex
       { title: 'Ga op tijd terug', instruction: 'Bescherm je terugkeerbuffer en verander het plan als toegang of opening anders blijkt.' },
     ],
     memoryPrompt: `Wat maakte ${place.name} de moeite waard?`,
-    liveEvidence: [{ label: `${place.name} · ${place.openingNote}`, sourceName: 'OpenStreetMap', sourceUrl: 'https://www.openstreetmap.org/copyright', observedAt: snapshot.retrievedAt, retrievedAt: snapshot.retrievedAt, expiresAt: isoInHours(6), certainty: 'observation' }],
+    liveEvidence: [{ label: `${place.name} · ${place.openingNote}`, sourceName: 'OpenStreetMap', sourceUrl: 'https://www.openstreetmap.org/copyright', observedAt: snapshot.retrievedAt, retrievedAt: snapshot.retrievedAt, expiresAt: isoAfter(snapshot.retrievedAt, 6), certainty: 'observation' }],
     routePlan,
   };
 }

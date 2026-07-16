@@ -259,6 +259,8 @@ The four continuous tracks are Philosophy, Experience, Understanding, and Trust.
 
 **Implementation note (2026-07-16):** `Now` and `Today` may now receive one locally cached contextual generator candidate based only on one explicitly chosen domain and minimal practical moment context. It competes through the existing decision engine and never creates a feed. When global location context is explicitly enabled, source-owned current environmental evidence may be attached after generation without entering the model or creating a route claim. See ADR-039.
 
+**Implementation note (2026-07-16):** the first Grounded Guide now composes generated or editorial Capsules with still-current source-owned evidence entirely on-device. Evidence windows derive from their original retrieval time, never refresh through cache reuse, and are visible from `Now` and `Today` through Promise, Prepare, and the Presence Guide. Expired coverage falls back explicitly to general guide content. See ADR-040.
+
 ## Advancement rule
 
 A phase may begin discovery before the prior phase is fully complete, but implementation may not use unresolved foundational questions as silent assumptions. Founder approval is required to lift the no-application-code gate.
