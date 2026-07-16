@@ -261,6 +261,8 @@ The four continuous tracks are Philosophy, Experience, Understanding, and Trust.
 
 **Implementation note (2026-07-16):** the first Grounded Guide now composes generated or editorial Capsules with still-current source-owned evidence entirely on-device. Evidence windows derive from their original retrieval time, never refresh through cache reuse, and are visible from `Now` and `Today` through Promise, Prepare, and the Presence Guide. Expired coverage falls back explicitly to general guide content. See ADR-040.
 
+**Implementation note (2026-07-16):** Living World signals now pass through Opportunity Engine v2 before they can become Experience candidates. Public destination, source expiry, sensitivity, chosen travel limit, conservative outbound and return time, meaningful experience time, and return buffer are all required. Prepare exposes that contract and Presence rechecks expiry before handing navigation to Apple Maps. Withheld signals remain diagnostics rather than weakened cards. See ADR-041.
+
 ## Advancement rule
 
 A phase may begin discovery before the prior phase is fully complete, but implementation may not use unresolved foundational questions as silent assumptions. Founder approval is required to lift the no-application-code gate.

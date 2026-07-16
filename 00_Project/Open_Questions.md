@@ -64,7 +64,7 @@ Priority labels:
 ## Experience Capsules
 
 - **Resolved prototype direction:** A complete shake and kettlebell workout test the staged Capsule runner; quiet and route experiences use the same contract without making either activity the product starting point. See ADR-015.
-- **Soon:** At what precise point does Momentum hand off to Maps rather than remain active?
+- **Partly resolved:** route Experiences show their conservative plan and source window during Prepare, then offer a Maps handoff at the first Presence step. Momentum blocks an expired source window and Apple Maps owns the real route. Native return-state refinement and route recalculation remain open. See ADR-041.
 - **Soon:** When is a Live Activity genuinely useful instead of extra screen presence?
 - **Prototype direction:** an active Capsule and current step persist locally and return through an explicit resume action; completion is never inferred from the handoff. Native return-state refinement remains open. See ADR-027.
 - **Soon:** Which experiences require safety or accessibility screening before acceptance?
@@ -119,6 +119,7 @@ Priority labels:
 - **Soon:** Who is responsible for licensing, attribution, correction, and removal?
 - **Soon:** How are sensitive wildlife and fragile places protected?
 - **Resolved direction:** Living World scales without losing local character by keeping global evergreen experiences available everywhere and enriching them with reviewed, bounded local and regional packs. Live sources keep independent provenance and freshness. Localization remains a separate decision; see ADR-024.
+- **Resolved first Opportunity boundary:** a current signal becomes a candidate only with a public destination, valid source window, sensitivity guard, conservative round-trip budget, meaningful experience time, and return buffer. eBird and OpenStreetMap are the only current inputs; new source classes and true routing remain gated. See ADR-041.
 - **Later:** Can local curators or users contribute without turning Momentum into social media?
 
 ## Business and success

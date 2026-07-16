@@ -31,6 +31,7 @@ The first Living World slice uses:
 - European AQI and seasonal pollen model context without personal health inference;
 - optional recent public eBird observations when a token is configured;
 - a Nature Guard, sourced dynamic Experience Promise, time-budgeted route request, Apple Maps handoff, and Memory boundary;
+- Opportunity Engine v2, which withholds raw signals until public destination, source window, sensitivity, chosen travel limit, round trip, meaningful experience time, and return buffer all fit;
 - honest evergreen fallback when a source is unavailable.
 
 Calendar is the first private context source. In an iOS development build, the user can connect it from Profile; Momentum derives free windows locally and immediately discards titles, notes, locations, attendees, and identifiers. The web preview and Expo Go retain manual time input because real Calendar access is unavailable there.
@@ -90,3 +91,5 @@ An accepted generated Capsule is not discarded after selection. It passes throug
 On open, Momentum may also request one bounded contextual candidate for the current day part. The device sends only one experience direction the person explicitly selected plus time, company and explicit equipment state. The result is cached locally for six hours and competes in the normal `Now` and `Today` ranking. Goals, reflections, calendar content, location and live-source facts are excluded. Current environmental evidence may be attached afterwards by its own verified adapter; see ADR-039.
 
 The Grounded Guide keeps that evidence separate from generated copy. Source windows are calculated from the original retrieval time, survive cache reads without being renewed, and are shown as `current until` or expired throughout the experience flow. Missing or expired evidence falls back to the complete evergreen guide; see ADR-040.
+
+Living World evidence does not become a route card directly. Opportunity Engine v2 first establishes that the destination and complete time budget are responsible and executable. The in-app route budget is deliberately conservative; Apple Maps remains responsible for the actual route and travel time. See ADR-041.

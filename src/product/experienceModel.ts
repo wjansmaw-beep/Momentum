@@ -37,6 +37,10 @@ export type RoutePlan = {
   returnMinutes: number;
   bufferMinutes: number;
   natureGuard: string;
+  estimateKind?: 'straight-line-conservative';
+  sourceLabel?: string;
+  expiresAt?: string;
+  recheckLabel?: string;
 };
 
 export type Experience = {
