@@ -41,6 +41,14 @@ export type RoutePlan = {
   sourceLabel?: string;
   expiresAt?: string;
   recheckLabel?: string;
+  arrivalPlan?: {
+    kind: 'open-observation' | 'anchored-loop' | 'single-place';
+    label: string;
+    durationMinutes: number;
+    radiusMeters?: number;
+    instruction: string;
+    returnTrigger: string;
+  };
 };
 
 export type Experience = {

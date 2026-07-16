@@ -93,3 +93,5 @@ On open, Momentum may also request one bounded contextual candidate for the curr
 The Grounded Guide keeps that evidence separate from generated copy. Source windows are calculated from the original retrieval time, survive cache reads without being renewed, and are shown as `current until` or expired throughout the experience flow. Missing or expired evidence falls back to the complete evergreen guide; see ADR-040.
 
 Living World evidence does not become a route card directly. Opportunity Engine v2 first establishes that the destination and complete time budget are responsible and executable. The in-app route budget is deliberately conservative; Apple Maps remains responsible for the actual route and travel time. See ADR-041.
+
+Opportunity Engine v3 can then interpret compatible source-owned signals together. A suitable public outside place can receive current weather context, while every routed Opportunity gains an Arrival Plan for the time on site. This plan is behavioral guidance around a verified anchor—not invented route geometry—and immediate alternatives are diversified by Experience perspective. See ADR-042.

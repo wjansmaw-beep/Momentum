@@ -120,6 +120,7 @@ Priority labels:
 - **Soon:** How are sensitive wildlife and fragile places protected?
 - **Resolved direction:** Living World scales without losing local character by keeping global evergreen experiences available everywhere and enriching them with reviewed, bounded local and regional packs. Live sources keep independent provenance and freshness. Localization remains a separate decision; see ADR-024.
 - **Resolved first Opportunity boundary:** a current signal becomes a candidate only with a public destination, valid source window, sensitivity guard, conservative round-trip budget, meaningful experience time, and return buffer. eBird and OpenStreetMap are the only current inputs; new source classes and true routing remain gated. See ADR-041.
+- **Resolved first interpretation layer:** suitable outside places and public wildlife Opportunities may combine source-owned place or observation evidence with current weather, using the earliest expiry. Routed Opportunities include a behavioral Arrival Plan, not invented path geometry, and the finite alternatives protect perspective diversity. See ADR-042.
 - **Later:** Can local curators or users contribute without turning Momentum into social media?
 
 ## Business and success
