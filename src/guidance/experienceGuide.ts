@@ -54,7 +54,19 @@ export function buildExperienceGuide(experience: Experience, stepIndex: number, 
   };
   const evidence = (experience.liveEvidence ?? []).map((item) => evidenceFreshness(item, now));
   const hasCurrentEvidence = evidence.some((item) => item.freshness === 'current');
-  const insights = experience.steps.flatMap((step) => step.insight ? [step.insight] : []);
+  const placeKnowledgeInsight: GuidedInsight | undefined = experience.placeKnowledge ? {
+    title: experience.placeKnowledge.title,
+    body: experience.placeKnowledge.summary,
+    topic: experience.kind === 'culture' ? 'culture' : 'place',
+    sourceKind: 'curator',
+    sourceLabel: experience.placeKnowledge.sourceLabel,
+    sourceUrl: experience.placeKnowledge.sourceUrl,
+  } : undefined;
+  const stepInsights = experience.steps.flatMap((step) => step.insight ? [step.insight] : []);
+  const insights = [
+    ...stepInsights,
+    ...(placeKnowledgeInsight && !stepInsights.some((item) => item.sourceUrl === placeKnowledgeInsight.sourceUrl || item.title === placeKnowledgeInsight.title) ? [placeKnowledgeInsight] : []),
+  ];
   const hasEditorial = insights.some((item) => item.sourceKind !== 'live');
   const coverage = hasCurrentEvidence && hasEditorial ? 'hybrid' : hasCurrentEvidence ? 'live' : hasEditorial ? 'editorial' : 'evergreen';
   const coverageLabel = coverage === 'hybrid'
@@ -64,13 +76,15 @@ export function buildExperienceGuide(experience: Experience, stepIndex: number, 
       : coverage === 'editorial'
         ? 'Redactionele gids · geen actuele bron nodig'
         : 'Wereldwijd bruikbaar · geen actuele bron beschikbaar';
+  const knowledgeMomentIndex = Math.min(1, Math.max(0, experience.steps.length - 1));
+  const currentInsight = currentStep.insight ?? (stepIndex === knowledgeMomentIndex ? placeKnowledgeInsight : undefined);
 
   return {
     title: experience.title,
     promise: experience.promise,
     currentStep,
-    currentInsight: currentStep.insight,
-    furtherInsights: insights.filter((item) => item !== currentStep.insight),
+    currentInsight,
+    furtherInsights: insights.filter((item) => item !== currentInsight),
     practical: experience.prepare,
     evidence,
     coverage,

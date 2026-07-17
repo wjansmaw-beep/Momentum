@@ -68,6 +68,7 @@ import {
 } from './src/liveworld/liveWorld';
 import { composeLivingWorldOpportunities, opportunityToExperience, OpportunityEngineResult } from './src/liveworld/opportunityEngine';
 import { livingWorldSourceRegistry } from './src/liveworld/sourceRegistry';
+import { applyPlaceKnowledgeLens, attachNearestPlaceKnowledge } from './src/liveworld/placeKnowledgeLens';
 import {
   CalendarContextSnapshot,
   emptyCalendarContext,
@@ -208,12 +209,15 @@ export default function App() {
   const liveExperiences = useMemo(() => opportunityResult.ready.map((opportunity) => composeGuideMoments(opportunityToExperience(opportunity))), [opportunityResult]);
   const contentCatalog = useMemo(() => resolveContentCatalog(createWorldContext(liveWorld?.coordinates ?? defaultRegion.coordinates, new Date(), 'nl', selectionLocationConfirmed)), [liveWorld?.coordinates, selectionLocationConfirmed]);
   const guidedCatalogExperiences = useMemo(() => contentCatalog.experiences.map((item) => composeGuideMoments(item)), [contentCatalog.experiences]);
-  const contextualBlueprints = useMemo(() => composeContextualBlueprints(effectiveContext, guidedCatalogExperiences, personalProfile.preferredKinds).map((item) => attachMeaningThread(item, personalProfile)), [effectiveContext, guidedCatalogExperiences, personalProfile]);
+  const contextualBlueprints = useMemo(() => applyPlaceKnowledgeLens(
+    composeContextualBlueprints(effectiveContext, guidedCatalogExperiences, personalProfile.preferredKinds).map((item) => attachMeaningThread(item, personalProfile)),
+    selectionLocationConfirmed ? liveWorld ?? undefined : undefined,
+  ), [effectiveContext, guidedCatalogExperiences, liveWorld, personalProfile, selectionLocationConfirmed]);
   const meaningfulLiveExperiences = useMemo(() => liveExperiences.map((item) => attachMeaningThread(item, personalProfile)), [liveExperiences, personalProfile]);
   const baseCompositionAudit = useMemo(() => auditCandidatePool([...meaningfulLiveExperiences, ...contextualBlueprints]), [contextualBlueprints, meaningfulLiveExperiences]);
   const baseCandidatePool = baseCompositionAudit.accepted.length ? baseCompositionAudit.accepted : guidedCatalogExperiences;
   const contextualPrepared = useMemo(() => contextualGenerated
-    ? attachMeaningThread(composeGuideMoments(overlayVerifiedWorldContext(contextualGenerated, selectionLocationConfirmed ? liveWorld ?? undefined : undefined)), personalProfile)
+    ? attachMeaningThread(composeGuideMoments(attachNearestPlaceKnowledge(overlayVerifiedWorldContext(contextualGenerated, selectionLocationConfirmed ? liveWorld ?? undefined : undefined), selectionLocationConfirmed ? liveWorld ?? undefined : undefined)), personalProfile)
     : null, [contextualGenerated, liveWorld, personalProfile, selectionLocationConfirmed]);
   const compositionAudit = useMemo(() => auditCandidatePool([...(contextualPrepared ? [contextualPrepared] : []), ...baseCandidatePool]), [baseCandidatePool, contextualPrepared]);
   const candidatePool = compositionAudit.accepted.length ? compositionAudit.accepted : baseCandidatePool;

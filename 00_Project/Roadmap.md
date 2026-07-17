@@ -212,6 +212,8 @@ The four continuous tracks are Philosophy, Experience, Understanding, and Trust.
 
 **Implementation note (2026-07-17):** nearby Wikipedia stories can now deepen selected Opportunities worldwide without becoming live or operational evidence. A provider-independent route boundary performs an optional final travel check only after explicit route intent, with Apple Maps as the honest fallback. See ADR-043 and ADR-044.
 
+**Implementation note (2026-07-17):** the Place Knowledge Lens can now enrich suitable editorial, deterministic, and generated Capsules near the connected environment without creating a destination or changing feasibility. One credited story remains optional in Prepare and the consultable guide. See ADR-045.
+
 ## Phase 9 — Premium Living Guide
 
 **Goal:** make Momentum feel like a continuously changing, personal guide to the world rather than a collection of activity cards.

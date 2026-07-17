@@ -123,6 +123,7 @@ Priority labels:
 - **Resolved first interpretation layer:** suitable outside places and public wildlife Opportunities may combine source-owned place or observation evidence with current weather, using the earliest expiry. Routed Opportunities include a behavioral Arrival Plan, not invented path geometry, and the finite alternatives protect perspective diversity. See ADR-042.
 - **Resolved first place-knowledge layer:** a nearby Wikipedia story may deepen Prepare and Presence while remaining clearly separate from live access, route, opening, safety, and wildlife claims. Dutch falls back to English and missing coverage never breaks the Experience. See ADR-043.
 - **Resolved route-provider boundary:** a configured application-owned route service may verify time and distance only after explicit route intent; without it, the conservative local estimate and Apple Maps handoff remain truthful. Geometry, closures, terrain, accessibility, transit, and production provider choice remain open. See ADR-044.
+- **Resolved first knowledge-lens boundary:** one nearby credited story may deepen a suitable route-free Capsule without creating its destination, changing feasibility, or becoming a live claim. Semantic route-to-story matching and additional official or curator sources remain open. See ADR-045.
 - **Later:** Can local curators or users contribute without turning Momentum into social media?
 
 ## Business and success
