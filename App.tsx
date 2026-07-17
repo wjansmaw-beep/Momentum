@@ -94,7 +94,7 @@ import { composeGuideMoments } from './src/guidance/guideComposer';
 import { auditCandidatePool, CompositionSummary } from './src/guidance/compositionAudit';
 import { colors, typography } from './src/design/theme';
 import { attachMeaningThread } from './src/product/meaningThread';
-import { generateContextualSuggestion, generateExperienceCandidates, GenerationOutcome, isRemoteGenerationConfigured } from './src/product/generativeExperience';
+import { generateContextualSuggestion, generateExperienceCandidates, GenerationOutcome, GeneratorRuntimeStatus, inspectGeneratorRuntime, isRemoteGenerationConfigured } from './src/product/generativeExperience';
 import { routingCapability, verifyRouteBeforeHandoff } from './src/routing/routeIntelligence';
 
 type FlowStage = 'invite' | 'promise' | 'prepare' | 'presence' | 'remember' | 'profile' | null;
@@ -112,6 +112,9 @@ const evidenceKey = 'momentum.prototype-evidence.v1';
 const contextualSuggestionKey = 'momentum.contextual-suggestion.v1';
 const timeOptions = [15, 30, 60, 120];
 const defaultRegion = { coordinates: { latitude: 53.325, longitude: 5.999 }, label: 'Dokkum proefcontext · niet gebruikt voor keuzes' };
+const generationLabel = (experience: Experience) => experience.generation?.provider === 'momentum-fixture'
+  ? 'DEMONSTRATIESYNTHESE · GECONTROLEERD'
+  : experience.generation?.mode === 'remote' ? 'AI-SYNTHESE · GECONTROLEERD' : 'LOKAAL GECOMBINEERD';
 
 export default function App() {
   const { height } = useWindowDimensions();
@@ -143,6 +146,8 @@ export default function App() {
     { id: 'seed-2', title: 'Een sterk halfuur', date: '5 juli', image: byId('kettlebell-focus').image, note: 'Kort, scherp en precies genoeg.' },
   ]);
   const [contextualGenerated, setContextualGenerated] = useState<Experience | null>(null);
+  const [generatorStatus, setGeneratorStatus] = useState<GeneratorRuntimeStatus>({ state: 'checking', label: 'Generator controleren', detail: 'Momentum controleert welke synthese beschikbaar is.' });
+  const [momentGenerationLoading, setMomentGenerationLoading] = useState(false);
 
   useEffect(() => {
     if (typeof document !== 'undefined') {
@@ -172,6 +177,7 @@ export default function App() {
       loadPlaceContext(snapshot).then((enhanced) => { setLiveWorld(enhanced); setLiveMessage('Live bronnen bijgewerkt'); saveLiveWorldCache(enhanced).catch(() => undefined); }).catch(() => undefined);
     }).catch(() => { setLiveLoading(false); setLiveMessage('Live bronnen konden niet worden bijgewerkt'); });
     loadCalendarContext(false).then(setCalendarContext).catch(() => undefined);
+    inspectGeneratorRuntime().then(setGeneratorStatus).catch(() => undefined);
     const inviteResult = readInviteFromCurrentUrl();
     if (inviteResult.state === 'valid') { setIncomingInvite(inviteResult.invite); setFlowStage('invite'); }
     if (inviteResult.state === 'expired') { setIncomingInvite(inviteResult.invite); setInviteIssue('expired'); setFlowStage('invite'); }
@@ -320,6 +326,32 @@ export default function App() {
     setFlowStage(stage);
   };
 
+  const createFreshMoment = async () => {
+    if (momentGenerationLoading) return;
+    setMomentGenerationLoading(true);
+    try {
+      const choices = personalProfile.preferredKinds.length ? personalProfile.preferredKinds : (['outside', 'restore', 'learn'] as ExperienceKind[]);
+      const currentIndex = contextualGenerated ? choices.indexOf(contextualGenerated.kind) : -1;
+      const nextDomain = choices[(currentIndex + 1 + choices.length) % choices.length];
+      const outcome = await generateContextualSuggestion(nextDomain, effectiveContext, baseCandidatePool);
+      const draft = outcome.experiences[0];
+      if (!draft) return;
+      const prepared = attachMeaningThread(
+        composeGuideMoments(attachNearestPlaceKnowledge(overlayVerifiedWorldContext(draft, selectionLocationConfirmed ? liveWorld ?? undefined : undefined), selectionLocationConfirmed ? liveWorld ?? undefined : undefined)),
+        personalProfile,
+      );
+      setContextualGenerated(draft);
+      setSelected(prepared);
+      setOrigin('now');
+      setFlowStage('promise');
+      const cache: ContextualSuggestionCache = { signature: contextualSignature, expiresAt: new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString(), experience: draft };
+      AsyncStorage.setItem(contextualSuggestionKey, JSON.stringify(cache)).catch(() => undefined);
+    } finally {
+      setGeneratorStatus(await inspectGeneratorRuntime());
+      setMomentGenerationLoading(false);
+    }
+  };
+
   const startPresence = (company: Company, guideDepth: GuideDepth, shared?: SharedCapsuleState) => {
     const isNew = activeSession?.experienceId !== selected.id;
     setActiveSession({ experienceId: selected.id, experienceSnapshot: selected, stage: 'presence', stepIndex: isNew ? 0 : activeSession?.stepIndex ?? 0, origin, company, guideDepth, shared, updatedAt: new Date().toISOString() });
@@ -421,7 +453,7 @@ export default function App() {
         <View style={styles.appFrame}>
           {flowStage === null && (
             <>
-              {surface === 'now' && <NowScreen firstName={personalProfile.firstName} suggestions={nowSuggestions} resumableExperience={resumableExperience} context={effectiveContext} calendar={calendarContext} liveWorld={liveWorld} liveLoading={liveLoading} onResume={resumeSession} onDiscardSession={() => setActiveSession(null)} onOpen={(item, stage) => openExperience(item, 'now', stage)} onProfile={() => setFlowStage('profile')} onDiscover={() => setSurface('discover')} onFeedback={(item, outcome) => setPersonalProfile((current) => applyLearning(current, item, outcome))} />}
+              {surface === 'now' && <NowScreen firstName={personalProfile.firstName} suggestions={nowSuggestions} resumableExperience={resumableExperience} context={effectiveContext} calendar={calendarContext} liveWorld={liveWorld} liveLoading={liveLoading} generatorStatus={generatorStatus} generatingMoment={momentGenerationLoading} onGenerateMoment={createFreshMoment} onResume={resumeSession} onDiscardSession={() => setActiveSession(null)} onOpen={(item, stage) => openExperience(item, 'now', stage)} onProfile={() => setFlowStage('profile')} onDiscover={() => setSurface('discover')} onFeedback={(item, outcome) => setPersonalProfile((current) => applyLearning(current, item, outcome))} />}
               {surface === 'today' && <TodayScreen decisions={dayDecisions} calendar={calendarContext} onOpen={(item) => openExperience(item, 'today')} />}
               {surface === 'discover' && <DiscoverScreen context={prototypeContext} candidatePool={candidatePool} learning={learningContext} personal={personalProfile} onOpen={(item) => openExperience(item, 'discover')} />}
               {surface === 'lifebook' && <LifeBookScreen memories={memories} onOpen={(item) => { setPersonalProfile((current) => applyLearning(current, item, 'repeat')); openExperience(item, 'lifebook'); }} />}
@@ -432,7 +464,7 @@ export default function App() {
           {flowStage === 'prepare' && <PrepareScreen experience={selected} personal={personalProfile} hostName={personalProfile.firstName || 'Iemand'} initialCompany={(activeSession?.experienceId === selected.id ? activeSession.company : sharedDraft ? 'together' : personalProfile.defaultCompany) ?? 'solo'} initialGuideDepth={activeSession?.experienceId === selected.id ? activeSession.guideDepth : undefined} initialShared={activeSession?.experienceId === selected.id ? activeSession.shared : sharedDraft ?? undefined} onBack={() => setFlowStage('promise')} onDraftChange={savePreparation} onStart={startPresence} />}
           {flowStage === 'presence' && <PresenceScreen experience={selected} personal={personalProfile} company={activeSession?.company ?? personalProfile.defaultCompany} guideDepth={activeSession?.guideDepth ?? 'guide'} shared={activeSession?.shared} initialStep={activeSession?.experienceId === selected.id ? activeSession.stepIndex : 0} onStepChange={(stepIndex) => setActiveSession((current) => current && current.experienceId === selected.id ? { ...current, stage: 'presence', stepIndex, updatedAt: new Date().toISOString() } : current)} onBack={() => { setActiveSession((current) => current ? { ...current, stage: 'prepare', updatedAt: new Date().toISOString() } : current); setFlowStage('prepare'); }} onFinish={finishPresence} />}
           {flowStage === 'remember' && <RememberScreen experience={selected} personal={personalProfile} shared={completedSession?.shared} onSkip={skipReflection} onSave={finishExperience} />}
-          {flowStage === 'profile' && <ProfileScreen personal={personalProfile} evidence={evidence} composition={compositionAudit.summary} opportunitySummary={opportunityResult} context={prototypeContext} calendar={calendarContext} calendarLoading={calendarLoading} liveWorld={liveWorld} locationConfirmed={selectionLocationConfirmed} contentCatalog={contentCatalog} liveLoading={liveLoading} liveMessage={liveMessage} onChange={setPrototypeContext} onPersonalChange={setPersonalProfile} onForgetReflection={(id) => setPersonalProfile((current) => forgetReflection(current, id))} onForgetLearningEvent={(id) => setPersonalProfile((current) => forgetLearningEvent(current, id))} onResetEvidence={() => setEvidence({ started: 0, completed: 0, reflected: 0, skippedReflection: 0 })} onResetLearning={() => setPersonalProfile((current) => resetLearning(current))} onRedoOnboarding={() => setPersonalProfile((current) => ({ ...current, onboardingComplete: false }))} onClearLiveCache={() => { clearLiveWorldCache().catch(() => undefined); setLiveMessage('Regionale live cache gewist'); }} onConnectCalendar={connectCalendar} onRefresh={() => refreshLiveWorld()} onUseLocation={useApproximateLocation} onClose={closeFlow} />}
+          {flowStage === 'profile' && <ProfileScreen personal={personalProfile} evidence={evidence} composition={compositionAudit.summary} opportunitySummary={opportunityResult} generatorStatus={generatorStatus} context={prototypeContext} calendar={calendarContext} calendarLoading={calendarLoading} liveWorld={liveWorld} locationConfirmed={selectionLocationConfirmed} contentCatalog={contentCatalog} liveLoading={liveLoading} liveMessage={liveMessage} onChange={setPrototypeContext} onPersonalChange={setPersonalProfile} onForgetReflection={(id) => setPersonalProfile((current) => forgetReflection(current, id))} onForgetLearningEvent={(id) => setPersonalProfile((current) => forgetLearningEvent(current, id))} onResetEvidence={() => setEvidence({ started: 0, completed: 0, reflected: 0, skippedReflection: 0 })} onResetLearning={() => setPersonalProfile((current) => resetLearning(current))} onRedoOnboarding={() => setPersonalProfile((current) => ({ ...current, onboardingComplete: false }))} onClearLiveCache={() => { clearLiveWorldCache().catch(() => undefined); setLiveMessage('Regionale live cache gewist'); }} onConnectCalendar={connectCalendar} onRefresh={() => refreshLiveWorld()} onUseLocation={useApproximateLocation} onClose={closeFlow} />}
         </View>
       </SafeAreaView>
     </View>
@@ -535,7 +567,7 @@ function ScreenHeader({ eyebrow, title, subtitle, onProfile }: { eyebrow?: strin
   );
 }
 
-function NowScreen({ firstName, suggestions, resumableExperience, context, calendar, liveWorld, liveLoading, onResume, onDiscardSession, onOpen, onProfile, onDiscover, onFeedback }: { firstName: string; suggestions: Array<{ experience: Experience; decision: LocalDecision }>; resumableExperience?: Experience; context: PrototypeContext; calendar: CalendarContextSnapshot; liveWorld: LiveWorldSnapshot | null; liveLoading: boolean; onResume: () => void; onDiscardSession: () => void; onOpen: (item: Experience, stage?: FlowStage) => void; onProfile: () => void; onDiscover: () => void; onFeedback: (item: Experience, outcome: LearningOutcome) => void }) {
+function NowScreen({ firstName, suggestions, resumableExperience, context, calendar, liveWorld, liveLoading, generatorStatus, generatingMoment, onGenerateMoment, onResume, onDiscardSession, onOpen, onProfile, onDiscover, onFeedback }: { firstName: string; suggestions: Array<{ experience: Experience; decision: LocalDecision }>; resumableExperience?: Experience; context: PrototypeContext; calendar: CalendarContextSnapshot; liveWorld: LiveWorldSnapshot | null; liveLoading: boolean; generatorStatus: GeneratorRuntimeStatus; generatingMoment: boolean; onGenerateMoment: () => void; onResume: () => void; onDiscardSession: () => void; onOpen: (item: Experience, stage?: FlowStage) => void; onProfile: () => void; onDiscover: () => void; onFeedback: (item: Experience, outcome: LearningOutcome) => void }) {
   const [declined, setDeclined] = useState(false);
   const [whyOpen, setWhyOpen] = useState(false);
   const [suggestionIndex, setSuggestionIndex] = useState(0);
@@ -595,6 +627,12 @@ function NowScreen({ firstName, suggestions, resumableExperience, context, calen
           <SecondaryButton label="Toon het voorstel opnieuw" onPress={() => setDeclined(false)} />
         </View>
       )}
+      <View style={styles.momentMakerCard}>
+        <View style={styles.momentMakerHeader}><View style={[styles.sourceState, generatorStatus.state === 'model' ? styles.sourceLive : generatorStatus.state === 'offline' ? styles.sourceError : styles.sourceWaiting]} /><Text style={styles.momentMakerEyebrow}>MOMENTMAKER · {generatorStatus.label.toUpperCase()}</Text></View>
+        <Text style={styles.momentMakerTitle}>Zie hoe Momentum iets nieuws opbouwt.</Text>
+        <Text style={styles.momentMakerBody}>{generatorStatus.detail} De uitkomst opent meteen als volledige capsule, zodat je belofte, voorbereiding, begeleiding en herinnering kunt beoordelen.</Text>
+        <SecondaryButton label={generatingMoment ? 'Nieuw moment wordt gecontroleerd…' : 'Maak een nieuw moment voor nu'} onPress={onGenerateMoment} />
+      </View>
       <Pressable onPress={onDiscover} style={styles.spaceCard}>
         <View style={styles.spaceIcon}><Text style={styles.spaceIconText}>✦</Text></View>
         <View style={styles.flex}><Text style={styles.spaceTitle}>Er is ruimte ontstaan</Text><Text style={styles.spaceBody}>Vertel wat er veranderde of waar je zin in hebt</Text></View>
@@ -759,7 +797,7 @@ function PromiseScreen({ experience, onClose, onAccept }: { experience: Experien
       <Text style={styles.wonderLarge}>{experience.wonder}</Text>
       <View style={styles.factStrip}><MiniFact value={`${experience.duration} min`} label="totaal" /><MiniFact value={experience.effort} label="inspanning" /><MiniFact value={experience.timeWindow ?? 'nu mogelijk'} label="moment" /></View>
       {experience.blueprint && <View style={styles.blueprintBadge}><Text style={styles.blueprintBadgeMark}>✓</Text><View style={styles.flex}><Text style={styles.blueprintBadgeTitle}>Complete ervaring</Text><Text style={styles.blueprintBadgeBody}>{experience.blueprint.validationLabel}. Je houdt altijd zelf de regie.</Text></View></View>}
-      {experience.generation && <View style={styles.generationDisclosure}><Text style={styles.generationDisclosureLabel}>{experience.generation.mode === 'remote' ? 'GEGENEREERD EN GECONTROLEERD' : 'LOKAAL GECOMBINEERD'}</Text><Text style={styles.generationDisclosureBody}>{experience.generation.disclosure}</Text></View>}
+      {experience.generation && <View style={styles.generationDisclosure}><Text style={styles.generationDisclosureLabel}>{generationLabel(experience)}</Text><Text style={styles.generationDisclosureBody}>{experience.generation.disclosure}</Text></View>}
       {experience.meaningThread && <MeaningThreadCard experience={experience} />}
       {freshEvidence.length ? <View style={styles.liveEvidenceCard}>
         <Text style={styles.liveEvidenceTitle}>LIVE WORLD · BRONBEWIJS</Text>
@@ -1019,7 +1057,7 @@ function RememberScreen({ experience, personal, shared, onSkip, onSave }: { expe
   );
 }
 
-function ProfileScreen({ personal, evidence, composition, opportunitySummary, context, calendar, calendarLoading, liveWorld, locationConfirmed, contentCatalog, liveLoading, liveMessage, onChange, onPersonalChange, onForgetReflection, onForgetLearningEvent, onResetEvidence, onResetLearning, onRedoOnboarding, onClearLiveCache, onConnectCalendar, onRefresh, onUseLocation, onClose }: { personal: PersonalProfile; evidence: PrototypeEvidence; composition: CompositionSummary; opportunitySummary: OpportunityEngineResult; context: PrototypeContext; calendar: CalendarContextSnapshot; calendarLoading: boolean; liveWorld: LiveWorldSnapshot | null; locationConfirmed: boolean; contentCatalog: ResolvedContentCatalog; liveLoading: boolean; liveMessage: string; onChange: (context: PrototypeContext) => void; onPersonalChange: (profile: PersonalProfile) => void; onForgetReflection: (id: string) => void; onForgetLearningEvent: (id: string) => void; onResetEvidence: () => void; onResetLearning: () => void; onRedoOnboarding: () => void; onClearLiveCache: () => void; onConnectCalendar: () => void; onRefresh: () => void; onUseLocation: () => void; onClose: () => void }) {
+function ProfileScreen({ personal, evidence, composition, opportunitySummary, generatorStatus, context, calendar, calendarLoading, liveWorld, locationConfirmed, contentCatalog, liveLoading, liveMessage, onChange, onPersonalChange, onForgetReflection, onForgetLearningEvent, onResetEvidence, onResetLearning, onRedoOnboarding, onClearLiveCache, onConnectCalendar, onRefresh, onUseLocation, onClose }: { personal: PersonalProfile; evidence: PrototypeEvidence; composition: CompositionSummary; opportunitySummary: OpportunityEngineResult; generatorStatus: GeneratorRuntimeStatus; context: PrototypeContext; calendar: CalendarContextSnapshot; calendarLoading: boolean; liveWorld: LiveWorldSnapshot | null; locationConfirmed: boolean; contentCatalog: ResolvedContentCatalog; liveLoading: boolean; liveMessage: string; onChange: (context: PrototypeContext) => void; onPersonalChange: (profile: PersonalProfile) => void; onForgetReflection: (id: string) => void; onForgetLearningEvent: (id: string) => void; onResetEvidence: () => void; onResetLearning: () => void; onRedoOnboarding: () => void; onClearLiveCache: () => void; onConnectCalendar: () => void; onRefresh: () => void; onUseLocation: () => void; onClose: () => void }) {
   const [labOpen, setLabOpen] = useState(false);
   const dayParts: DayPart[] = ['morning', 'midday', 'afternoon', 'evening'];
   const profiles: PrototypeProfile[] = ['balanced', 'explorer', 'mover', 'family'];
@@ -1051,7 +1089,7 @@ function ProfileScreen({ personal, evidence, composition, opportunitySummary, co
     <SecondaryButton label="Wis alleen wat Momentum heeft geleerd" onPress={onResetLearning} />
     <SecondaryButton label="Doorloop mijn startkeuzes opnieuw" onPress={onRedoOnboarding} />
     <Text style={styles.fieldLabel}>KOPPELINGEN & PRIVACY</Text>
-    <View style={styles.personalCard}><ProfileRow label="Globale omgeving" value={locationConfirmed ? liveWorld?.regionLabel ?? 'Gekoppeld' : 'Niet gekoppeld'} /><ProfileRow label="Agenda" value={calendar.state === 'live' ? 'Lokaal gekoppeld' : calendar.state === 'denied' ? 'Niet toegestaan' : 'Niet gekoppeld'} /><ProfileRow label="Weer" value={locationConfirmed && liveWorld?.weather ? 'Live gekoppeld' : 'Wereldwijde fallback'} /><ProfileRow label="Frisse capsules" value={isRemoteGenerationConfigured() ? 'Begrensde generatorservice' : 'Alleen lokaal'} /><ProfileRow label="Gezondheid" value="Niet gekoppeld" /></View>
+    <View style={styles.personalCard}><ProfileRow label="Globale omgeving" value={locationConfirmed ? liveWorld?.regionLabel ?? 'Gekoppeld' : 'Niet gekoppeld'} /><ProfileRow label="Agenda" value={calendar.state === 'live' ? 'Lokaal gekoppeld' : calendar.state === 'denied' ? 'Niet toegestaan' : 'Niet gekoppeld'} /><ProfileRow label="Weer" value={locationConfirmed && liveWorld?.weather ? 'Live gekoppeld' : 'Wereldwijde fallback'} /><ProfileRow label="Frisse capsules" value={generatorStatus.label} /><ProfileRow label="Gezondheid" value="Niet gekoppeld" /></View>
     <Text style={styles.sourcePrivacy}>Voor een frisse capsule bij openen gebruikt de generator hooguit één richting die jij zelf koos, dagdeel, beschikbare tijd, gezelschap en expliciet materiaal. Geen doelen, reflecties, agenda-inhoud of locatie.</Text>
     {calendar.state !== 'live' && <SecondaryButton label={calendarLoading ? 'Agenda wordt gecontroleerd…' : Platform.OS === 'web' ? 'Agenda vereist een development build' : 'Koppel mijn agenda'} onPress={onConnectCalendar} />}
     <SecondaryButton label={locationConfirmed ? 'Werk mijn globale omgeving bij' : 'Gebruik mijn globale omgeving'} onPress={onUseLocation} />
@@ -1153,8 +1191,8 @@ function DirectionEditor({ horizon, values, paused, onTogglePause, onSave }: { h
     <Pressable onPress={save} style={styles.directionSave}><Text style={styles.directionSaveText}>Richting bewaren</Text></Pressable>
   </View>;
 }
-function PrimaryButton({ label, onPress }: { label: string; onPress: () => void }) { return <Pressable onPress={onPress} style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}><Text style={styles.primaryButtonText}>{label}</Text><Text style={styles.primaryArrow}>→</Text></Pressable>; }
-function SecondaryButton({ label, onPress }: { label: string; onPress: () => void }) { return <Pressable onPress={onPress} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}><Text style={styles.secondaryButtonText}>{label}</Text></Pressable>; }
+function PrimaryButton({ label, onPress }: { label: string; onPress: () => void }) { return <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}><Text style={styles.primaryButtonText}>{label}</Text><Text style={styles.primaryArrow}>→</Text></Pressable>; }
+function SecondaryButton({ label, onPress }: { label: string; onPress: () => void }) { return <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}><Text style={styles.secondaryButtonText}>{label}</Text></Pressable>; }
 function BackButton({ label, onPress }: { label: string; onPress: () => void }) { return <Pressable onPress={onPress} style={styles.backButton}><Text style={styles.backButtonText}>‹  {label}</Text></Pressable>; }
 function ProfileRow({ label, value }: { label: string; value: string }) { return <View style={styles.profileRow}><Text style={styles.profileLabel}>{label}</Text><Text style={styles.profileValue}>{value}</Text></View>; }
 
@@ -1232,6 +1270,7 @@ const styles = StyleSheet.create({
   inviteScreen: { width: '100%', maxWidth: 620, alignSelf: 'center', paddingHorizontal: 22, paddingTop: 72, paddingBottom: 50 }, invalidInviteScreen: { flex: 1, width: '100%', maxWidth: 620, alignSelf: 'center', justifyContent: 'center', paddingHorizontal: 22, paddingBottom: 50, gap: 20 }, inviteHeadline: { color: colors.bone, fontSize: 42, lineHeight: 47, fontWeight: '300', letterSpacing: -1.1, marginTop: 12 }, invitePromiseCard: { borderRadius: 28, borderWidth: 1, borderColor: 'rgba(217,179,107,0.38)', backgroundColor: 'rgba(16,26,29,0.9)', padding: 21, marginTop: 28 }, inviteTitle: { color: colors.bone, fontSize: 31, lineHeight: 36, fontWeight: '300', marginTop: 12 }, invitePromise: { color: colors.muted, fontSize: 15, lineHeight: 22, marginTop: 9 }, inviteTrustCard: { borderRadius: 21, borderWidth: 1, borderColor: 'rgba(164,197,93,0.3)', backgroundColor: 'rgba(164,197,93,0.06)', padding: 17, marginVertical: 20 }, inviteTrustTitle: { color: colors.green, fontSize: 14, fontWeight: '700' }, inviteTrustBody: { color: colors.muted, fontSize: 11, lineHeight: 18, marginTop: 6 }, inviteNameInput: { minHeight: 54, borderRadius: 18, borderWidth: 1, borderColor: colors.line, backgroundColor: 'rgba(4,10,12,0.48)', color: colors.bone, paddingHorizontal: 16, fontSize: 16, marginBottom: 15 }, invitePrototypeNote: { color: 'rgba(174,180,174,0.58)', fontSize: 9, lineHeight: 15, textAlign: 'center', marginTop: 14 }, unavailableInvite: { borderRadius: 20, borderWidth: 1, borderColor: 'rgba(217,179,107,0.32)', padding: 17 }, unavailableInviteTitle: { color: colors.bone, fontSize: 14, fontWeight: '700' }, unavailableInviteBody: { color: colors.muted, fontSize: 11, lineHeight: 17, marginTop: 6 },
   whyButton: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 4 }, whyButtonText: { color: colors.muted, fontSize: 13 }, whyChevron: { color: colors.gold, fontSize: 18 }, whyPanel: { borderRadius: 18, borderWidth: 1, borderColor: colors.line, backgroundColor: 'rgba(164,197,93,0.06)', padding: 15, gap: 8 }, whyReason: { color: colors.bone, fontSize: 12, lineHeight: 18 }, proofNote: { color: 'rgba(174,180,174,0.58)', fontSize: 9, lineHeight: 14, marginTop: 3 }, quietAction: { minHeight: 38, alignItems: 'center', justifyContent: 'center' }, quietActionText: { color: colors.muted, fontSize: 12 },
   silentCard: { minHeight: 520, borderRadius: 30, borderWidth: 1, borderColor: colors.line, padding: 24, justifyContent: 'center', backgroundColor: 'rgba(16,26,29,0.6)' }, silentTitle: { color: colors.bone, fontSize: 36, lineHeight: 42, fontWeight: '300' },
+  momentMakerCard: { marginTop: 18, borderRadius: 25, borderWidth: 1, borderColor: 'rgba(164,197,93,0.3)', backgroundColor: 'rgba(164,197,93,0.055)', padding: 17 }, momentMakerHeader: { flexDirection: 'row', alignItems: 'center', gap: 9, marginBottom: 11 }, momentMakerEyebrow: { color: colors.green, fontSize: 9, letterSpacing: 1.2, fontWeight: '700' }, momentMakerTitle: { color: colors.bone, fontSize: 19, lineHeight: 24, fontWeight: '600' }, momentMakerBody: { color: colors.muted, fontSize: 11, lineHeight: 17, marginTop: 7, marginBottom: 13 },
   spaceCard: { marginTop: 16, minHeight: 90, borderRadius: 25, borderWidth: 1, borderColor: 'rgba(217,179,107,0.3)', backgroundColor: 'rgba(16,26,29,0.75)', padding: 16, flexDirection: 'row', alignItems: 'center' }, spaceIcon: { width: 45, height: 45, borderRadius: 23, borderWidth: 1, borderColor: colors.gold, alignItems: 'center', justifyContent: 'center', marginRight: 13 }, spaceIconText: { color: colors.gold, fontSize: 19 }, spaceTitle: { color: colors.bone, fontSize: 17, fontWeight: '600' }, spaceBody: { color: colors.muted, fontSize: 11, lineHeight: 16, marginTop: 3 }, arrow: { color: colors.gold, fontSize: 25 },
   daySummary: { borderRadius: 22, borderWidth: 1, borderColor: colors.line, backgroundColor: 'rgba(16,26,29,0.78)', padding: 17, marginBottom: 26 }, daySummaryTitle: { color: colors.bone, fontSize: 17 }, daySummaryBody: { color: colors.muted, fontSize: 12, lineHeight: 18, marginTop: 5 }, timeline: { gap: 0 }, timelineRow: { flexDirection: 'row' }, timelineRail: { width: 28, alignItems: 'center' }, timelineDot: { width: 10, height: 10, borderRadius: 5, marginTop: 3 }, timelineLine: { flex: 1, width: 1, backgroundColor: colors.line, marginVertical: 7 }, timelineContent: { flex: 1, paddingBottom: 20 }, timelineTime: { color: colors.gold, fontSize: 11, letterSpacing: 1.2, fontWeight: '700', marginBottom: 9 }, dayCardImage: { minHeight: 190, justifyContent: 'flex-end' }, dayCardImageStyle: { borderRadius: 22 }, dayCardCopy: { padding: 17 }, dayCardTitle: { color: colors.bone, fontSize: 25, lineHeight: 31, fontWeight: '400', fontFamily: editorialFont }, dayCardPromise: { color: 'rgba(244,238,227,0.8)', fontSize: 13, lineHeight: 19, marginTop: 6, maxWidth: 330 }, dayCardMeta: { color: colors.bone, fontSize: 12, marginTop: 12 }, quietDay: { borderTopWidth: 1, borderColor: colors.line, paddingTop: 20, marginTop: 2 }, quietDayTitle: { color: colors.bone, fontSize: 16 }, quietDayBody: { color: colors.muted, fontSize: 12, lineHeight: 18, marginTop: 5 },
   calendarWindows: { borderRadius: 22, borderWidth: 1, borderColor: 'rgba(217,179,107,0.3)', backgroundColor: 'rgba(217,179,107,0.05)', padding: 17, marginBottom: 16, gap: 9 }, calendarWindowText: { color: colors.bone, fontSize: 11, lineHeight: 17 },

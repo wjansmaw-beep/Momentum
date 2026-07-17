@@ -216,6 +216,8 @@ The four continuous tracks are Philosophy, Experience, Understanding, and Trust.
 
 **Implementation note (2026-07-17):** the global OpenStreetMap adapter now admits a bounded set of public outdoor anchor leads—parks, viewpoints, public art, monuments, and memorials—without pretending they have verified access. Known restrictions, current outside conditions, route budget, local signs, and source attribution remain hard boundaries. See ADR-046.
 
+**Implementation note (2026-07-17):** `Now` now exposes a bounded Momentmaker evaluation action and visible generator runtime status. Demonstration fixture synthesis, server-side AI synthesis, local synthesis, and an unavailable service are labelled separately; one generated candidate opens directly as a complete Capsule for Founder review. See ADR-047.
+
 ## Phase 9 — Premium Living Guide
 
 **Goal:** make Momentum feel like a continuously changing, personal guide to the world rather than a collection of activity cards.

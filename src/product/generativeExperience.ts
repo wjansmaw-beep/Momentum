@@ -8,6 +8,12 @@ const developmentGeneratorUrl = Platform.OS === 'web' ? 'http://127.0.0.1:8787/v
 const generatorUrl = process.env.EXPO_PUBLIC_MOMENTUM_GENERATOR_URL || developmentGeneratorUrl;
 
 export type GenerationMode = 'remote' | 'local-synthesis';
+export type GeneratorRuntimeStatus = {
+  state: 'checking' | 'offline' | 'fixture' | 'model' | 'local';
+  label: string;
+  detail: string;
+  model?: string;
+};
 export type GenerationOutcome = {
   experiences: Experience[];
   mode: GenerationMode;
@@ -191,6 +197,25 @@ function localSynthesis(request: GenerationRequest, candidates: Experience[]): E
 }
 
 export const isRemoteGenerationConfigured = () => Boolean(generatorUrl);
+
+export async function inspectGeneratorRuntime(): Promise<GeneratorRuntimeStatus> {
+  if (!generatorUrl) return { state: 'local', label: 'Lokale synthese', detail: 'Nieuwe combinaties worden op dit apparaat uit gecontroleerde bouwstenen gemaakt.' };
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 2500);
+  try {
+    const healthUrl = generatorUrl.replace(/\/v1\/experience-drafts\/?$/, '/health');
+    const response = await fetch(healthUrl, { signal: controller.signal });
+    if (!response.ok) throw new Error(`Generator antwoordde met ${response.status}`);
+    const payload = await response.json() as { mode?: unknown; model?: unknown };
+    if (payload.mode === 'fixture') return { state: 'fixture', label: 'Demonstratiesynthese', detail: 'De volledige generatorroute werkt met gecontroleerde voorbeeldinhoud; er wordt geen betaald AI-model gebruikt.' };
+    if (payload.mode === 'openai') return { state: 'model', label: 'AI-synthese actief', detail: 'Nieuwe capsules worden door de beveiligde generator gemaakt en daarna lokaal gecontroleerd.', model: typeof payload.model === 'string' ? payload.model : undefined };
+    return { state: 'offline', label: 'Generator niet verbonden', detail: 'Momentum gebruikt automatisch de lokale, gecontroleerde synthese.' };
+  } catch {
+    return { state: 'offline', label: 'Generator niet verbonden', detail: 'Momentum gebruikt automatisch de lokale, gecontroleerde synthese.' };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
 
 export async function generateExperienceCandidates(intent: string, clarificationTerms: string, context: PrototypeContext, candidates: Experience[]): Promise<GenerationOutcome> {
   const domains = detectBlueprintDomains(`${intent} ${clarificationTerms}`);
