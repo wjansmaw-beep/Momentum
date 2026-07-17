@@ -214,6 +214,8 @@ The four continuous tracks are Philosophy, Experience, Understanding, and Trust.
 
 **Implementation note (2026-07-17):** the Place Knowledge Lens can now enrich suitable editorial, deterministic, and generated Capsules near the connected environment without creating a destination or changing feasibility. One credited story remains optional in Prepare and the consultable guide. See ADR-045.
 
+**Implementation note (2026-07-17):** the global OpenStreetMap adapter now admits a bounded set of public outdoor anchor leads—parks, viewpoints, public art, monuments, and memorials—without pretending they have verified access. Known restrictions, current outside conditions, route budget, local signs, and source attribution remain hard boundaries. See ADR-046.
+
 ## Phase 9 — Premium Living Guide
 
 **Goal:** make Momentum feel like a continuously changing, personal guide to the world rather than a collection of activity cards.

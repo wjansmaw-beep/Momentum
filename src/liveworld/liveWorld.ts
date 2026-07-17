@@ -41,8 +41,9 @@ export type MarineSignal = {
 
 export type OpeningState = 'open' | 'closed' | 'unknown';
 export type NearbyPlace = {
-  id: string; name: string; kind: 'cafe' | 'library' | 'museum' | 'gallery' | 'viewpoint' | 'park' | 'community';
+  id: string; name: string; kind: 'cafe' | 'library' | 'museum' | 'gallery' | 'viewpoint' | 'park' | 'community' | 'artwork' | 'monument' | 'memorial';
   latitude: number; longitude: number; openingHours?: string; openingState: OpeningState; openingNote: string;
+  accessBasis: 'opening-hours' | 'public-outdoor-lead';
 };
 export type AirQualitySignal = {
   europeanAqi: number; category: 'good' | 'fair' | 'moderate' | 'poor' | 'very-poor';
@@ -94,7 +95,7 @@ type MarineResponse = {
 };
 
 type AirQualityResponse = { current?: { time: string; european_aqi?: number; pm2_5?: number; alder_pollen?: number; birch_pollen?: number; grass_pollen?: number; mugwort_pollen?: number; ragweed_pollen?: number } };
-type OverpassElement = { id: number; lat?: number; lon?: number; center?: { lat: number; lon: number }; tags?: Record<string, string> };
+type OverpassElement = { type?: 'node' | 'way' | 'relation'; id: number; lat?: number; lon?: number; center?: { lat: number; lon: number }; tags?: Record<string, string> };
 type OverpassResponse = { elements?: OverpassElement[] };
 type WikipediaPage = {
   pageid?: number;
@@ -231,7 +232,7 @@ export function interpretSimpleOpeningHours(value: string | undefined, now = new
 }
 
 async function loadNearbyPlaces(coordinates: Coordinates): Promise<{ places: NearbyPlace[]; receipt: SourceReceipt }> {
-  const query = `[out:json][timeout:8];(node(around:3500,${coordinates.latitude},${coordinates.longitude})[name][opening_hours][amenity~"^(cafe|library|community_centre)$"];node(around:3500,${coordinates.latitude},${coordinates.longitude})[name][opening_hours][tourism~"^(museum|gallery|viewpoint)$"];node(around:3500,${coordinates.latitude},${coordinates.longitude})[name][opening_hours][leisure=park];);out body 15;`;
+  const query = `[out:json][timeout:10];(nwr(around:4500,${coordinates.latitude},${coordinates.longitude})[name][opening_hours][amenity~"^(cafe|library|community_centre)$"];nwr(around:4500,${coordinates.latitude},${coordinates.longitude})[name][opening_hours][tourism~"^(museum|gallery)$"];nwr(around:4500,${coordinates.latitude},${coordinates.longitude})[name][tourism=viewpoint];nwr(around:4500,${coordinates.latitude},${coordinates.longitude})[name][leisure=park];nwr(around:4500,${coordinates.latitude},${coordinates.longitude})[name][tourism=artwork];nwr(around:4500,${coordinates.latitude},${coordinates.longitude})[name][historic~"^(monument|memorial)$"];);out center 30;`;
   const url = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`;
   try {
     const response = await safeFetch(url, { headers: { Accept: 'application/json' } }, 12000);
@@ -239,13 +240,20 @@ async function loadNearbyPlaces(coordinates: Coordinates): Promise<{ places: Nea
     const places = (data.elements ?? []).flatMap<NearbyPlace>((element) => {
       const tags = element.tags; const latitude = element.lat ?? element.center?.lat; const longitude = element.lon ?? element.center?.lon;
       if (!tags?.name || typeof latitude !== 'number' || typeof longitude !== 'number') return [];
-      const rawKind = tags.amenity ?? tags.tourism ?? tags.leisure;
+      const rawKind = tags.amenity ?? tags.tourism ?? tags.leisure ?? tags.historic;
       const kind: NearbyPlace['kind'] = rawKind === 'community_centre' ? 'community' : rawKind as NearbyPlace['kind'];
-      if (!['cafe', 'library', 'museum', 'gallery', 'viewpoint', 'park', 'community'].includes(kind)) return [];
+      if (!['cafe', 'library', 'museum', 'gallery', 'viewpoint', 'park', 'community', 'artwork', 'monument', 'memorial'].includes(kind)) return [];
+      const accessDenied = ['no', 'private', 'customers'].includes(tags.access);
+      const indoor = tags.indoor === 'yes' || tags.location === 'indoor';
+      const publicOutdoorLead = ['viewpoint', 'park', 'artwork', 'monument', 'memorial'].includes(kind) && !accessDenied && !indoor;
+      if (!tags.opening_hours && !publicOutdoorLead) return [];
       const opening = interpretSimpleOpeningHours(tags.opening_hours);
-      return [{ id: `osm-${element.id}`, name: tags.name, kind, latitude, longitude, openingHours: tags.opening_hours, openingState: opening.state, openingNote: opening.note }];
+      const openingNote = publicOutdoorLead && !tags.opening_hours
+        ? 'Openbaar buitenanker in OpenStreetMap; controleer toegang, paden en lokale aanwijzingen ter plaatse'
+        : opening.note;
+      return [{ id: `osm-${element.type ?? 'element'}-${element.id}`, name: tags.name, kind, latitude, longitude, openingHours: tags.opening_hours, openingState: opening.state, openingNote, accessBasis: publicOutdoorLead ? 'public-outdoor-lead' : 'opening-hours' }];
     });
-    return { places, receipt: { id: 'openstreetmap-places', name: 'OpenStreetMap', state: 'live', detail: `${places.length} openbare plekken met haalbaarheidsdata beoordeeld`, url: 'https://www.openstreetmap.org/copyright' } };
+    return { places, receipt: { id: 'openstreetmap-places', name: 'OpenStreetMap', state: 'live', detail: `${places.length} tijdgebonden plekken en publieke buitenankers beoordeeld`, url: 'https://www.openstreetmap.org/copyright' } };
   } catch (error) {
     return { places: [], receipt: { id: 'openstreetmap-places', name: 'OpenStreetMap', state: 'error', detail: error instanceof Error ? error.message : 'Plaatsenbron niet bereikbaar', url: 'https://www.openstreetmap.org/copyright' } };
   }

@@ -103,32 +103,36 @@ const birdOpportunity = (bird: BirdObservation, snapshot: LiveWorldSnapshot, con
   };
 };
 
-const placeKind = (place: NearbyPlace): Experience['kind'] => place.kind === 'cafe' ? 'food' : ['museum', 'gallery'].includes(place.kind) ? 'culture' : place.kind === 'library' ? 'learn' : place.kind === 'community' ? 'connect' : 'outside';
+const placeKind = (place: NearbyPlace): Experience['kind'] => place.kind === 'cafe' ? 'food' : ['museum', 'gallery', 'artwork', 'monument', 'memorial'].includes(place.kind) ? 'culture' : place.kind === 'library' ? 'learn' : place.kind === 'community' ? 'connect' : 'outside';
 
 const placeOpportunity = (place: NearbyPlace, snapshot: LiveWorldSnapshot, context: PrototypeContext, maxTravelMinutes: number, bike: boolean): LivingWorldOpportunity | { id: string; reason: string } => {
   const id = `opportunity-place-${place.id}`;
-  if (place.openingState !== 'open') return { id, reason: place.openingState === 'closed' ? 'Volgens eenvoudige openbare tijden gesloten.' : 'Opening of toegang is niet betrouwbaar genoeg.' };
+  const outdoorLead = place.accessBasis === 'public-outdoor-lead';
+  if (place.openingState === 'closed' || (!outdoorLead && place.openingState !== 'open')) return { id, reason: place.openingState === 'closed' ? 'Volgens eenvoudige openbare tijden gesloten.' : 'Opening of toegang is niet betrouwbaar genoeg.' };
   const expiresAt = expiresAfter(snapshot.retrievedAt, 6);
   if (Date.parse(expiresAt) <= Date.now()) return { id, reason: 'Het plaats- en openingsvenster is verlopen.' };
   const destination = { latitude: place.latitude, longitude: place.longitude };
-  const guard = 'OpenStreetMap kan achterlopen. Controleer vóór vertrek de actuele toegang en volg ter plaatse borden en aanwijzingen.';
+  const guard = outdoorLead
+    ? 'Dit is een buitenanker uit openbare kaartdata, geen toegangsgarantie. Blijf op openbare routes, betreed geen afgesloten terrein en volg lokale borden.'
+    : 'OpenStreetMap kan achterlopen. Controleer vóór vertrek de actuele toegang en volg ter plaatse borden en aanwijzingen.';
   const kind = placeKind(place);
-  if (kind === 'outside' && !weatherSuitableForOutside(snapshot)) return { id, reason: 'De actuele buitencondities zijn niet sterk genoeg voor dit plaatsvoorstel.' };
-  const currentWeather = kind === 'outside' ? weatherEvidence(snapshot) : undefined;
+  const requiresOutsideConditions = outdoorLead || kind === 'outside';
+  if (requiresOutsideConditions && !weatherSuitableForOutside(snapshot)) return { id, reason: 'De actuele buitencondities zijn niet sterk genoeg voor dit plaatsvoorstel.' };
+  const currentWeather = requiresOutsideConditions ? weatherEvidence(snapshot) : undefined;
   const opportunityExpiry = currentWeather ? earliestExpiry(expiresAt, currentWeather.expiresAt) : expiresAt;
   const route = routeFor(snapshot.coordinates, destination, place.name, context.availableMinutes, maxTravelMinutes, bike, currentWeather ? 'OpenStreetMap + Open-Meteo' : 'OpenStreetMap plaatslead', opportunityExpiry, guard);
   if (!route) return { id, reason: 'Deze plek past niet met heenweg, ervaring, terugweg en buffer binnen de gekozen tijd.' };
   route.arrivalPlan = kind === 'outside'
     ? { kind: 'anchored-loop', label: 'Vrije ontdeklus vanaf de plek', durationMinutes: route.experienceMinutes, radiusMeters: Math.min(1200, route.experienceMinutes * 25), instruction: 'Gebruik de bestemming als begin- en eindanker. Volg alleen toegankelijke paden en kies ter plaatse de lus die past bij landschap, drukte en omstandigheden.', returnTrigger: `Draai uiterlijk na ${Math.floor(route.experienceMinutes / 2)} minuten om als er geen duidelijke openbare lus is.` }
     : { kind: 'single-place', label: 'Verdieping op één plek', durationMinutes: route.experienceMinutes, instruction: 'Laat één detail, verhaal, smaak of ontmoeting de ervaring dragen. Je hoeft de plek niet volledig af te werken.', returnTrigger: `Rond na ongeveer ${route.experienceMinutes} minuten af zodat de terugkeerbuffer intact blijft.` };
-  const promise = kind === 'culture' ? 'Laat één lokaal verhaal, beeld of gebouw je omgeving opnieuw openen.' : kind === 'food' ? 'Maak ruimte voor één smaak en de sfeer van een nabije plek.' : kind === 'learn' ? 'Zoek één idee dat je buiten het scherm verder laat kijken.' : kind === 'connect' ? 'Een openbare plek geeft een eenvoudig begin voor tijd samen.' : currentWeather ? `Het zicht reikt ongeveer ${Math.round(snapshot.weather!.visibilityMeters / 1000)} kilometer. Een openbare plek dichtbij geeft dit buitenvenster richting.` : 'Een nabije openbare plek maakt van vrije tijd een kleine ontdekking.';
+  const promise = kind === 'culture' ? 'Laat één lokaal verhaal, kunstwerk of herinnering je omgeving opnieuw openen.' : kind === 'food' ? 'Maak ruimte voor één smaak en de sfeer van een nabije plek.' : kind === 'learn' ? 'Zoek één idee dat je buiten het scherm verder laat kijken.' : kind === 'connect' ? 'Een openbare plek geeft een eenvoudig begin voor tijd samen.' : currentWeather ? `Het zicht reikt ongeveer ${Math.round(snapshot.weather!.visibilityMeters / 1000)} kilometer. Een buitenanker dichtbij geeft dit venster richting.` : 'Een nabije openbare plek maakt van vrije tijd een kleine ontdekking.';
   const knowledge = closestKnowledge(destination, snapshot);
   return {
     id, kind: 'open-place', status: 'ready', score: 76 - route.outboundMinutes, title: `Ontdek ${place.name}`, promise,
     wonder: `${place.name} ligt dichtbij genoeg om niet alleen heen te gaan, maar ook rustig te beleven en met buffer terug te keren.`,
     destinationName: place.name, destination, experienceKind: kind, route, knowledge,
     evidence: [{ label: `${place.name} · ${place.openingNote}`, sourceName: 'OpenStreetMap', sourceUrl: 'https://www.openstreetmap.org/copyright', observedAt: snapshot.retrievedAt, retrievedAt: snapshot.retrievedAt, expiresAt, certainty: 'observation' }, ...(currentWeather ? [currentWeather] : [])],
-    reasons: ['Open volgens conservatief geïnterpreteerde openbare tijden', `Past met ${route.bufferMinutes} minuten buffer`, 'Apple Maps controleert de werkelijke route'], guards: [guard],
+    reasons: [outdoorLead ? 'Publiek buitenanker in OpenStreetMap; toegang blijft te controleren' : 'Open volgens conservatief geïnterpreteerde openbare tijden', `Past met ${route.bufferMinutes} minuten buffer`, 'Apple Maps controleert de werkelijke route'], guards: [guard],
   };
 };
 

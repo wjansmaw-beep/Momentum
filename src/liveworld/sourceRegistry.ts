@@ -14,7 +14,6 @@ export const livingWorldSourceRegistry: LivingWorldSourceContract[] = [
   { id: 'open-meteo-air', label: 'Open-Meteo luchtkwaliteit', role: 'conditions', coverage: 'regional', status: 'active', maySelectDestination: false, mayProveCurrentAccess: false, attributionRequired: true },
   { id: 'open-meteo-marine', label: 'Open-Meteo marien model', role: 'conditions', coverage: 'regional', status: 'active', maySelectDestination: false, mayProveCurrentAccess: false, attributionRequired: true },
   { id: 'ebird', label: 'eBird recente openbare waarnemingen', role: 'observation', coverage: 'configured', status: 'optional', maySelectDestination: true, mayProveCurrentAccess: false, attributionRequired: true },
-  { id: 'openstreetmap-places', label: 'OpenStreetMap openbare plaatsleads', role: 'place-lead', coverage: 'global', status: 'active', maySelectDestination: true, mayProveCurrentAccess: false, attributionRequired: true },
+  { id: 'openstreetmap-places', label: 'OpenStreetMap tijdgebonden plekken en publieke buitenankers', role: 'place-lead', coverage: 'global', status: 'active', maySelectDestination: true, mayProveCurrentAccess: false, attributionRequired: true },
   { id: 'wikipedia-place', label: 'Wikipedia plaatskennis', role: 'place-knowledge', coverage: 'global', status: 'active', maySelectDestination: false, mayProveCurrentAccess: false, attributionRequired: true },
 ];
-

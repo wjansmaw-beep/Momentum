@@ -124,6 +124,7 @@ Priority labels:
 - **Resolved first place-knowledge layer:** a nearby Wikipedia story may deepen Prepare and Presence while remaining clearly separate from live access, route, opening, safety, and wildlife claims. Dutch falls back to English and missing coverage never breaks the Experience. See ADR-043.
 - **Resolved route-provider boundary:** a configured application-owned route service may verify time and distance only after explicit route intent; without it, the conservative local estimate and Apple Maps handoff remain truthful. Geometry, closures, terrain, accessibility, transit, and production provider choice remain open. See ADR-044.
 - **Resolved first knowledge-lens boundary:** one nearby credited story may deepen a suitable route-free Capsule without creating its destination, changing feasibility, or becoming a live claim. Semantic route-to-story matching and additional official or curator sources remain open. See ADR-045.
+- **Resolved first outdoor-anchor expansion:** named parks, viewpoints, public artwork, monuments, and memorials in OpenStreetMap may become guarded destination leads when they are not tagged private, closed, or indoor. Trails, beaches, reserves, swimming, surf, and other safety-sensitive classes remain gated. See ADR-046.
 - **Later:** Can local curators or users contribute without turning Momentum into social media?
 
 ## Business and success
