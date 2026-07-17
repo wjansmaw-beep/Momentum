@@ -49,6 +49,19 @@ export type AirQualitySignal = {
   pm25: number; pollenPeak?: { type: string; grainsPerM3: number }; observedAt: string;
 };
 
+export type PlaceKnowledge = {
+  id: string;
+  title: string;
+  extract: string;
+  latitude: number;
+  longitude: number;
+  distanceMeters: number;
+  pageUrl: string;
+  thumbnailUrl?: string;
+  language: 'nl' | 'en';
+  retrievedAt: string;
+};
+
 export type LiveWorldSnapshot = {
   regionLabel: string;
   coordinates: Coordinates;
@@ -58,6 +71,7 @@ export type LiveWorldSnapshot = {
   airQuality?: AirQualitySignal;
   birdObservations: BirdObservation[];
   nearbyPlaces: NearbyPlace[];
+  placeKnowledge: PlaceKnowledge[];
   sources: SourceReceipt[];
 };
 
@@ -82,6 +96,15 @@ type MarineResponse = {
 type AirQualityResponse = { current?: { time: string; european_aqi?: number; pm2_5?: number; alder_pollen?: number; birch_pollen?: number; grass_pollen?: number; mugwort_pollen?: number; ragweed_pollen?: number } };
 type OverpassElement = { id: number; lat?: number; lon?: number; center?: { lat: number; lon: number }; tags?: Record<string, string> };
 type OverpassResponse = { elements?: OverpassElement[] };
+type WikipediaPage = {
+  pageid?: number;
+  title?: string;
+  extract?: string;
+  fullurl?: string;
+  coordinates?: Array<{ lat?: number; lon?: number }>;
+  thumbnail?: { source?: string };
+};
+type WikipediaResponse = { query?: { pages?: WikipediaPage[] } };
 
 const isoAfter = (base: string, hours: number) => {
   const timestamp = Date.parse(base);
@@ -228,6 +251,57 @@ async function loadNearbyPlaces(coordinates: Coordinates): Promise<{ places: Nea
   }
 }
 
+const geoDistanceMeters = (a: Coordinates, b: Coordinates) => {
+  const rad = (value: number) => value * Math.PI / 180;
+  const earth = 6371000;
+  const dLat = rad(b.latitude - a.latitude);
+  const dLon = rad(b.longitude - a.longitude);
+  const value = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.latitude)) * Math.cos(rad(b.latitude)) * Math.sin(dLon / 2) ** 2;
+  return earth * 2 * Math.atan2(Math.sqrt(value), Math.sqrt(1 - value));
+};
+
+async function requestPlaceKnowledge(coordinates: Coordinates, language: 'nl' | 'en', retrievedAt: string): Promise<PlaceKnowledge[]> {
+  const params = new URLSearchParams({
+    origin: '*', action: 'query', format: 'json', formatversion: '2', generator: 'geosearch',
+    ggscoord: `${coordinates.latitude}|${coordinates.longitude}`, ggsradius: '10000', ggslimit: '8',
+    prop: 'coordinates|extracts|pageimages|info', exintro: '1', explaintext: '1', exchars: '700',
+    inprop: 'url', piprop: 'thumbnail', pithumbsize: '900',
+  });
+  const response = await safeFetch(`https://${language}.wikipedia.org/w/api.php?${params.toString()}`);
+  const data = await response.json() as WikipediaResponse;
+  return (data.query?.pages ?? []).flatMap<PlaceKnowledge>((page) => {
+    const coordinate = page.coordinates?.[0];
+    if (!page.pageid || !page.title || !page.extract?.trim() || !page.fullurl || typeof coordinate?.lat !== 'number' || typeof coordinate.lon !== 'number') return [];
+    return [{
+      id: `wikipedia-${language}-${page.pageid}`,
+      title: page.title,
+      extract: page.extract.trim(),
+      latitude: coordinate.lat,
+      longitude: coordinate.lon,
+      distanceMeters: Math.round(geoDistanceMeters(coordinates, { latitude: coordinate.lat, longitude: coordinate.lon })),
+      pageUrl: page.fullurl,
+      thumbnailUrl: page.thumbnail?.source,
+      language,
+      retrievedAt,
+    }];
+  }).sort((a, b) => a.distanceMeters - b.distanceMeters);
+}
+
+async function loadPlaceKnowledge(coordinates: Coordinates): Promise<{ knowledge: PlaceKnowledge[]; receipt: SourceReceipt }> {
+  const retrievedAt = new Date().toISOString();
+  try {
+    const dutch = await requestPlaceKnowledge(coordinates, 'nl', retrievedAt);
+    const knowledge = dutch.length ? dutch : await requestPlaceKnowledge(coordinates, 'en', retrievedAt);
+    const language = knowledge[0]?.language === 'en' ? 'Engelstalige' : 'Nederlandstalige';
+    return {
+      knowledge,
+      receipt: { id: 'wikipedia-place', name: 'Wikipedia', state: 'live', detail: `${knowledge.length} ${language.toLowerCase()} plaatsverhalen dichtbij gevonden`, url: 'https://www.wikipedia.org/' },
+    };
+  } catch (error) {
+    return { knowledge: [], receipt: { id: 'wikipedia-place', name: 'Wikipedia', state: 'error', detail: error instanceof Error ? error.message : 'Plaatskennis niet bereikbaar', url: 'https://www.wikipedia.org/' } };
+  }
+}
+
 async function loadAirQuality(coordinates: Coordinates): Promise<{ signal?: AirQualitySignal; receipt: SourceReceipt }> {
   const params = new URLSearchParams({ latitude: String(coordinates.latitude), longitude: String(coordinates.longitude), current: 'european_aqi,pm2_5,alder_pollen,birch_pollen,grass_pollen,mugwort_pollen,ragweed_pollen', domains: 'cams_europe', timezone: 'auto' });
   const url = `https://air-quality-api.open-meteo.com/v1/air-quality?${params.toString()}`;
@@ -244,10 +318,11 @@ async function loadAirQuality(coordinates: Coordinates): Promise<{ signal?: AirQ
 }
 
 export async function loadLiveWorld(coordinates: Coordinates, regionLabel: string): Promise<LiveWorldSnapshot> {
-  const [weather, birds, marine, air] = await Promise.all([loadWeather(coordinates), loadBirds(coordinates), loadMarine(coordinates), loadAirQuality(coordinates)]);
+  const [weather, birds, marine, air, placeKnowledge] = await Promise.all([loadWeather(coordinates), loadBirds(coordinates), loadMarine(coordinates), loadAirQuality(coordinates), loadPlaceKnowledge(coordinates)]);
   return {
     regionLabel, coordinates, retrievedAt: new Date().toISOString(), weather: weather.signal, marine: marine.signal, airQuality: air.signal,
-    birdObservations: birds.observations, nearbyPlaces: [], sources: [weather.receipt, marine.receipt, air.receipt, { id: 'openstreetmap-places', name: 'OpenStreetMap', state: 'loading', detail: 'Nabije plaatsen worden op de achtergrond beoordeeld', url: 'https://www.openstreetmap.org/copyright' }, birds.receipt],
+    birdObservations: birds.observations, nearbyPlaces: [], placeKnowledge: placeKnowledge.knowledge,
+    sources: [weather.receipt, marine.receipt, air.receipt, placeKnowledge.receipt, { id: 'openstreetmap-places', name: 'OpenStreetMap', state: 'loading', detail: 'Nabije plaatsen worden op de achtergrond beoordeeld', url: 'https://www.openstreetmap.org/copyright' }, birds.receipt],
   };
 }
 

@@ -67,6 +67,7 @@ import {
   overlayVerifiedWorldContext,
 } from './src/liveworld/liveWorld';
 import { composeLivingWorldOpportunities, opportunityToExperience, OpportunityEngineResult } from './src/liveworld/opportunityEngine';
+import { livingWorldSourceRegistry } from './src/liveworld/sourceRegistry';
 import {
   CalendarContextSnapshot,
   emptyCalendarContext,
@@ -93,6 +94,7 @@ import { auditCandidatePool, CompositionSummary } from './src/guidance/compositi
 import { colors, typography } from './src/design/theme';
 import { attachMeaningThread } from './src/product/meaningThread';
 import { generateContextualSuggestion, generateExperienceCandidates, GenerationOutcome, isRemoteGenerationConfigured } from './src/product/generativeExperience';
+import { routingCapability, verifyRouteBeforeHandoff } from './src/routing/routeIntelligence';
 
 type FlowStage = 'invite' | 'promise' | 'prepare' | 'presence' | 'remember' | 'profile' | null;
 type Memory = { id: string; title: string; date: string; image: string; note: string; sharedWith?: string[]; meaning?: string; experienceSnapshot?: Experience };
@@ -202,7 +204,7 @@ export default function App() {
     : prototypeContext, [calendarContext.currentFreeMinutes, calendarContext.state, prototypeContext]);
   const opportunityResult = useMemo<OpportunityEngineResult>(() => liveWorld && selectionLocationConfirmed
     ? composeLivingWorldOpportunities(liveWorld, effectiveContext, { maxTravelMinutes: personalProfile.maxTravelMinutes, bike: personalProfile.equipment.bike })
-    : { ready: [], withheld: [], considered: 0, sourceLabel: 'Globale omgeving niet gekoppeld', sourceMix: [], perspectiveCount: 0 }, [effectiveContext, liveWorld, personalProfile.equipment.bike, personalProfile.maxTravelMinutes, selectionLocationConfirmed]);
+    : { ready: [], withheld: [], considered: 0, sourceLabel: 'Globale omgeving niet gekoppeld', sourceMix: [], perspectiveCount: 0, knowledgeCount: 0 }, [effectiveContext, liveWorld, personalProfile.equipment.bike, personalProfile.maxTravelMinutes, selectionLocationConfirmed]);
   const liveExperiences = useMemo(() => opportunityResult.ready.map((opportunity) => composeGuideMoments(opportunityToExperience(opportunity))), [opportunityResult]);
   const contentCatalog = useMemo(() => resolveContentCatalog(createWorldContext(liveWorld?.coordinates ?? defaultRegion.coordinates, new Date(), 'nl', selectionLocationConfirmed)), [liveWorld?.coordinates, selectionLocationConfirmed]);
   const guidedCatalogExperiences = useMemo(() => contentCatalog.experiences.map((item) => composeGuideMoments(item)), [contentCatalog.experiences]);
@@ -859,10 +861,17 @@ function PrepareScreen({ experience, personal, hostName, initialCompany, initial
         <Text style={styles.liveEvidenceTitle}>ROUTE COMPOSER</Text><Text style={styles.routePlanTitle}>{experience.routePlan.destinationName}</Text>
         <View style={styles.routeBudget}><MiniFact value={`${experience.routePlan.outboundMinutes} min`} label="heen" /><MiniFact value={`${experience.routePlan.experienceMinutes} min`} label="beleven" /><MiniFact value={`${experience.routePlan.returnMinutes} min`} label="terug" /><MiniFact value={`${experience.routePlan.bufferMinutes} min`} label="buffer" /></View>
         <Text style={styles.routeEstimate}>{experience.routePlan.mode === 'cycling' ? 'Fiets' : 'Te voet'} · conservatieve voorinschatting{experience.routePlan.sourceLabel ? ` · ${experience.routePlan.sourceLabel}` : ''}</Text>
+        <Text style={styles.routeWindow}>{experience.routePlan.routeCapability?.detail ?? routingCapability().detail}</Text>
         {experience.routePlan.expiresAt && <Text style={styles.routeWindow}>Bronvenster geldig tot {new Date(experience.routePlan.expiresAt).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })}. Vlak voor vertrek volgt een nieuwe geldigheidscontrole.</Text>}
         <Text style={styles.routeGuard}>{experience.routePlan.natureGuard}</Text>
         {experience.routePlan.arrivalPlan && <View style={styles.arrivalPlanCard}><Text style={styles.arrivalPlanLabel}>TER PLAATSE</Text><Text style={styles.arrivalPlanTitle}>{experience.routePlan.arrivalPlan.label}</Text><Text style={styles.arrivalPlanBody}>{experience.routePlan.arrivalPlan.instruction}</Text><Text style={styles.arrivalPlanMeta}>{experience.routePlan.arrivalPlan.durationMinutes} min{experience.routePlan.arrivalPlan.radiusMeters ? ` · tot circa ${experience.routePlan.arrivalPlan.radiusMeters} m rond het anker` : ''}</Text><Text style={styles.arrivalPlanReturn}>{experience.routePlan.arrivalPlan.returnTrigger}</Text></View>}
         {experience.routePlan.recheckLabel && <Text style={styles.routeRecheck}>{experience.routePlan.recheckLabel}</Text>}
+      </View>}
+      {experience.placeKnowledge && <View style={styles.placeKnowledgeCard}>
+        <Text style={styles.placeKnowledgeLabel}>VERHAAL VAN DE PLEK</Text>
+        <Text style={styles.placeKnowledgeTitle}>{experience.placeKnowledge.title}</Text>
+        <Text style={styles.placeKnowledgeBody}>{experience.placeKnowledge.summary}</Text>
+        <Pressable accessibilityRole="link" accessibilityLabel={`Open bron over ${experience.placeKnowledge.title}`} onPress={() => Linking.openURL(experience.placeKnowledge!.sourceUrl).catch(() => undefined)}><Text style={[styles.placeKnowledgeSource, { color: experience.accent }]}>{experience.placeKnowledge.sourceLabel} · Bekijk bron ↗</Text></Pressable>
       </View>}
       <View style={styles.commitmentCard}><Text style={styles.commitmentLabel}>TOTALE VERPLICHTING</Text><Text style={styles.commitmentValue}>{experience.duration} minuten · {experience.effort.toLowerCase()}</Text>{experience.distance && <Text style={styles.commitmentBody}>{experience.distance} is meegenomen voordat je begint.</Text>}</View>
       <PrimaryButton label={company === 'solo' ? 'Ik ga nu' : 'Wij gaan beginnen'} onPress={() => onStart(company, guideDepth, shared ? { ...shared, coordination } : undefined)} />
@@ -902,12 +911,21 @@ function PresenceScreen({ experience, personal, company, guideDepth, shared, ini
       setHandoffStatus('Deze actuele kans is verlopen. Ga terug en vernieuw de Living World-bronnen voordat je vertrekt.');
       return;
     }
+    if (plan) {
+      setHandoffStatus('Route en tijdsbudget worden gecontroleerd…');
+      const check = await verifyRouteBeforeHandoff(plan);
+      if (check.state === 'over-budget') {
+        setHandoffStatus(check.detail);
+        return;
+      }
+      setHandoffStatus(check.detail);
+    }
     const source = plan?.source ? `${plan.source.latitude},${plan.source.longitude}` : undefined;
     const destination = plan?.destination ? `${plan.destination.latitude},${plan.destination.longitude}` : plan?.destinationName ?? experience.title;
     const params = new URLSearchParams({ destination, mode: plan?.mode ?? 'walking' });
     if (source) params.set('source', source);
     const url = `https://maps.apple.com/directions?${params.toString()}`;
-    await Linking.openURL(url).then(() => setHandoffStatus('Kaarten bepaalt nu de werkelijke route en reistijd.')).catch(() => setHandoffStatus('Kaarten kon niet worden geopend. Controleer de bestemming handmatig.'));
+    await Linking.openURL(url).catch(() => setHandoffStatus('Kaarten kon niet worden geopend. Controleer de bestemming handmatig.'));
   };
   const next = () => {
     if (isLast) onFinish();
@@ -938,7 +956,7 @@ function PresenceScreen({ experience, personal, company, guideDepth, shared, ini
           <Text style={styles.insightEyebrow}>KLEIN INZICHT · ALLEEN ALS HET HELPT</Text>
           <Text style={styles.insightTitle}>{current.insight?.title}</Text>
           <Text style={styles.insightBody}>{current.insight?.body}</Text>
-          <Text style={styles.insightSource}>{current.insight?.sourceKind === 'live' ? 'Actuele bron' : 'Redactioneel'} · {current.insight?.sourceLabel}</Text>
+          {current.insight?.sourceUrl ? <Pressable accessibilityRole="link" onPress={() => Linking.openURL(current.insight!.sourceUrl!).catch(() => undefined)}><Text style={[styles.insightSource, { color: experience.accent }]}>{current.insight.sourceLabel} · Bekijk bron ↗</Text></Pressable> : <Text style={styles.insightSource}>{current.insight?.sourceKind === 'live' ? 'Actuele bron' : current.insight?.sourceKind === 'curator' ? 'Plaatskennis' : 'Redactioneel'} · {current.insight?.sourceLabel}</Text>}
         </View>}
         {current.seconds ? (
           <View style={[styles.stepTimer, { borderColor: experience.accent }]}>
@@ -1039,7 +1057,7 @@ function ProfileScreen({ personal, evidence, composition, opportunitySummary, co
     <View style={styles.personalCard}><ProfileRow label="Kaarten gecontroleerd" value={`${composition.checked}`} /><ProfileRow label="Automatisch verrijkt" value={`${composition.automaticallyComposed}`} /><ProfileRow label="Gidsmomenten" value={`${composition.guideMoments}`} /><ProfileRow label="Actueel bron-onderbouwd" value={`${composition.liveGrounded}`} /><ProfileRow label="Tegenhouden" value={`${composition.rejected}`} /></View>
     <Text style={styles.screenSubtitle}>Elke kandidaat wordt lokaal gecontroleerd op een complete belofte, uitvoerbare stappen, tijd, gezelschap, route en bronversheid. Een afgekeurde kaart bereikt Nu, Vandaag en Ontdekken niet.</Text>
     <Text style={styles.fieldLabel}>LIVING WORLD OPPORTUNITY ENGINE</Text>
-    <View style={styles.personalCard}><ProfileRow label="Bronstatus" value={opportunitySummary.sourceLabel} /><ProfileRow label="Bronmix" value={opportunitySummary.sourceMix.join(' + ') || 'Geen actuele mix'} /><ProfileRow label="Perspectieven" value={`${opportunitySummary.perspectiveCount}`} /><ProfileRow label="Kansen beoordeeld" value={`${opportunitySummary.considered}`} /><ProfileRow label="Uitvoerbaar" value={`${opportunitySummary.ready.length}`} /><ProfileRow label="Terecht tegengehouden" value={`${opportunitySummary.withheld.length}`} /></View>
+    <View style={styles.personalCard}><ProfileRow label="Bronstatus" value={opportunitySummary.sourceLabel} /><ProfileRow label="Bronmix" value={opportunitySummary.sourceMix.join(' + ') || 'Geen actuele mix'} /><ProfileRow label="Plaatsverhalen" value={`${opportunitySummary.knowledgeCount}`} /><ProfileRow label="Routecontrole" value={routingCapability().providerLabel} /><ProfileRow label="Perspectieven" value={`${opportunitySummary.perspectiveCount}`} /><ProfileRow label="Kansen beoordeeld" value={`${opportunitySummary.considered}`} /><ProfileRow label="Uitvoerbaar" value={`${opportunitySummary.ready.length}`} /><ProfileRow label="Terecht tegengehouden" value={`${opportunitySummary.withheld.length}`} /></View>
     {opportunitySummary.withheld.slice(0, 3).map((item) => <Text key={item.id} style={styles.screenSubtitle}>Niet getoond: {item.reason}</Text>)}
     <Text style={styles.fieldLabel}>LOKAAL PROEFBEWIJS</Text>
     <View style={styles.personalCard}><ProfileRow label="Gestart" value={`${evidence.started}`} /><ProfileRow label="Afgerond" value={`${evidence.completed}`} /><ProfileRow label="Gereflecteerd" value={`${evidence.reflected}`} /><ProfileRow label="Reflectie overgeslagen" value={`${evidence.skippedReflection}`} /></View>
@@ -1067,6 +1085,7 @@ function ProfileScreen({ personal, evidence, composition, opportunitySummary, co
       <View style={styles.liveControlActions}><SecondaryButton label={liveLoading ? 'Bezig met vernieuwen…' : 'Vernieuw live bronnen'} onPress={onRefresh} /><SecondaryButton label="Gebruik mijn globale omgeving" onPress={onUseLocation} /><SecondaryButton label="Wis regionale live cache" onPress={onClearLiveCache} /></View>
       <Text style={styles.sourcePrivacy}>Globale locatie wordt alleen na jouw tik opgevraagd en afgerond voordat bronnen worden benaderd.</Text>
     </View>
+    <View style={styles.futureSources}><Text style={styles.fieldLabel}>ACTIEVE BRONCONTRACTEN</Text>{livingWorldSourceRegistry.map((source) => <View key={source.id} style={styles.futureSourceRow}><View style={styles.flex}><Text style={styles.futureSourceLabel}>{source.label}</Text><Text style={styles.sourceDetail}>{source.role} · {source.coverage} · {source.maySelectDestination ? 'mag een publieke bestemming aandragen' : 'alleen verrijking'}</Text></View><Text style={styles.futureSourceState}>{source.status === 'active' ? 'ACTIEF' : 'OPTIONEEL'}</Text></View>)}</View>
     <View style={styles.futureSources}><Text style={styles.fieldLabel}>VOLGENDE LIVE BRONNEN</Text>{futureSourceRegistry.map((source) => <View key={source.id} style={styles.futureSourceRow}><Text style={styles.futureSourceLabel}>{source.label}</Text><Text style={styles.futureSourceState}>GEPLAND</Text></View>)}</View>
     </>}
     <View style={styles.learningCard}><Text style={styles.learningTitle}>Transparante lokale selectie</Text><Text style={styles.learningBody}>Momentum filtert eerst op tijd, gezelschap en materiaal. Daarna wegen moment, jouw eigen woorden, bevestigde voorkeuren, actuele bronnen en voldoende afwisseling mee.</Text></View>
@@ -1232,6 +1251,7 @@ const styles = StyleSheet.create({
   guideDepthList: { gap: 9, marginBottom: 24 }, guideDepthChoice: { minHeight: 68, borderRadius: 20, borderWidth: 1, borderColor: colors.line, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center' }, guideDepthChoiceSelected: { borderColor: colors.green, backgroundColor: 'rgba(164,197,93,0.1)' }, guideDepthTitle: { color: colors.bone, fontSize: 15, fontWeight: '700' }, guideDepthBody: { color: colors.muted, fontSize: 10, marginTop: 4 }, guideDepthMark: { color: colors.green, fontSize: 16 }, guidePreviewCard: { borderRadius: 22, borderWidth: 1, borderColor: 'rgba(164,197,93,0.24)', backgroundColor: 'rgba(164,197,93,0.05)', padding: 16, marginTop: -10, marginBottom: 26 }, guidePreviewTitle: { color: colors.bone, fontSize: 18, lineHeight: 23, fontWeight: '600', marginTop: 8 }, guidePreviewBody: { color: colors.bone, fontSize: 12, lineHeight: 18, marginTop: 8 }, guidePreviewSource: { color: colors.muted, fontSize: 9, lineHeight: 14, marginTop: 10 },
   prepareCard: { borderRadius: 25, borderWidth: 1, borderColor: colors.line, backgroundColor: 'rgba(16,26,29,0.82)', padding: 18, gap: 18, marginBottom: 28 }, prepareRow: { flexDirection: 'row', alignItems: 'center' }, prepareBullet: { width: 7, height: 7, borderRadius: 4, marginRight: 13 }, stepNumber: { width: 34, height: 34, borderRadius: 17, borderWidth: 1, alignItems: 'center', justifyContent: 'center', marginRight: 13 }, stepNumberText: { color: colors.bone, fontSize: 12 }, prepareText: { color: colors.bone, fontSize: 16, flex: 1 }, commitmentCard: { borderRadius: 20, borderWidth: 1, borderColor: colors.line, padding: 16, marginBottom: 22 }, commitmentLabel: { color: colors.gold, fontSize: 9, letterSpacing: 1.3, fontWeight: '700' }, commitmentValue: { color: colors.bone, fontSize: 17, marginTop: 7 }, commitmentBody: { color: colors.muted, fontSize: 11, marginTop: 5 },
   routePlanCard: { borderRadius: 22, borderWidth: 1, borderColor: 'rgba(217,179,107,0.35)', backgroundColor: 'rgba(217,179,107,0.05)', padding: 16, marginBottom: 20 }, routePlanTitle: { color: colors.bone, fontSize: 20, lineHeight: 25, marginTop: 8 }, routeBudget: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 16 }, routeEstimate: { color: colors.gold, fontSize: 10, lineHeight: 16, marginTop: 13 }, routeWindow: { color: colors.bone, fontSize: 11, lineHeight: 17, marginTop: 7 }, routeGuard: { color: colors.muted, fontSize: 11, lineHeight: 17, marginTop: 14, borderTopWidth: 1, borderTopColor: colors.line, paddingTop: 12 }, arrivalPlanCard: { borderRadius: 17, borderWidth: 1, borderColor: 'rgba(164,197,93,0.24)', backgroundColor: 'rgba(164,197,93,0.06)', padding: 14, marginTop: 14 }, arrivalPlanLabel: { color: colors.green, fontSize: 8, letterSpacing: 1.4, fontWeight: '700' }, arrivalPlanTitle: { color: colors.bone, fontSize: 16, fontWeight: '700', marginTop: 6 }, arrivalPlanBody: { color: colors.bone, fontSize: 11, lineHeight: 17, marginTop: 7 }, arrivalPlanMeta: { color: colors.green, fontSize: 9, marginTop: 9 }, arrivalPlanReturn: { color: colors.muted, fontSize: 9, lineHeight: 14, marginTop: 6 }, routeRecheck: { color: colors.muted, fontSize: 9, lineHeight: 14, marginTop: 8 }, handoffStatus: { color: colors.gold, fontSize: 10, lineHeight: 16, textAlign: 'center', marginTop: 10, maxWidth: 360 },
+  placeKnowledgeCard: { borderRadius: 22, borderWidth: 1, borderColor: 'rgba(164,197,93,0.28)', backgroundColor: 'rgba(164,197,93,0.06)', padding: 17, marginBottom: 20 }, placeKnowledgeLabel: { color: colors.green, fontSize: 9, letterSpacing: 1.35, fontWeight: '700' }, placeKnowledgeTitle: { color: colors.bone, fontSize: 20, lineHeight: 25, fontWeight: '700', marginTop: 8 }, placeKnowledgeBody: { color: colors.bone, fontSize: 12, lineHeight: 19, marginTop: 9 }, placeKnowledgeSource: { fontSize: 10, fontWeight: '700', marginTop: 12 },
   presenceScreen: { flex: 1, padding: 22, paddingTop: 12, paddingBottom: 24 }, presenceTopRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }, presenceActions: { flexDirection: 'row', alignItems: 'center', gap: 8 }, guideButton: { minHeight: 44, paddingHorizontal: 14, borderRadius: 22, borderWidth: 1, borderColor: 'rgba(217,179,107,0.36)', alignItems: 'center', justifyContent: 'center' }, guideButtonText: { color: colors.gold, fontSize: 12, fontWeight: '700' }, phoneAwayButton: { minHeight: 44, paddingHorizontal: 14, borderRadius: 22, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' }, phoneAwayButtonText: { color: colors.green, fontSize: 12, fontWeight: '700' }, presenceTitle: { color: colors.bone, fontSize: 38, lineHeight: 45, fontWeight: '400', fontFamily: editorialFont, textAlign: 'center' }, presenceCue: { color: colors.muted, fontSize: 16, lineHeight: 24, textAlign: 'center', maxWidth: 370, marginTop: 18 }, presenceUnit: { color: colors.muted, fontSize: 11, letterSpacing: 1.4 }, presenceFooter: { color: colors.muted, fontSize: 11, lineHeight: 17, textAlign: 'center', marginTop: 10 },
   phoneAwayScreen: { flex: 1, padding: 28, alignItems: 'center', justifyContent: 'center', backgroundColor: '#050A0C' }, phoneAwayEyebrow: { color: colors.green, fontSize: 9, letterSpacing: 2.2, fontWeight: '700' }, phoneAwayTitle: { color: colors.bone, fontSize: 28, lineHeight: 34, fontWeight: '300', textAlign: 'center', marginTop: 14 }, phoneAwayCue: { color: colors.muted, fontSize: 15, textAlign: 'center', marginTop: 14 }, phoneAwayTimer: { color: colors.bone, fontSize: 62, fontWeight: '200', fontVariant: ['tabular-nums'], marginTop: 34 }, phoneAwayOrb: { width: 130, height: 130, borderRadius: 65, borderWidth: 2, alignItems: 'center', justifyContent: 'center', marginTop: 34 }, phoneAwayOrbText: { fontSize: 48 }, phoneAwayTogether: { color: colors.green, fontSize: 11, marginTop: 20 }, phoneAwayBody: { color: 'rgba(174,180,174,0.64)', fontSize: 11, lineHeight: 17, textAlign: 'center', maxWidth: 300, marginTop: 26 }, reopenGuide: { minHeight: 48, borderRadius: 24, borderWidth: 1, borderColor: colors.line, paddingHorizontal: 22, alignItems: 'center', justifyContent: 'center', marginTop: 26 }, reopenGuideText: { color: colors.bone, fontSize: 13, fontWeight: '700' },
   capsuleProgress: { flexDirection: 'row', gap: 5, marginBottom: 12 }, capsuleProgressPart: { height: 3, flex: 1, borderRadius: 2, backgroundColor: 'rgba(244,238,227,0.12)' },

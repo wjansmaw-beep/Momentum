@@ -26,7 +26,7 @@ export function ExperienceGuidePanel({ guide, depth, accent, onClose }: { guide:
       {depth !== 'quiet' && guide.currentInsight ? <View style={styles.card}>
         <Text style={styles.cardTitle}>{guide.currentInsight.title}</Text>
         <Text style={styles.body}>{guide.currentInsight.body}</Text>
-        <Text style={styles.source}>{guide.currentInsight.sourceKind === 'live' ? 'Actuele bron' : 'Redactioneel'} · {guide.currentInsight.sourceLabel}</Text>
+        {guide.currentInsight.sourceUrl ? <Pressable accessibilityRole="link" onPress={() => Linking.openURL(guide.currentInsight!.sourceUrl!).catch(() => setSourceStatus('De bron kon niet worden geopend.'))}><Text style={[styles.source, { color: accent }]}>{guide.currentInsight.sourceLabel} · Bekijk bron ↗</Text></Pressable> : <Text style={styles.source}>{guide.currentInsight.sourceKind === 'live' ? 'Actuele bron' : guide.currentInsight.sourceKind === 'curator' ? 'Plaatskennis' : 'Redactioneel'} · {guide.currentInsight.sourceLabel}</Text>}
       </View> : null}
       {depth !== 'quiet' && activeEvidence.length ? <View style={styles.card}>
         <Text style={styles.section}>WAT DE WERELD NU LAAT ZIEN</Text>
@@ -36,7 +36,7 @@ export function ExperienceGuidePanel({ guide, depth, accent, onClose }: { guide:
       </View> : null}
       {depth === 'deep' && visibleInsights.length ? <View style={styles.card}>
         <Text style={styles.section}>MEER OM OP TE LETTEN</Text>
-        {visibleInsights.map((item) => <View key={`${item.topic}-${item.title}`} style={styles.insight}><Text style={styles.cardTitle}>{item.title}</Text><Text style={styles.body}>{item.body}</Text><Text style={styles.source}>{item.sourceLabel}</Text></View>)}
+        {visibleInsights.map((item) => <View key={`${item.topic}-${item.title}`} style={styles.insight}><Text style={styles.cardTitle}>{item.title}</Text><Text style={styles.body}>{item.body}</Text>{item.sourceUrl ? <Pressable accessibilityRole="link" onPress={() => Linking.openURL(item.sourceUrl!).catch(() => setSourceStatus('De bron kon niet worden geopend.'))}><Text style={[styles.source, { color: accent }]}>{item.sourceLabel} · Bekijk bron ↗</Text></Pressable> : <Text style={styles.source}>{item.sourceLabel}</Text>}</View>)}
       </View> : null}
       {depth === 'deep' ? <View style={styles.card}>
         <Text style={styles.section}>PRAKTISCH</Text>

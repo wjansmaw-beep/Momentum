@@ -210,6 +210,8 @@ The four continuous tracks are Philosophy, Experience, Understanding, and Trust.
 
 **Implementation note (2026-07-13):** editorial experiences now resolve through bounded local/regional packs plus a global evergreen fallback, independently of live-source coverage. Dokkum, New York, and Tokyo scenario checks protect global behavior; see ADR-024.
 
+**Implementation note (2026-07-17):** nearby Wikipedia stories can now deepen selected Opportunities worldwide without becoming live or operational evidence. A provider-independent route boundary performs an optional final travel check only after explicit route intent, with Apple Maps as the honest fallback. See ADR-043 and ADR-044.
+
 ## Phase 9 — Premium Living Guide
 
 **Goal:** make Momentum feel like a continuously changing, personal guide to the world rather than a collection of activity cards.

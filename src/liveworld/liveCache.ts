@@ -20,6 +20,7 @@ export async function loadLiveWorldCache(coordinates: Coordinates): Promise<Live
     if (snapshotAgeMinutes(snapshot) > 24 * 60) return null;
     return {
       ...snapshot,
+      placeKnowledge: snapshot.placeKnowledge ?? [],
       sources: snapshot.sources.map((source) => source.state === 'live' ? { ...source, state: 'stale', detail: `${source.detail} · eerder opgehaald` } : source),
     };
   } catch {

@@ -8,6 +8,7 @@ export type GuidedInsight = {
   topic: InsightTopic;
   sourceKind: 'editorial' | 'live' | 'curator' | 'generated';
   sourceLabel: string;
+  sourceUrl?: string;
 };
 export type CapsuleStep = {
   title: string;
@@ -41,6 +42,11 @@ export type RoutePlan = {
   sourceLabel?: string;
   expiresAt?: string;
   recheckLabel?: string;
+  routeCapability?: {
+    state: 'fallback' | 'configured';
+    providerLabel: string;
+    detail: string;
+  };
   arrivalPlan?: {
     kind: 'open-observation' | 'anchored-loop' | 'single-place';
     label: string;
@@ -76,6 +82,13 @@ export type Experience = {
   company: Array<'solo' | 'together' | 'family'>;
   liveEvidence?: LiveEvidence[];
   routePlan?: RoutePlan;
+  placeKnowledge?: {
+    title: string;
+    summary: string;
+    sourceLabel: string;
+    sourceUrl: string;
+    distanceMeters: number;
+  };
   guideOrigin?: {
     mode: 'curated' | 'composed';
     label: string;
