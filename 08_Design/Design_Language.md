@@ -5,6 +5,14 @@ Version: 1.0
 
 Momentum should feel like an invitation into life, not a destination on a screen: calm, personal, emotionally compelling, useful at a glance, and quiet once action begins.
 
+## Unified visual foundation
+
+Momentum uses one platform-native system type family throughout the product. A single family prevents the interface from feeling assembled from separate concepts; hierarchy is created with weight, scale, spacing, and contrast.
+
+The palette is deliberately restrained: warm charcoal surfaces, warm off-white text, one soft sage action accent, and one muted warm accent for time-sensitive or exceptional context. Category accents remain low-saturation hints. They may identify the character of an experience, but never compete with the Living Canvas, Experience Promise, or primary action.
+
+Core control, card, hero, and pill radii come from shared tokens. Consumer surfaces, Capsule stages, and the consultable guide must use the same visual grammar. See ADR-051.
+
 ## The primary surface: Now
 
 The primary state is not a dashboard, feed, or “Today” overview. It responds to the present context and generally contains:

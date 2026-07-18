@@ -8,6 +8,8 @@ The Founder approved the document foundation on 2026-07-10 and requested the fir
 
 ADR-050 additionally approves the Founder-only generator coverage matrix. The current application-code boundary therefore extends through ADR-050.
 
+ADR-051 additionally approves the unified visual foundation: one system type family, restrained semantic color roles, shared radii, and one visual grammar across consumer flows and guidance. The current application-code boundary therefore extends through ADR-051.
+
 ## Read before acting
 
 For substantive work, read the Constitution, `12_AI_Team/AI_Workflow.md`, `00_Project/Roadmap.md`, `00_Project/Open_Questions.md`, and every relevant domain document. Repository documents override prior chat summaries.

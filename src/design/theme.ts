@@ -1,17 +1,32 @@
 import { Platform } from 'react-native';
 
 export const colors = {
-  ink: '#071013',
-  panel: '#101A1D',
-  bone: '#F4EEE3',
-  muted: '#AEB4AE',
-  green: '#A4C55D',
-  gold: '#D9B36B',
-  line: 'rgba(244,238,227,0.14)',
+  ink: '#0B0E0D',
+  panel: '#141816',
+  panelRaised: '#1A1F1C',
+  bone: '#F3F0E9',
+  muted: '#A7ADA7',
+  green: '#B6CC82',
+  gold: '#D7B77B',
+  line: 'rgba(243,240,233,0.10)',
+  softLine: 'rgba(243,240,233,0.06)',
+  scrim: 'rgba(5,7,6,0.48)',
 };
 
 export const typography = {
-  editorial: Platform.select({ ios: 'Georgia', android: 'serif', web: 'Georgia, Times New Roman, serif', default: 'serif' }),
+  family: Platform.select({
+    ios: 'System',
+    android: 'sans-serif',
+    web: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+    default: 'sans-serif',
+  }),
   minimumLabelSize: 11,
   minimumTouchTarget: 44,
+};
+
+export const radii = {
+  control: 18,
+  card: 24,
+  hero: 28,
+  pill: 999,
 };

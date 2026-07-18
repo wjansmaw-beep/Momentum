@@ -110,6 +110,8 @@ The four continuous tracks are Philosophy, Experience, Understanding, and Trust.
 - visual polish strengthens action without increasing consumption;
 - the Founder approves a design direction without declaring exploratory pixels final.
 
+**Implementation note (2026-07-18):** the prototype now has one app-wide system type family, a restrained semantic palette, shared radii, and a unified visual grammar across the primary flow and consultable guide. This establishes the visual foundation without declaring final pixels; see ADR-051.
+
 ## Phase 5 — Engineering
 
 **Goal:** choose the smallest technical foundation that can test the core experience.
