@@ -9,7 +9,9 @@ Momentum should feel like an invitation into life, not a destination on a screen
 
 Momentum uses one platform-native system type family throughout the product. A single family prevents the interface from feeling assembled from separate concepts; hierarchy is created with weight, scale, spacing, and contrast.
 
-The palette is deliberately restrained: warm charcoal surfaces, warm off-white text, one soft sage action accent, and one muted warm accent for time-sensitive or exceptional context. Category accents remain low-saturation hints. They may identify the character of an experience, but never compete with the Living Canvas, Experience Promise, or primary action.
+The palette is deliberately restrained and daylight-led: warm parchment around the experience, near-white raised surfaces, deep botanical-charcoal text, and one quiet umber/bronze action accent. Photography owns the strongest color in the product. Dark material is reserved for image overlays, temporary controls, and moments where Presence needs the surroundings to recede; it is not the default application chrome.
+
+Category accents are low-saturation mineral, clay, blue, or mauve hints rather than a persistent green system tint. They may identify the character of an experience, but never compete with the Living Canvas, Experience Promise, or primary action. Light surfaces must remain warm rather than clinical white, and every image transition must preserve readable contrast without dimming photography more than necessary.
 
 Core control, card, hero, and pill radii come from shared tokens. Consumer surfaces, Capsule stages, and the consultable guide must use the same visual grammar. See ADR-051.
 

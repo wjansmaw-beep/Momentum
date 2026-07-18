@@ -10,6 +10,10 @@ ADR-050 additionally approves the Founder-only generator coverage matrix. The cu
 
 ADR-051 additionally approves the unified visual foundation: one system type family, restrained semantic color roles, shared radii, and one visual grammar across consumer flows and guidance. The current application-code boundary therefore extends through ADR-051.
 
+ADR-052 additionally approves the content-first premium journey and photographic continuity through Promise, Prepare, and Presence.
+
+ADR-053 additionally approves the warm daylight visual direction: light neutral application chrome, photography-led color, a restrained umber/bronze action accent, and no persistent green cast. The current application-code boundary therefore extends through ADR-053.
+
 ## Read before acting
 
 For substantive work, read the Constitution, `12_AI_Team/AI_Workflow.md`, `00_Project/Roadmap.md`, `00_Project/Open_Questions.md`, and every relevant domain document. Repository documents override prior chat summaries.

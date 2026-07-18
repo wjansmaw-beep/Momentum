@@ -281,6 +281,8 @@ The four continuous tracks are Philosophy, Experience, Understanding, and Trust.
 
 **Implementation note (2026-07-18):** the Founder evaluation bench now recommends the next missing test from a fourteen-scenario core matrix spanning all seven experience kinds. Trials and optional quality signals remain local and separate from personal learning; matrix completion is prototype coverage, not proof of model or user quality. See ADR-050.
 
+**Implementation note (2026-07-18):** the consumer experience now uses a warm daylight foundation rather than persistent charcoal-and-sage chrome. Photography owns the strongest color; light neutral surfaces, dedicated on-image contrast roles, and restrained non-green experience accents carry Promise, Prepare, Presence, and Memory. See ADR-052 and ADR-053.
+
 ## Advancement rule
 
 A phase may begin discovery before the prior phase is fully complete, but implementation may not use unresolved foundational questions as silent assumptions. Founder approval is required to lift the no-application-code gate.

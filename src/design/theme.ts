@@ -1,16 +1,23 @@
 import { Platform } from 'react-native';
 
 export const colors = {
-  ink: '#080B0A',
-  panel: '#121715',
-  panelRaised: '#19201C',
-  bone: '#F6F2EA',
-  muted: '#AEB5AD',
-  green: '#B9CF77',
-  gold: '#D9B477',
-  line: 'rgba(246,242,234,0.12)',
-  softLine: 'rgba(246,242,234,0.07)',
-  scrim: 'rgba(5,8,7,0.52)',
+  ink: '#F3F0E8',
+  panel: '#FCFAF5',
+  panelRaised: '#EAE5DB',
+  bone: '#1D2722',
+  muted: '#687269',
+  green: '#9A6848',
+  gold: '#B68755',
+  line: 'rgba(29,39,34,0.13)',
+  softLine: 'rgba(29,39,34,0.07)',
+  scrim: 'rgba(6,9,8,0.42)',
+  onImage: '#FFFDF8',
+  onImageMuted: 'rgba(255,253,248,0.78)',
+  onImageAccent: '#E7C99E',
+  darkGlass: 'rgba(16,20,18,0.74)',
+  accentSoft: 'rgba(154,104,72,0.10)',
+  accentLine: 'rgba(154,104,72,0.30)',
+  shadow: '#4B4037',
 };
 
 export const typography = {
