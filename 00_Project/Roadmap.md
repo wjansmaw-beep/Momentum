@@ -283,6 +283,8 @@ The four continuous tracks are Philosophy, Experience, Understanding, and Trust.
 
 **Implementation note (2026-07-18):** the consumer experience now uses a warm daylight foundation rather than persistent charcoal-and-sage chrome. Photography owns the strongest color; light neutral surfaces, dedicated on-image contrast roles, and restrained non-green experience accents carry Promise, Prepare, Presence, and Memory. See ADR-052 and ADR-053.
 
+**Implementation note (2026-07-18):** `Today` now expresses the finite day rhythm as an editorial sequence rather than a technical timeline. Larger photographic moments, quieter time markers, and a visually subordinate navigation dock extend the warm daylight direction across the primary surfaces without adding another feed or planning mechanic. See ADR-053.
+
 ## Advancement rule
 
 A phase may begin discovery before the prior phase is fully complete, but implementation may not use unresolved foundational questions as silent assumptions. Founder approval is required to lift the no-application-code gate.

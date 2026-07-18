@@ -59,6 +59,12 @@ Walks may hand off to Maps. Recipes show ingredients and one step at a time. Wor
 
 “I have time now” opens a small layer, not a large library. Ask only for inputs that change the proposal: available time, desired feeling, company, and essential constraints. Broader exploration may exist for self-direction, but remains finite, contextual, and inspiration-led.
 
+## Day rhythm and navigation
+
+Today is an editorial rhythm, not a planner or productivity timeline. Each opening receives enough photographic space to feel like a possibility, while time remains a quiet orientation above it. The sequence should read as a day unfolding rather than as tasks waiting to be completed.
+
+Primary navigation is a quiet, persistent dock. Selection is communicated close to the icon instead of turning an entire navigation cell into a competing card. It remains easy to reach but visually subordinate to the current experience.
+
 ## Feeling language
 
 Activity categories are internal organization, not the primary promise. Interface language begins with outcomes: come to rest, feel strong, begin with energy, be surprised, reconnect, or discover something worth remembering.
