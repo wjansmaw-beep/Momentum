@@ -32,3 +32,4 @@ This decision establishes a direction, not final pixels. Later visual refinement
 
 The Expo prototype now centralizes the palette, typography family, and core radii in `src/design/theme.ts`. The primary Now hierarchy, Capsule headings, buttons, Today cards, clarification surfaces, and consultable guide use the same foundation.
 
+A second refinement pass reduces competing tinted panels in Promise, Prepare, and Presence. These stages now share neutral surfaces and use sage only for primary action, state, and trustworthy live context, so the experience becomes visually quieter after commitment.
