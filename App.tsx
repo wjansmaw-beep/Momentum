@@ -96,11 +96,11 @@ import { colors, typography } from './src/design/theme';
 import { attachMeaningThread } from './src/product/meaningThread';
 import { generateContextualSuggestion, generateExperienceCandidates, GenerationOutcome, GeneratorRuntimeStatus, inspectGeneratorRuntime, isRemoteGenerationConfigured } from './src/product/generativeExperience';
 import { routingCapability, verifyRouteBeforeHandoff } from './src/routing/routeIntelligence';
+import { GeneratorEvaluationSignal as GenerationEvaluationSignal, GeneratorEvaluationTrial, generatorEvaluationPlan, generatorEvaluationProgress, nextGeneratorEvaluationScenario, scenarioContext } from './src/product/generatorEvaluation';
 
 type FlowStage = 'invite' | 'promise' | 'prepare' | 'presence' | 'remember' | 'profile' | null;
 type Memory = { id: string; title: string; date: string; image: string; note: string; sharedWith?: string[]; meaning?: string; experienceSnapshot?: Experience };
 type ActiveSession = { experienceId: string; experienceSnapshot?: Experience; stage: 'prepare' | 'presence'; stepIndex: number; origin: Surface; company?: Company; guideDepth?: GuideDepth; shared?: SharedCapsuleState; updatedAt: string };
-type GenerationEvaluationSignal = 'personal' | 'surprising' | 'executable' | 'content-useful';
 type GenerationKindEvidence = { shown: number; evaluated: number; personal: number; surprising: number; executable: number; contentUseful: number };
 type PrototypeEvidence = {
   started: number;
@@ -112,6 +112,7 @@ type PrototypeEvidence = {
   generatedEvaluated: number;
   generationSignals: Record<GenerationEvaluationSignal, number>;
   generationByKind: Record<ExperienceKind, GenerationKindEvidence>;
+  generationTrials: GeneratorEvaluationTrial[];
   lastGenerationNote?: string;
   lastUpdated?: string;
 };
@@ -127,7 +128,7 @@ const contextualSuggestionKey = 'momentum.contextual-suggestion.v1';
 const emptyGenerationSignals = (): Record<GenerationEvaluationSignal, number> => ({ personal: 0, surprising: 0, executable: 0, 'content-useful': 0 });
 const emptyKindEvidence = (): GenerationKindEvidence => ({ shown: 0, evaluated: 0, personal: 0, surprising: 0, executable: 0, contentUseful: 0 });
 const emptyGenerationByKind = (): Record<ExperienceKind, GenerationKindEvidence> => ({ outside: emptyKindEvidence(), food: emptyKindEvidence(), movement: emptyKindEvidence(), restore: emptyKindEvidence(), connect: emptyKindEvidence(), learn: emptyKindEvidence(), culture: emptyKindEvidence() });
-const emptyPrototypeEvidence = (): PrototypeEvidence => ({ started: 0, completed: 0, reflected: 0, skippedReflection: 0, generatedShown: 0, generatedRejected: 0, generatedEvaluated: 0, generationSignals: emptyGenerationSignals(), generationByKind: emptyGenerationByKind() });
+const emptyPrototypeEvidence = (): PrototypeEvidence => ({ started: 0, completed: 0, reflected: 0, skippedReflection: 0, generatedShown: 0, generatedRejected: 0, generatedEvaluated: 0, generationSignals: emptyGenerationSignals(), generationByKind: emptyGenerationByKind(), generationTrials: [] });
 const timeOptions = [15, 30, 60, 120];
 const defaultRegion = { coordinates: { latitude: 53.325, longitude: 5.999 }, label: 'Dokkum proefcontext · niet gebruikt voor keuzes' };
 const generationLabel = (experience: Experience) => experience.generation?.provider === 'momentum-fixture'
@@ -197,6 +198,7 @@ export default function App() {
           ...stored,
           generationSignals: { ...(current.generationSignals ?? emptyGenerationSignals()), ...(stored.generationSignals ?? {}) },
           generationByKind: (Object.keys(currentByKind) as ExperienceKind[]).reduce((all, kind) => ({ ...all, [kind]: { ...currentByKind[kind], ...(storedByKind[kind] ?? {}) } }), currentByKind),
+          generationTrials: Array.isArray(stored.generationTrials) ? stored.generationTrials.slice(-100) : [],
         };
       });
     }).catch(() => undefined).finally(() => setEvidenceHydrated(true));
@@ -365,6 +367,7 @@ export default function App() {
       const currentIndex = contextualGenerated ? choices.indexOf(contextualGenerated.kind) : -1;
       const nextDomain = choices[(currentIndex + 1 + choices.length) % choices.length];
       const outcome = await generateContextualSuggestion(nextDomain, effectiveContext, baseCandidatePool, `momentmaker-${Date.now()}`);
+      const draft = outcome.experiences[0];
       setEvidence((current) => ({
         ...current,
         generatedShown: current.generatedShown + outcome.experiences.length,
@@ -373,7 +376,6 @@ export default function App() {
         lastGenerationNote: outcome.rejected > 0 ? `${outcome.rejected} concept(en) voldeden niet aan het capsulecontract.` : 'De gegenereerde capsule voldeed aan het contract en werd zichtbaar gemaakt.',
         lastUpdated: new Date().toISOString(),
       }));
-      const draft = outcome.experiences[0];
       if (!draft) return;
       const prepared = attachMeaningThread(
         composeGuideMoments(attachNearestPlaceKnowledge(overlayVerifiedWorldContext(draft, selectionLocationConfirmed ? liveWorld ?? undefined : undefined), selectionLocationConfirmed ? liveWorld ?? undefined : undefined)),
@@ -395,6 +397,11 @@ export default function App() {
     if (momentGenerationLoading) return;
     setMomentGenerationLoading(true);
     try {
+      const plannedScenario = generatorEvaluationPlan.find((scenario) => scenario.kind === kind
+        && scenario.availableMinutes === evaluationContext.availableMinutes
+        && scenario.dayPart === evaluationContext.dayPart
+        && scenario.company === evaluationContext.company
+        && (kind !== 'movement' || scenario.hasKettlebell === evaluationContext.hasKettlebell));
       const outcome = await generateContextualSuggestion(kind, evaluationContext, baseCandidatePool, `lab-${kind}-${evaluationContext.dayPart}-${evaluationContext.company}-${evaluationContext.availableMinutes}-${evaluationContext.hasKettlebell}-${Date.now()}`);
       const draft = outcome.experiences[0];
       setEvidence((current) => ({
@@ -402,6 +409,19 @@ export default function App() {
         generatedShown: current.generatedShown + outcome.experiences.length,
         generatedRejected: current.generatedRejected + outcome.rejected,
         generationByKind: draft ? { ...current.generationByKind, [draft.kind]: { ...current.generationByKind[draft.kind], shown: current.generationByKind[draft.kind].shown + 1 } } : current.generationByKind,
+        generationTrials: [...current.generationTrials, {
+          id: plannedScenario?.id ?? `free-${kind}-${evaluationContext.availableMinutes}-${evaluationContext.dayPart}-${evaluationContext.company}-${evaluationContext.hasKettlebell}`,
+          label: plannedScenario?.label ?? 'Vrije proef',
+          kind,
+          availableMinutes: evaluationContext.availableMinutes,
+          dayPart: evaluationContext.dayPart,
+          company: evaluationContext.company,
+          hasKettlebell: evaluationContext.hasKettlebell,
+          attemptedAt: new Date().toISOString(),
+          status: draft ? 'shown' as const : 'rejected' as const,
+          experienceId: draft?.id,
+          signals: [],
+        }].slice(-100),
         lastGenerationNote: draft ? `${experienceKindLabels[draft.kind]}: de capsule voldeed aan het contract en werd geopend.` : `${experienceKindLabels[kind]}: geen concept doorstond alle controles.`,
         lastUpdated: new Date().toISOString(),
       }));
@@ -496,6 +516,10 @@ export default function App() {
           [signal === 'content-useful' ? 'contentUseful' : signal]: kindEvidence[signal === 'content-useful' ? 'contentUseful' : signal] + 1,
         }), { ...current.generationByKind[selected.kind], evaluated: current.generationByKind[selected.kind].evaluated + 1 }),
       } : current.generationByKind,
+      generationTrials: selected.generation ? (() => {
+        const latestIndex = current.generationTrials.map((trial) => trial.experienceId === selected.id && trial.status === 'shown').lastIndexOf(true);
+        return latestIndex < 0 ? current.generationTrials : current.generationTrials.map((trial, index) => index === latestIndex ? { ...trial, status: 'evaluated' as const, signals: generationEvaluation } : trial);
+      })() : current.generationTrials,
       lastUpdated: new Date().toISOString(),
     }));
     setFlowStage(null);
@@ -1159,6 +1183,9 @@ function ProfileScreen({ personal, evidence, composition, opportunitySummary, ge
   const dayParts: DayPart[] = ['morning', 'midday', 'afternoon', 'evening'];
   const profiles: PrototypeProfile[] = ['balanced', 'explorer', 'mover', 'family'];
   const companies: Array<{ id: Company; label: string }> = [{ id: 'solo', label: 'Alleen' }, { id: 'together', label: 'Samen' }, { id: 'family', label: 'Met gezin' }];
+  const evaluationProgress = generatorEvaluationProgress(evidence.generationTrials);
+  const nextEvaluation = nextGeneratorEvaluationScenario(evidence.generationTrials);
+  const nextCompany = companies.find((item) => item.id === nextEvaluation.company)?.label ?? nextEvaluation.company;
   return <ScrollView contentContainerStyle={styles.flowScroll}>
     <BackButton label="Sluiten" onPress={onClose} />
     <Text style={styles.eyebrow}>JOUW MOMENTUM</Text><Text style={styles.flowTitle}>Jij houdt de regie.</Text>
@@ -1194,6 +1221,13 @@ function ProfileScreen({ personal, evidence, composition, opportunitySummary, ge
     {labOpen && <>
     <Text style={styles.fieldLabel}>MOMENTMAKER-PROEFBANK</Text>
     <Text style={styles.screenSubtitle}>Open telkens één volledige capsule met gecontroleerde testcontext. Dit wijzigt je profiel, agenda en gewone Nu-selectie niet.</Text>
+    <View style={styles.learningCard}>
+      <Text style={styles.learningTitle}>Volgende ontbrekende proef</Text>
+      <Text style={styles.learningBody}>{nextEvaluation.label} · {experienceKindLabels[nextEvaluation.kind]} · {nextEvaluation.availableMinutes} min · {dayPartLabels[nextEvaluation.dayPart].toLowerCase()} · {nextCompany.toLowerCase()}{nextEvaluation.kind === 'movement' ? nextEvaluation.hasKettlebell ? ' · met kettlebell' : ' · zonder materiaal' : ''}.</Text>
+      <Text style={styles.learningEvent}>{evaluationProgress.evaluated} van {evaluationProgress.planned} kernscenario's volledig beleefd en beoordeeld · {evaluationProgress.attempted} geprobeerd{evaluationProgress.rejected ? ` · ${evaluationProgress.rejected} tegengehouden` : ''}.</Text>
+    </View>
+    <PrimaryButton label={generatingMoment ? 'Capsule wordt opgebouwd…' : 'Voer de volgende proef uit'} onPress={() => { if (!generatingMoment) onEvaluateGenerator(nextEvaluation.kind, scenarioContext(context, nextEvaluation)); }} />
+    <Text style={styles.fieldLabel}>OF STEL EEN VRIJE PROEF SAMEN</Text>
     <Text style={styles.fieldLabel}>RICHTING</Text>
     <View style={styles.chipRow}>{(Object.keys(experienceKindLabels) as ExperienceKind[]).map((kind) => <ChoiceChip key={kind} label={experienceKindLabels[kind]} selected={evaluationKind === kind} onPress={() => setEvaluationKind(kind)} />)}</View>
     <Text style={styles.fieldLabel}>TIJD EN DAGDEEL</Text>
@@ -1219,6 +1253,13 @@ function ProfileScreen({ personal, evidence, composition, opportunitySummary, ge
       const item = evidence.generationByKind[kind];
       const qualities = [item.personal ? `${item.personal} persoonlijk` : '', item.surprising ? `${item.surprising} verrassend` : '', item.executable ? `${item.executable} uitvoerbaar` : '', item.contentUseful ? `${item.contentUseful} inhoud` : ''].filter(Boolean).join(' · ');
       return <ProfileRow key={kind} label={experienceKindLabels[kind]} value={`${item.shown} getoond · ${item.evaluated} beoordeeld${qualities ? ` · ${qualities}` : ''}`} />;
+    })}</View>
+    <Text style={styles.fieldLabel}>KERNMATRIX</Text>
+    <View style={styles.personalCard}>{generatorEvaluationPlan.map((scenario) => {
+      const trials = evidence.generationTrials.filter((trial) => trial.id === scenario.id);
+      const evaluatedTrial = [...trials].reverse().find((trial) => trial.status === 'evaluated');
+      const state = evaluatedTrial ? `${evaluatedTrial.signals.length}/4 kwaliteitssignalen` : trials.some((trial) => trial.status === 'shown') ? 'Nog beleven en beoordelen' : trials.some((trial) => trial.status === 'rejected') ? 'Tegengehouden · opnieuw onderzoeken' : 'Nog niet geprobeerd';
+      return <ProfileRow key={scenario.id} label={scenario.label} value={state} />;
     })}</View>
     <Text style={styles.fieldLabel}>AUTOMATISCHE COMPOSITIE</Text>
     <View style={styles.personalCard}><ProfileRow label="Kaarten gecontroleerd" value={`${composition.checked}`} /><ProfileRow label="Automatisch verrijkt" value={`${composition.automaticallyComposed}`} /><ProfileRow label="Gidsmomenten" value={`${composition.guideMoments}`} /><ProfileRow label="Actueel bron-onderbouwd" value={`${composition.liveGrounded}`} /><ProfileRow label="Tegenhouden" value={`${composition.rejected}`} /></View>
