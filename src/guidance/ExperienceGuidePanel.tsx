@@ -12,14 +12,15 @@ export function ExperienceGuidePanel({ guide, depth, accent, onClose }: { guide:
     return Number.isFinite(date.getTime()) ? date.toLocaleString('nl-NL', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'tijd onbekend';
   };
   return <View style={styles.overlay} accessibilityViewIsModal>
+    <Pressable accessibilityLabel="Sluit de gids" onPress={onClose} style={styles.dismissArea} />
+    <View style={styles.sheet}>
+    <View style={styles.handle} />
     <View style={styles.header}>
-      <View style={styles.flex}><Text style={styles.eyebrow}>RAADPLEEGBARE GIDS</Text><Text style={styles.title}>{guide.title}</Text></View>
+      <View style={styles.flex}><Text style={styles.eyebrow}>GIDS VOOR DIT MOMENT</Text><Text style={styles.title}>{guide.title}</Text></View>
       <Pressable accessibilityRole="button" accessibilityLabel="Sluit de gids" onPress={onClose} style={styles.close}><Text style={styles.closeText}>×</Text></Pressable>
     </View>
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <View style={[styles.coverage, { borderColor: accent }]}><Text style={[styles.coverageText, { color: accent }]}>{guide.coverageLabel}</Text></View>
-      {guide.compositionLabel ? <Text style={styles.composition}>{guide.compositionLabel}. Feiten blijven gekoppeld aan hun bron.</Text> : null}
-      <Text style={styles.section}>NU BELANGRIJK</Text>
+      <Text style={styles.section}>NU NODIG</Text>
       <Text style={styles.stepTitle}>{guide.currentStep.title}</Text>
       <Text style={styles.body}>{guide.currentStep.instruction}</Text>
       {depth !== 'quiet' && guide.currentInsight ? <View style={styles.card}>
@@ -43,16 +44,20 @@ export function ExperienceGuidePanel({ guide, depth, accent, onClose }: { guide:
       </View> : null}
       {guide.evidence.some((item) => item.freshness !== 'current') && depth === 'deep' ? <Text style={styles.expired}>Verlopen broninformatie is bewust niet als actuele aanwijzing getoond.</Text> : null}
     </ScrollView>
+    </View>
   </View>;
 }
 
 const styles = StyleSheet.create({
-  overlay: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, zIndex: 30, backgroundColor: colors.ink, paddingHorizontal: 20, paddingTop: 28, paddingBottom: 20 },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 12 }, flex: { flex: 1 },
-  eyebrow: { color: colors.green, fontSize: 10, letterSpacing: 1.5, fontWeight: '700', fontFamily: typography.family }, title: { color: colors.bone, fontSize: 27, lineHeight: 33, fontWeight: '700', fontFamily: typography.family, marginTop: 5 },
+  overlay: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, zIndex: 30, justifyContent: 'flex-end', backgroundColor: 'rgba(5,8,7,0.52)' },
+  dismissArea: { flex: 1 },
+  sheet: { maxHeight: '72%', minHeight: 300, borderTopLeftRadius: 30, borderTopRightRadius: 30, backgroundColor: colors.panel, paddingHorizontal: 20, paddingTop: 10, paddingBottom: 18, shadowColor: colors.shadow, shadowOpacity: 0.24, shadowRadius: 28, shadowOffset: { width: 0, height: -10 } },
+  handle: { width: 42, height: 4, borderRadius: 2, alignSelf: 'center', backgroundColor: colors.line, marginBottom: 12 },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 10 }, flex: { flex: 1 },
+  eyebrow: { color: colors.green, fontSize: 11, letterSpacing: 1.25, fontWeight: '700', fontFamily: typography.family }, title: { color: colors.bone, fontSize: 25, lineHeight: 31, fontWeight: '700', fontFamily: typography.family, marginTop: 5 },
   close: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' }, closeText: { color: colors.bone, fontSize: 27, lineHeight: 30, fontFamily: typography.family },
-  content: { paddingBottom: 40, gap: 14 }, coverage: { alignSelf: 'flex-start', borderWidth: 1, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7 }, coverageText: { fontSize: 10, fontWeight: '700' },
-  section: { color: colors.green, fontSize: 9, letterSpacing: 1.35, fontWeight: '700', fontFamily: typography.family, marginBottom: 6 }, stepTitle: { color: colors.bone, fontSize: 23, lineHeight: 29, fontWeight: '700', fontFamily: typography.family }, body: { color: colors.bone, fontSize: 14, lineHeight: 21, fontFamily: typography.family },
+  content: { paddingBottom: 28, gap: 14 },
+  section: { color: colors.green, fontSize: 11, letterSpacing: 1.2, fontWeight: '700', fontFamily: typography.family, marginBottom: 4 }, stepTitle: { color: colors.bone, fontSize: 23, lineHeight: 29, fontWeight: '700', fontFamily: typography.family }, body: { color: colors.bone, fontSize: 14, lineHeight: 21, fontFamily: typography.family },
   card: { borderRadius: radii.card, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.panel, padding: 16, gap: 9 }, cardTitle: { color: colors.bone, fontSize: 16, fontWeight: '700', fontFamily: typography.family }, source: { color: colors.muted, fontSize: 10, lineHeight: 15, fontFamily: typography.family },
-  item: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 }, dot: { width: 7, height: 7, borderRadius: 4, marginTop: 6 }, itemTitle: { color: colors.bone, fontSize: 13, lineHeight: 18, fontFamily: typography.family }, caution: { color: colors.gold, fontSize: 10, lineHeight: 15, marginTop: 3, fontFamily: typography.family }, composition: { color: colors.muted, fontSize: 10, lineHeight: 15, marginTop: -6, fontFamily: typography.family }, insight: { gap: 6, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: colors.line }, expired: { color: colors.muted, fontSize: 10, lineHeight: 15, fontFamily: typography.family },
+  item: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 }, dot: { width: 7, height: 7, borderRadius: 4, marginTop: 6 }, itemTitle: { color: colors.bone, fontSize: 13, lineHeight: 18, fontFamily: typography.family }, caution: { color: colors.gold, fontSize: 11, lineHeight: 16, marginTop: 3, fontFamily: typography.family }, insight: { gap: 6, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: colors.line }, expired: { color: colors.muted, fontSize: 11, lineHeight: 16, fontFamily: typography.family },
 });

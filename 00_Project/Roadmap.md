@@ -112,6 +112,8 @@ The four continuous tracks are Philosophy, Experience, Understanding, and Trust.
 
 **Implementation note (2026-07-18):** the prototype now has one app-wide system type family, a restrained semantic palette, shared radii, and a unified visual grammar across the primary flow and consultable guide. This establishes the visual foundation without declaring final pixels; see ADR-051.
 
+**Implementation note (2026-07-18):** the premium-coherence pass removes evaluation language from consumer hierarchy, turns Today into an editorial rhythm, simplifies active intent, makes Life Book memory-led, validates Meaning Threads before display, aligns timed guidance, and keeps the consultable guide inside perceptual Presence continuity; see ADR-054.
+
 ## Phase 5 — Engineering
 
 **Goal:** choose the smallest technical foundation that can test the core experience.

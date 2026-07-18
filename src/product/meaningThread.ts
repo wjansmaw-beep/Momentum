@@ -13,6 +13,18 @@ const conceptTerms: Array<{ pattern: RegExp; experienceTerms: string[] }> = [
 const tokens = (value: string) => value.toLocaleLowerCase('nl-NL').split(/[^\p{L}\p{N}]+/u).filter((token) => token.length >= 4);
 const horizonOrder = { near: 0, growth: 1, meaning: 2 } as const;
 
+export function meaningThreadFitsExperience(experience: Experience): boolean {
+  const thread = experience.meaningThread;
+  if (!thread) return false;
+  const searchable = `${experience.kind} ${experience.title} ${experience.promise} ${experience.wonder} ${experience.keywords.join(' ')}`.toLocaleLowerCase('nl-NL');
+  const directMatch = tokens(thread.label)
+    .filter((token) => !['aandacht', 'ruimte', 'vaker', 'meer', 'beter'].includes(token))
+    .some((token) => searchable.includes(token));
+  const conceptualMatch = conceptTerms.some((concept) => concept.pattern.test(thread.label)
+    && concept.experienceTerms.some((term) => searchable.includes(term)));
+  return directMatch || conceptualMatch;
+}
+
 export function attachMeaningThread(experience: Experience, profile: PersonalProfile): Experience {
   const searchable = `${experience.kind} ${experience.title} ${experience.promise} ${experience.wonder} ${experience.keywords.join(' ')}`.toLocaleLowerCase('nl-NL');
   const directions = (['near', 'growth', 'meaning'] as const).flatMap((horizon) => profile.directions[horizon]
@@ -27,7 +39,7 @@ export function attachMeaningThread(experience: Experience, profile: PersonalPro
 
   const selected = ranked[0];
   if (!selected) return { ...experience, meaningThread: undefined };
-  return {
+  const withThread: Experience = {
     ...experience,
     meaningThread: {
       horizon: selected.horizon,
@@ -36,4 +48,5 @@ export function attachMeaningThread(experience: Experience, profile: PersonalPro
       reason: selected.horizon === 'near' ? 'raakt aan iets waar jij de komende tijd ruimte voor wilt maken' : selected.horizon === 'growth' ? 'sluit zacht aan bij een richting waarin jij wilt groeien' : 'kan betekenis krijgen binnen iets dat jij belangrijk noemt',
     },
   };
+  return meaningThreadFitsExperience(withThread) ? withThread : { ...experience, meaningThread: undefined };
 }

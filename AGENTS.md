@@ -14,6 +14,8 @@ ADR-052 additionally approves the content-first premium journey and photographic
 
 ADR-053 additionally approves the warm daylight visual direction: light neutral application chrome, photography-led color, a restrained umber/bronze action accent, and no persistent green cast. The current application-code boundary therefore extends through ADR-053.
 
+ADR-054 additionally approves the premium-coherence pass: consumer language instead of evaluation language, editorial Today hierarchy, memory-led Life Book, validated Meaning Threads, aligned timers, a consultable guide sheet, and one code-native navigation grammar. The current application-code boundary therefore extends through ADR-054.
+
 ## Read before acting
 
 For substantive work, read the Constitution, `12_AI_Team/AI_Workflow.md`, `00_Project/Roadmap.md`, `00_Project/Open_Questions.md`, and every relevant domain document. Repository documents override prior chat summaries.
