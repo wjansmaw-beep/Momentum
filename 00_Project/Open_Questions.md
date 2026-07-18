@@ -60,6 +60,8 @@ Priority labels:
 
 ## Experience Promises and feelings
 
+- **Now:** How should the opening become a personal contextual day line without pretending to know the user's inner state? Decide the permitted context, writing grammar, fallback, variation, user control, and whether “affirmation” is the right product concept. See ADR-055.
+
 - **Resolved direction:** The first interaction prototype tests calm, energy, surprise, connection, and challenge, plus a transparent “choose for me” path.
 - **Soon:** How is a desired feeling distinguished from an inferred need in language and learning?
 - **Soon:** Who approves Experience Promises for health-adjacent outcomes?

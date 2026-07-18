@@ -5,7 +5,7 @@ const conceptTerms: Array<{ pattern: RegExp; experienceTerms: string[] }> = [
   { pattern: /gezin|kind|familie|samen|partner|vriend/i, experienceTerms: ['gezin', 'kind', 'familie', 'samen', 'verbinding', 'connect'] },
   { pattern: /natuur|buiten|vogel|zee|bos|wereld|ontdek|reis/i, experienceTerms: ['natuur', 'buiten', 'vogels', 'zee', 'bos', 'ontdekken', 'route', 'outside'] },
   { pattern: /sterk|fit|kracht|beweeg|sport|gezond/i, experienceTerms: ['sterk', 'kracht', 'bewegen', 'sport', 'workout', 'movement'] },
-  { pattern: /rust|herstel|aandacht|balans|ruimte/i, experienceTerms: ['rust', 'herstel', 'ademen', 'pauze', 'stilte', 'restore'] },
+  { pattern: /rust|herstel|balans|ontspan|stilte/i, experienceTerms: ['rust', 'herstel', 'ademen', 'pauze', 'stilte', 'restore'] },
   { pattern: /leer|groei|nieuwsgierig|kennis|begrijp/i, experienceTerms: ['leren', 'groei', 'nieuwsgierigheid', 'kennis', 'culture', 'learn'] },
   { pattern: /kook|eten|voeding|maaltijd/i, experienceTerms: ['koken', 'eten', 'voeding', 'maaltijd', 'food'] },
 ];
@@ -20,8 +20,8 @@ export function meaningThreadFitsExperience(experience: Experience): boolean {
   const directMatch = tokens(thread.label)
     .filter((token) => !['aandacht', 'ruimte', 'vaker', 'meer', 'beter'].includes(token))
     .some((token) => searchable.includes(token));
-  const conceptualMatch = conceptTerms.some((concept) => concept.pattern.test(thread.label)
-    && concept.experienceTerms.some((term) => searchable.includes(term)));
+  const matchedConcepts = conceptTerms.filter((concept) => concept.pattern.test(thread.label));
+  const conceptualMatch = matchedConcepts.length > 0 && matchedConcepts.every((concept) => concept.experienceTerms.some((term) => searchable.includes(term)));
   return directMatch || conceptualMatch;
 }
 
@@ -33,7 +33,8 @@ export function attachMeaningThread(experience: Experience, profile: PersonalPro
 
   const ranked = directions.map((direction) => {
     const direct = tokens(direction.label).reduce((score, token) => score + (searchable.includes(token) ? 3 : 0), 0);
-    const conceptual = conceptTerms.reduce((score, concept) => concept.pattern.test(direction.label) && concept.experienceTerms.some((term) => searchable.includes(term)) ? score + 2 : score, 0);
+    const matchedConcepts = conceptTerms.filter((concept) => concept.pattern.test(direction.label));
+    const conceptual = matchedConcepts.length > 0 && matchedConcepts.every((concept) => concept.experienceTerms.some((term) => searchable.includes(term))) ? matchedConcepts.length * 2 : 0;
     return { ...direction, score: direct + conceptual };
   }).filter((direction) => direction.score > 0).sort((a, b) => b.score - a.score || horizonOrder[a.horizon] - horizonOrder[b.horizon]);
 

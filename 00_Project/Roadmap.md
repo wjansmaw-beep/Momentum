@@ -287,6 +287,8 @@ The four continuous tracks are Philosophy, Experience, Understanding, and Trust.
 
 **Implementation note (2026-07-18):** `Today` now expresses the finite day rhythm as an editorial sequence rather than a technical timeline. Larger photographic moments, quieter time markers, and a visually subordinate navigation dock extend the warm daylight direction across the primary surfaces without adding another feed or planning mechanic. See ADR-053.
 
+**Implementation note (2026-07-18):** the consumer journey now follows one Living Interface: a suggestion transforms directly into adaptive invitation and preparation, Today gives the current or next moment editorial priority, Discover begins with contextual intent, Life Book is memory-led, and Capsule forms may use different information shapes within one visual language. The future personal day line remains an explicit open question rather than an ungrounded inference. See ADR-055.
+
 ## Advancement rule
 
 A phase may begin discovery before the prior phase is fully complete, but implementation may not use unresolved foundational questions as silent assumptions. Founder approval is required to lift the no-application-code gate.

@@ -16,6 +16,8 @@ ADR-053 additionally approves the warm daylight visual direction: light neutral 
 
 ADR-054 additionally approves the premium-coherence pass: consumer language instead of evaluation language, editorial Today hierarchy, memory-led Life Book, validated Meaning Threads, aligned timers, a consultable guide sheet, and one code-native navigation grammar. The current application-code boundary therefore extends through ADR-054.
 
+ADR-055 additionally approves the Living Interface: direct transformation from suggestion to adaptive invitation and preparation, capsule-specific information shapes, a current-or-next editorial lead in Today, contextual Discover, and a memory-led Life Book. The contextual personal day line remains an open question and must keep the current neutral fallback until separately approved. The current application-code boundary therefore extends through ADR-055.
+
 ## Read before acting
 
 For substantive work, read the Constitution, `12_AI_Team/AI_Workflow.md`, `00_Project/Roadmap.md`, `00_Project/Open_Questions.md`, and every relevant domain document. Repository documents override prior chat summaries.

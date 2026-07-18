@@ -89,7 +89,7 @@ import {
   sharedStateFromInvite,
 } from './src/sharing/sharedCapsule';
 import { ExperienceGuidePanel } from './src/guidance/ExperienceGuidePanel';
-import { buildExperienceGuide, currentEvidence, evidenceSummary, GuideDepth } from './src/guidance/experienceGuide';
+import { buildExperienceGuide, evidenceSummary, GuideDepth } from './src/guidance/experienceGuide';
 import { composeGuideMoments } from './src/guidance/guideComposer';
 import { auditCandidatePool, CompositionSummary } from './src/guidance/compositionAudit';
 import { colors, radii, typography } from './src/design/theme';
@@ -98,7 +98,7 @@ import { generateContextualSuggestion, generateExperienceCandidates, GenerationO
 import { routingCapability, verifyRouteBeforeHandoff } from './src/routing/routeIntelligence';
 import { GeneratorEvaluationSignal as GenerationEvaluationSignal, GeneratorEvaluationTrial, generatorEvaluationPlan, generatorEvaluationProgress, nextGeneratorEvaluationScenario, scenarioContext } from './src/product/generatorEvaluation';
 
-type FlowStage = 'invite' | 'promise' | 'prepare' | 'presence' | 'remember' | 'profile' | null;
+type FlowStage = 'invite' | 'prepare' | 'presence' | 'remember' | 'profile' | null;
 type Memory = { id: string; title: string; date: string; image: string; note: string; sharedWith?: string[]; meaning?: string; experienceSnapshot?: Experience };
 type ActiveSession = { experienceId: string; experienceSnapshot?: Experience; stage: 'prepare' | 'presence'; stepIndex: number; origin: Surface; company?: Company; guideDepth?: GuideDepth; shared?: SharedCapsuleState; updatedAt: string };
 type GenerationKindEvidence = { shown: number; evaluated: number; personal: number; surprising: number; executable: number; contentUseful: number };
@@ -133,10 +133,6 @@ const emptyGenerationByKind = (): Record<ExperienceKind, GenerationKindEvidence>
 const emptyPrototypeEvidence = (): PrototypeEvidence => ({ started: 0, completed: 0, reflected: 0, skippedReflection: 0, generatedShown: 0, generatedRejected: 0, generatedEvaluated: 0, generationSignals: emptyGenerationSignals(), generationByKind: emptyGenerationByKind(), generationTrials: [] });
 const timeOptions = [15, 30, 60, 120];
 const defaultRegion = { coordinates: { latitude: 53.325, longitude: 5.999 }, label: 'Dokkum' };
-const generationLabel = (experience: Experience) => experience.generation?.provider === 'momentum-fixture'
-  ? 'DEMONSTRATIESYNTHESE · GECONTROLEERD'
-  : experience.generation?.mode === 'remote' ? 'AI-SYNTHESE · GECONTROLEERD' : 'LOKAAL GECOMBINEERD';
-
 export default function App() {
   const { height } = useWindowDimensions();
   const [surface, setSurface] = useState<Surface>('now');
@@ -359,7 +355,7 @@ export default function App() {
     finally { setLiveLoading(false); }
   };
 
-  const openExperience = (experience: Experience, from: Surface, stage: FlowStage = 'promise') => {
+  const openExperience = (experience: Experience, from: Surface, stage: FlowStage = 'prepare') => {
     setSelected(experience);
     setOrigin(from);
     setSharedDraft(null);
@@ -391,7 +387,7 @@ export default function App() {
       setContextualGenerated(draft);
       setSelected(prepared);
       setOrigin('now');
-      setFlowStage('promise');
+      setFlowStage('prepare');
       const cache: ContextualSuggestionCache = { signature: contextualSignature, expiresAt: new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString(), experience: draft };
       AsyncStorage.setItem(contextualSuggestionKey, JSON.stringify(cache)).catch(() => undefined);
     } finally {
@@ -439,7 +435,7 @@ export default function App() {
       );
       setSelected(prepared);
       setOrigin('now');
-      setFlowStage('promise');
+      setFlowStage('prepare');
     } finally {
       setGeneratorStatus(await inspectGeneratorRuntime());
       setMomentGenerationLoading(false);
@@ -557,7 +553,7 @@ export default function App() {
 
   return (
     <View style={[styles.root, { minHeight: height }]}>
-      <StatusBar style="light" />
+      <StatusBar style={flowStage === 'presence' ? 'light' : 'dark'} />
       <View style={[styles.ambientGold, { pointerEvents: 'none' }]} />
       <View style={[styles.ambientGreen, { pointerEvents: 'none' }]} />
       <SafeAreaView style={styles.safe}>
@@ -571,8 +567,7 @@ export default function App() {
               <BottomNav surface={surface} onChange={setSurface} />
             </>
           )}
-          {flowStage === 'promise' && <PromiseScreen experience={selected} onClose={closeFlow} onAccept={() => setFlowStage('prepare')} />}
-          {flowStage === 'prepare' && <PrepareScreen experience={selected} personal={personalProfile} hostName={personalProfile.firstName || 'Iemand'} initialCompany={(activeSession?.experienceId === selected.id ? activeSession.company : sharedDraft ? 'together' : personalProfile.defaultCompany) ?? 'solo'} initialGuideDepth={activeSession?.experienceId === selected.id ? activeSession.guideDepth : undefined} initialShared={activeSession?.experienceId === selected.id ? activeSession.shared : sharedDraft ?? undefined} onBack={() => setFlowStage('promise')} onDraftChange={savePreparation} onStart={startPresence} />}
+          {flowStage === 'prepare' && <PrepareScreen experience={selected} personal={personalProfile} hostName={personalProfile.firstName || 'Iemand'} initialCompany={(activeSession?.experienceId === selected.id ? activeSession.company : sharedDraft ? 'together' : personalProfile.defaultCompany) ?? 'solo'} initialGuideDepth={activeSession?.experienceId === selected.id ? activeSession.guideDepth : undefined} initialShared={activeSession?.experienceId === selected.id ? activeSession.shared : sharedDraft ?? undefined} onBack={closeFlow} onDraftChange={savePreparation} onStart={startPresence} />}
           {flowStage === 'presence' && <PresenceScreen experience={selected} personal={personalProfile} company={activeSession?.company ?? personalProfile.defaultCompany} guideDepth={activeSession?.guideDepth ?? 'guide'} shared={activeSession?.shared} initialStep={activeSession?.experienceId === selected.id ? activeSession.stepIndex : 0} onStepChange={(stepIndex) => setActiveSession((current) => current && current.experienceId === selected.id ? { ...current, stage: 'presence', stepIndex, updatedAt: new Date().toISOString() } : current)} onBack={() => { setActiveSession((current) => current ? { ...current, stage: 'prepare', updatedAt: new Date().toISOString() } : current); setFlowStage('prepare'); }} onFinish={finishPresence} />}
           {flowStage === 'remember' && <RememberScreen experience={selected} personal={personalProfile} shared={completedSession?.shared} onSkip={skipReflection} onSave={finishExperience} />}
           {flowStage === 'profile' && <ProfileScreen personal={personalProfile} evidence={evidence} composition={compositionAudit.summary} opportunitySummary={opportunityResult} generatorStatus={generatorStatus} generatingMoment={momentGenerationLoading} context={prototypeContext} calendar={calendarContext} calendarLoading={calendarLoading} liveWorld={liveWorld} locationConfirmed={selectionLocationConfirmed} contentCatalog={contentCatalog} liveLoading={liveLoading} liveMessage={liveMessage} onChange={setPrototypeContext} onEvaluateGenerator={createEvaluationMoment} onPersonalChange={setPersonalProfile} onForgetReflection={(id) => setPersonalProfile((current) => forgetReflection(current, id))} onForgetLearningEvent={(id) => setPersonalProfile((current) => forgetLearningEvent(current, id))} onResetEvidence={() => setEvidence(emptyPrototypeEvidence())} onResetLearning={() => setPersonalProfile((current) => resetLearning(current))} onRedoOnboarding={() => setPersonalProfile((current) => ({ ...current, onboardingComplete: false }))} onClearLiveCache={() => { clearLiveWorldCache().catch(() => undefined); setLiveMessage('Regionale live cache gewist'); }} onConnectCalendar={connectCalendar} onRefresh={() => refreshLiveWorld()} onUseLocation={useApproximateLocation} onClose={closeFlow} />}
@@ -712,11 +707,11 @@ function NowScreen({ firstName, suggestions, resumableExperience, context, calen
                 <MiniFact value={experience.distance ?? (experience.kind === 'food' ? 'zelf kiezen' : 'dichtbij')} label={experienceFactLabels[experience.kind].distance} onImage />
                 <MiniFact value={experience.effort} label={experienceFactLabels[experience.kind].effort} onImage />
               </View>
+              <Text style={styles.heroWonder}>{experience.wonder}</Text>
+              <Pressable accessibilityRole="button" accessibilityLabel={experience.cta} onPress={() => onOpen(experience)} style={({ pressed }) => [styles.heroPrimaryAction, pressed && styles.pressed]}><Text style={styles.heroPrimaryActionText}>{experience.cta}</Text><Text style={styles.heroPrimaryActionArrow}>→</Text></Pressable>
             </View>
           </ImageBackground>
           <View style={styles.heroActionArea}>
-            <Text style={styles.wonderText}>{experience.wonder}</Text>
-            <PrimaryButton label={experience.cta} onPress={() => onOpen(experience)} />
             {suggestions.length > 1 && <View style={styles.suggestionSwitcher}>
               <Pressable accessibilityLabel="Vorige suggestie" disabled={suggestionIndex === 0} onPress={() => showSuggestion(Math.max(0, suggestionIndex - 1))} style={[styles.suggestionArrow, suggestionIndex === 0 && styles.suggestionArrowDisabled]}><Text style={styles.suggestionArrowText}>←</Text></Pressable>
               <View style={styles.suggestionPosition}><View style={styles.suggestionDots}>{suggestions.map((_, index) => <View key={index} style={[styles.suggestionDot, index === suggestionIndex && styles.suggestionDotActive]} />)}</View><Text style={styles.suggestionPositionBody}>{suggestionIndex === 0 ? 'Beste match voor nu' : 'Een andere richting'}</Text></View>
@@ -754,6 +749,13 @@ function NowScreen({ firstName, suggestions, resumableExperience, context, calen
 
 function TodayScreen({ decisions, calendar, onOpen }: { decisions: TodayDecision[]; calendar: CalendarContextSnapshot; onOpen: (item: Experience) => void }) {
   const localDate = new Intl.DateTimeFormat('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date()).toLocaleUpperCase('nl-NL');
+  const nowMinutes = new Date().getHours() * 60 + new Date().getMinutes();
+  const startMinutes = (value: string) => {
+    const match = value.match(/(\d{1,2}):(\d{2})/);
+    return match ? Number(match[1]) * 60 + Number(match[2]) : Number.MAX_SAFE_INTEGER;
+  };
+  const foundNextIndex = decisions.findIndex((moment) => startMinutes(moment.time) >= nowMinutes - 20);
+  const nextIndex = foundNextIndex < 0 ? Math.max(0, decisions.length - 1) : foundNextIndex;
   return (
     <ScrollView contentContainerStyle={styles.screenScroll} showsVerticalScrollIndicator={false}>
       <ScreenHeader eyebrow={localDate} title="Ruimte in je dag." subtitle="Niet om alles te vullen. Alleen om kansen te zien." />
@@ -763,11 +765,13 @@ function TodayScreen({ decisions, calendar, onOpen }: { decisions: TodayDecision
         {decisions.map((moment, index) => {
           const item = moment.result.experience;
           const directionReason = moment.result.reasons.find((reason) => reason.text.includes('richting'));
+          const isLead = index === nextIndex;
+          const isPast = startMinutes(moment.time) < nowMinutes - 20;
           return (
-            <Pressable key={item.id} onPress={() => onOpen(item)} style={styles.timelineRow}>
+            <Pressable key={item.id} onPress={() => onOpen(item)} style={[styles.timelineRow, isPast && styles.timelineRowPast]}>
               <View style={styles.timelineContent}>
-                <View style={styles.dayMomentHeader}><View style={[styles.dayMomentMark, { backgroundColor: item.accent }]} /><Text style={styles.timelineTime}>{moment.label} · {moment.time}</Text></View>
-                <ImageBackground source={{ uri: item.image }} style={[styles.dayCardImage, index === 0 ? styles.dayCardImagePrimary : styles.dayCardImageSecondary]} imageStyle={styles.dayCardImageStyle}>
+                <View style={styles.dayMomentHeader}><View style={[styles.dayMomentMark, { backgroundColor: item.accent }]} /><Text style={styles.timelineTime}>{isLead ? 'EERSTVOLGENDE · ' : ''}{moment.label} · {moment.time}</Text></View>
+                <ImageBackground source={{ uri: item.image }} style={[styles.dayCardImage, isLead ? styles.dayCardImagePrimary : styles.dayCardImageSecondary]} imageStyle={styles.dayCardImageStyle}>
                   <ImageShade />
                   <View style={styles.dayCardCopy}>
                     <Text style={styles.dayCardTitle}>{item.title}</Text>
@@ -793,6 +797,7 @@ function DiscoverScreen({ context, candidatePool, learning, personal, onOpen }: 
   const [clarificationChoice, setClarificationChoice] = useState<IntentClarificationOption | null>(null);
   const [generation, setGeneration] = useState<GenerationOutcome | null>(null);
   const [generating, setGenerating] = useState(false);
+  const discoveryCanvas = candidatePool.find((item) => item.kind === 'outside') ?? candidatePool[0];
   const remoteGenerationConfigured = isRemoteGenerationConfigured();
   const intentExamples = context.company === 'family'
     ? ['Iets samen buiten', 'Een klein spel thuis', 'Samen iets maken']
@@ -831,6 +836,8 @@ function DiscoverScreen({ context, candidatePool, learning, personal, onOpen }: 
     <ScrollView contentContainerStyle={styles.screenScroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
       <ScreenHeader eyebrow="JIJ GEEFT RICHTING" title="Waar heb je nu ruimte voor?" subtitle="Kies je tijd en vertel wat je ongeveer zoekt." />
       {mode === 'idle' ? (
+        <View>
+        {discoveryCanvas && <ImageBackground source={{ uri: discoveryCanvas.image }} style={styles.discoveryCanvas} imageStyle={styles.discoveryCanvasImage}><ImageShade /><View style={styles.discoveryCanvasCopy}><Text style={styles.discoveryCanvasLabel}>ER IS RUIMTE</Text><Text style={styles.discoveryCanvasTitle}>Geef één richting. Momentum zoekt uit wat nu echt kan.</Text><Text style={styles.discoveryCanvasBody}>Dichtbij, thuis of onderweg — jij hoeft nog niet te weten wat je precies wilt doen.</Text></View></ImageBackground>}
         <View style={styles.intentPanel}>
           <Text style={styles.fieldLabel}>HOEVEEL TIJD HEB JE?</Text>
           <View style={styles.chipRow}>{timeOptions.map((option) => <ChoiceChip key={option} label={option < 60 ? `${option} min` : option === 60 ? '1 uur' : '2 uur'} selected={minutes === option} onPress={() => setMinutes(option)} />)}</View>
@@ -849,6 +856,7 @@ function DiscoverScreen({ context, candidatePool, learning, personal, onOpen }: 
           <View style={styles.orRow}><View style={styles.orLine} /><Text style={styles.orText}>OF</Text><View style={styles.orLine} /></View>
           <SecondaryButton label="Verras me binnen deze tijd" onPress={surprise} />
           <Text style={styles.intentPrivacy}>{remoteGenerationConfigured ? 'Alleen je vraag, beschikbare tijd en praktische keuzes worden gebruikt. Geen chatgeschiedenis of herinneringen.' : 'Je woorden worden alleen voor deze keuze gebruikt.'}</Text>
+        </View>
         </View>
       ) : mode === 'clarify' && understanding.clarification ? (
         <View style={styles.clarificationPanel}>
@@ -884,10 +892,11 @@ function DiscoverScreen({ context, candidatePool, learning, personal, onOpen }: 
 }
 
 function LifeBookScreen({ memories, onOpen, onProfile }: { memories: Memory[]; onOpen: (item: Experience) => void; onProfile: () => void }) {
+  const themes = Array.from(new Set(memories.flatMap((memory) => memory.meaning ? [memory.meaning] : []).filter(Boolean))).slice(0, 3);
   return (
     <ScrollView contentContainerStyle={styles.screenScroll} showsVerticalScrollIndicator={false}>
       <ScreenHeader eyebrow="JOUW ERVARINGEN" title="Leefboek" subtitle="Niet wat je volhield, maar wat de moeite waard was." />
-      <View style={styles.lifeSummary}><Text style={styles.lifeSummaryBig}>{memories.length}</Text><Text style={styles.lifeSummaryTitle}>momenten die je wilde bewaren · alleen op dit apparaat</Text></View>
+      <View style={styles.lifeLandscape}><View><Text style={styles.lifeSummaryEyebrow}>JOUW LANDSCHAP</Text><Text style={styles.lifeSummaryHeadline}>{memories.length ? 'Hier krijgt je leven langzaam vorm.' : 'Hier komen je beleefde momenten samen.'}</Text></View><Text style={styles.lifeSummaryTitle}>{memories.length} bewaarde momenten · alleen op dit apparaat</Text>{themes.length > 0 && <View style={styles.lifeThemeRow}>{themes.map((theme) => <View key={theme} style={styles.lifeTheme}><Text style={styles.lifeThemeText}>{theme}</Text></View>)}</View>}</View>
       <Text style={styles.sectionLabel}>JULI</Text>
       <View style={styles.memoryGrid}>
         {memories.map((memory, index) => {
@@ -896,32 +905,6 @@ function LifeBookScreen({ memories, onOpen, onProfile }: { memories: Memory[]; o
         })}
       </View>
       <View style={styles.learningCard}><Text style={styles.learningTitle}>Een voorzichtig patroon</Text><Text style={styles.learningBody}>Momenten met buitenlucht en een helder einde lijken vaak de moeite waard. Jij houdt de regie over wat Momentum hiervan onthoudt.</Text><Pressable onPress={onProfile} style={styles.learningAction}><Text style={styles.learningActionText}>Bekijk of corrigeer dit →</Text></Pressable></View>
-    </ScrollView>
-  );
-}
-
-function PromiseScreen({ experience, onClose, onAccept }: { experience: Experience; onClose: () => void; onAccept: () => void }) {
-  const [whyOpen, setWhyOpen] = useState(false);
-  const freshEvidence = currentEvidence(experience);
-  const grounding = evidenceSummary(experience);
-  return (
-    <ScrollView contentContainerStyle={styles.flowScroll} showsVerticalScrollIndicator={false}>
-      <BackButton label="Sluiten" onPress={onClose} />
-      <ImageBackground source={{ uri: experience.image }} style={styles.detailHero} imageStyle={styles.detailHeroImage}><ImageShade /><View style={styles.detailHeroCopy}><Pill label={experience.kind.toUpperCase()} accent={experience.accent} /><Text style={styles.detailTitle}>{experience.title}</Text><Text style={styles.detailPromise}>{experience.promise}</Text></View></ImageBackground>
-      <Text style={styles.wonderHeadline}>Wat je kunt verwachten</Text>
-      <Text style={styles.wonderLarge}>{experience.wonder}</Text>
-      <View style={styles.factStrip}><MiniFact value={`${experience.duration} min`} label="totaal" /><MiniFact value={experience.effort} label="inspanning" /><MiniFact value={experience.timeWindow ?? 'nu mogelijk'} label="moment" /></View>
-      {experience.blueprint && <View style={styles.blueprintBadge}><Text style={styles.blueprintBadgeMark}>✓</Text><View style={styles.flex}><Text style={styles.blueprintBadgeTitle}>Alles is voorbereid</Text><Text style={styles.blueprintBadgeBody}>Tijd, benodigdheden en een veilige aanpassing zijn meegenomen. Jij houdt de regie.</Text></View></View>}
-      {experience.generation && <View style={styles.generationDisclosure}><Text style={styles.generationDisclosureLabel}>{generationLabel(experience)}</Text><Text style={styles.generationDisclosureBody}>{experience.generation.disclosure}</Text></View>}
-      {experience.meaningThread && <MeaningThreadCard experience={experience} />}
-      {freshEvidence.length ? <View style={styles.liveEvidenceCard}>
-        <Text style={styles.liveEvidenceTitle}>WAT DE WERELD NU LAAT ZIEN</Text>
-        {freshEvidence.map((evidence) => <View key={`${evidence.sourceName}-${evidence.label}`} style={styles.liveEvidenceRow}><View style={styles.liveEvidenceDot} /><View style={styles.flex}><Text style={styles.liveEvidenceLabel}>{evidence.label}</Text><Text style={styles.liveEvidenceMeta}>{evidence.certainty === 'observation' ? 'Waarneming' : 'Voorspelling'} · {evidence.sourceName} · {evidence.freshnessLabel.toLowerCase()}</Text></View></View>)}
-        <Text style={styles.liveEvidenceCaution}>Waarnemingen zijn geen garantie. Mariene modeldata is niet geschikt voor kustnavigatie en vervangt nooit lokale waarschuwingen.</Text>
-      </View> : grounding.expiredCount ? <View style={styles.expiredEvidenceCard}><Text style={styles.liveEvidenceTitle}>BRONVENSTER VERLOPEN</Text><Text style={styles.expiredEvidenceText}>Eerdere live context wordt niet meer gebruikt voor dit voorstel. De ervaring blijft alleen op haar algemene gidsinhoud staan.</Text></View> : null}
-      <PrimaryButton label={experience.cta} onPress={onAccept} />
-      <Pressable onPress={() => setWhyOpen((value) => !value)} style={styles.whyButton}><Text style={styles.whyButtonText}>Waarom deze ervaring?</Text><Text style={styles.whyChevron}>{whyOpen ? '⌃' : '⌄'}</Text></Pressable>
-      {whyOpen && <View style={styles.whyPanel}>{experience.why.map((reason) => <Text key={reason} style={styles.whyReason}>• {reason}</Text>)}</View>}
     </ScrollView>
   );
 }
@@ -975,15 +958,16 @@ function PrepareScreen({ experience, personal, hostName, initialCompany, initial
   return (
     <ScrollView contentContainerStyle={styles.flowScroll} showsVerticalScrollIndicator={false}>
       <BackButton label="Terug" onPress={onBack} />
-      <Text style={styles.eyebrow}>JE ERVARING</Text><Text style={styles.flowTitle}>{experience.prepareTitle}</Text><Text style={styles.screenSubtitle}>Eerst wat je gaat beleven. Daarna alleen wat nodig is om te beginnen.</Text>
+      <Text style={styles.eyebrow}>{experienceKindLabels[experience.kind].toUpperCase()} · UITNODIGING</Text><Text style={styles.flowTitle}>{experience.title}</Text><Text style={styles.screenSubtitle}>{experience.promise}</Text>
       <ImageBackground source={{ uri: experience.image }} style={styles.prepareExpectationCard} imageStyle={styles.prepareExpectationImage}>
         <View style={styles.prepareExpectationShade} />
         <View style={styles.prepareExpectationCopy}>
-          <Text style={styles.prepareExpectationLabel}>DIT WACHT OP JE</Text>
+          <Text style={styles.prepareExpectationLabel}>WAT JE KUNT VERWACHTEN</Text>
           <Text style={styles.prepareExpectationTitle}>{experience.wonder}</Text>
-          <Text style={styles.prepareExpectationBody}>{experience.promise}</Text>
+          <Text style={styles.prepareExpectationBody}>{experience.prepareTitle}</Text>
         </View>
       </ImageBackground>
+      <CapsuleShapePreview experience={experience} />
       {experience.meaningThread && <MeaningThreadCard experience={experience} compact />}
       {freshEvidence.length ? <View style={styles.prepareLiveCard}><Text style={styles.liveEvidenceTitle}>WAT DE WERELD NU LAAT ZIEN</Text>{freshEvidence.slice(0, 3).map((evidence) => <View key={`${evidence.sourceName}-${evidence.label}`} style={styles.prepareLiveRow}><View style={styles.liveEvidenceDot} /><View style={styles.flex}><Text style={styles.liveEvidenceLabel}>{evidence.label}</Text><Text style={styles.liveEvidenceMeta}>{evidence.sourceName} · {evidence.certainty === 'observation' ? 'recente waarneming' : 'actuele verwachting'} · {evidence.freshnessLabel.toLowerCase()}</Text></View></View>)}</View> : <View style={styles.editorialDepthCard}><Text style={styles.expectationLabel}>TIJDENS JE ERVARING</Text><Text style={styles.editorialDepthText}>{experience.steps.find((step) => step.insight)?.insight?.title ?? experience.wonder}</Text><Text style={styles.editorialDepthSource}>Een verdiepend gidsmoment is beschikbaar wanneer het helpt.</Text>{guide.evidence.some((item) => item.freshness === 'expired') ? <Text style={styles.expiredEvidenceText}>Eerdere broncontext is verlopen en wordt niet meer als actuele aanwijzing gebruikt.</Text> : null}</View>}
       <View style={styles.readySummary}>
@@ -1020,7 +1004,7 @@ function PrepareScreen({ experience, personal, hostName, initialCompany, initial
         <Text style={styles.guidePreviewSource}>{guide.coverageLabel}{guide.compositionLabel ? ` · ${guide.compositionLabel}` : ''}. Je kunt tijdens de ervaring altijd terugschakelen naar je omgeving.</Text>
       </View>
       </>}
-      <Text style={styles.fieldLabel}>PRAKTISCH VOOR JE VERTREKT</Text><View style={styles.prepareCard}>{experience.prepare.map((item) => <View key={item} style={styles.prepareRow}><View style={[styles.prepareBullet, { backgroundColor: experience.accent }]} /><Text style={styles.prepareText}>{item}</Text></View>)}</View>
+      <Text style={styles.fieldLabel}>{experience.kind === 'food' ? 'INGREDIËNTEN EN KEUKEN' : experience.kind === 'movement' ? 'MATERIAAL EN OPBOUW' : experience.kind === 'restore' ? 'MAAK RUIMTE VOOR RUST' : experience.kind === 'outside' ? 'VOOR ROUTE EN OMSTANDIGHEDEN' : 'ALLEEN WAT JE NODIG HEBT'}</Text><View style={styles.prepareCard}>{experience.prepare.map((item) => <View key={item} style={styles.prepareRow}><View style={[styles.prepareBullet, { backgroundColor: experience.accent }]} /><Text style={styles.prepareText}>{item}</Text></View>)}</View>
       {experience.routePlan && <View style={styles.routePlanCard}>
         <Text style={styles.liveEvidenceTitle}>ROUTE NAAR HET BEGIN</Text><Text style={styles.routePlanTitle}>{experience.routePlan.destinationName}</Text>
         <View style={styles.routeBudget}><MiniFact value={`${experience.routePlan.outboundMinutes} min`} label="heen" /><MiniFact value={`${experience.routePlan.experienceMinutes} min`} label="beleven" /><MiniFact value={`${experience.routePlan.returnMinutes} min`} label="terug" /><MiniFact value={`${experience.routePlan.bufferMinutes} min`} label="buffer" /></View>
@@ -1129,7 +1113,7 @@ function PresenceScreen({ experience, personal, company, guideDepth, shared, ini
           <View style={[styles.stepTimer, { borderColor: experience.accent }]}>
             <Text style={styles.stepTimerValue}>{formatTime(remaining)}</Text>
             <Text style={styles.presenceUnit}>{remaining === 0 ? 'KLAAR' : timerRunning ? 'LOOPT' : 'KLAAR OM TE STARTEN'}</Text>
-            <Pressable onPress={() => remaining > 0 && setTimerRunning((value) => !value)} style={styles.timerControl}>
+            <Pressable accessibilityRole="button" accessibilityLabel={remaining === 0 ? 'Timer afgerond' : timerRunning ? 'Pauzeer timer' : 'Start timer'} accessibilityState={{ disabled: remaining === 0 }} onPress={() => remaining > 0 && setTimerRunning((value) => !value)} style={styles.timerControl}>
               <Text style={styles.timerControlText}>{remaining === 0 ? '✓' : timerRunning ? 'Pauze' : 'Start timer'}</Text>
             </Pressable>
           </View>
@@ -1361,6 +1345,23 @@ function ExperienceTile({ experience, large, onPress }: { experience: Experience
   return <Pressable onPress={onPress} style={styles.experienceTile}><ImageBackground source={{ uri: experience.image }} style={[styles.tileImage, large && styles.tileImageLarge]} imageStyle={styles.tileImageStyle}><ImageShade />{experience.generation && <View style={styles.generatedTileBadge}><Text style={[styles.generatedTileBadgeText, styles.onImageAccentText]}>✦ VOOR DIT MOMENT GEMAAKT</Text></View>}<View style={styles.tileCopy}><Pill label={experience.kind.toUpperCase()} accent={experience.accent} /><Text style={[styles.tileTitle, styles.onImageText]}>{experience.title}</Text><Text style={[styles.tilePromise, styles.onImageMutedText]}>{experience.promise}</Text><Text style={[styles.tileMeta, styles.onImageText]}>{experience.duration} min · {experience.effort}  →</Text></View></ImageBackground></Pressable>;
 }
 
+function CapsuleShapePreview({ experience }: { experience: Experience }) {
+  const shape = experience.kind === 'outside'
+    ? { label: 'JE REIS', title: experience.routePlan ? `Naar ${experience.routePlan.destinationName}` : 'Van vertrek naar ontdekking', note: 'Route, aankomst en verhalen van de plek blijven op het juiste moment beschikbaar.' }
+    : experience.kind === 'movement'
+      ? { label: 'JE TRAINING', title: `${experience.steps.length} heldere delen`, note: 'Je ziet telkens één beweging of interval; de rest wacht rustig op de achtergrond.' }
+      : experience.kind === 'food'
+        ? { label: 'JE BEREIDING', title: `${experience.steps.length} stappen van ingrediënt naar tafel`, note: 'Eerst wat je nodig hebt, daarna steeds één handeling en de reden waarom die telt.' }
+        : experience.kind === 'restore'
+          ? { label: 'JE RITME', title: `${experience.duration} minuten zonder haast`, note: 'Eén rustig ritme, minimale bediening en altijd de mogelijkheid om de telefoon weg te leggen.' }
+          : { label: 'JE BELEVING', title: `${experience.steps.length} momenten die logisch in elkaar overgaan`, note: 'Alleen de aanwijzing die nu helpt blijft zichtbaar.' };
+  return <View style={styles.capsuleShapeCard}>
+    <View style={styles.capsuleShapeHeader}><View style={styles.flex}><Text style={styles.capsuleShapeLabel}>{shape.label}</Text><Text style={styles.capsuleShapeTitle}>{shape.title}</Text></View><Text style={[styles.capsuleShapeGlyph, { color: experience.accent }]}>{experience.kind === 'outside' ? '↗' : experience.kind === 'movement' ? '◫' : experience.kind === 'food' ? '◌' : experience.kind === 'restore' ? '≈' : '✦'}</Text></View>
+    <View style={styles.capsuleShapeRail}>{experience.steps.slice(0, 3).map((step, index) => <View key={`${step.title}-${index}`} style={styles.capsuleShapeStep}><View style={[styles.capsuleShapeNumber, { borderColor: experience.accent }]}><Text style={styles.capsuleShapeNumberText}>{index + 1}</Text></View><Text numberOfLines={2} style={styles.capsuleShapeStepText}>{step.title}</Text></View>)}</View>
+    <Text style={styles.capsuleShapeNote}>{shape.note}</Text>
+  </View>;
+}
+
 function GeneratedCapsulePreview({ experience }: { experience: Experience }) {
   const guide = buildExperienceGuide(experience, 0);
   return <View style={styles.generatedJourneyCard}>
@@ -1455,14 +1456,15 @@ const styles = StyleSheet.create({
   insightSource: { color: 'rgba(174,180,174,0.62)', fontSize: 9, marginTop: 11 },
   ambientGold: { position: 'absolute', width: 520, height: 520, borderRadius: 260, backgroundColor: 'rgba(182,135,85,0.10)', top: -350, right: -260 },
   ambientGreen: { position: 'absolute', width: 500, height: 500, borderRadius: 250, backgroundColor: 'rgba(119,143,132,0.08)', bottom: -330, left: -270 },
-  screenScroll: { padding: 20, paddingTop: 16, paddingBottom: 116 }, flowScroll: { padding: 20, paddingTop: 14, paddingBottom: 52 },
+  screenScroll: { padding: 20, paddingTop: 16, paddingBottom: 168 }, flowScroll: { padding: 20, paddingTop: 14, paddingBottom: 72 },
   header: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 24 }, headerCopy: { flex: 1, paddingRight: 12 },
   eyebrow: { color: colors.green, fontSize: 11, letterSpacing: 1.45, fontWeight: '700', marginBottom: 11 },
   screenTitle: { color: colors.bone, fontSize: 38, lineHeight: 43, letterSpacing: -1, fontWeight: '700', fontFamily: appFont }, screenSubtitle: { color: colors.muted, fontSize: 15, lineHeight: 22, marginTop: 10 },
   avatar: { width: 42, height: 42, borderRadius: 21, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.panel, alignItems: 'center', justifyContent: 'center' }, avatarText: { color: colors.bone, fontSize: 15, fontWeight: '700' },
-  heroCard: { borderRadius: radii.hero, overflow: 'hidden', backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.softLine, shadowColor: colors.shadow, shadowOpacity: 0.12, shadowRadius: 22, shadowOffset: { width: 0, height: 10 } }, heroImage: { height: 390, padding: 20, justifyContent: 'space-between' }, heroImageStyle: { borderTopLeftRadius: radii.hero - 1, borderTopRightRadius: radii.hero - 1 }, imageShade: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: 'rgba(6,9,8,0.20)' }, imageBottomShade: { position: 'absolute', left: 0, right: 0, bottom: 0, height: '72%', backgroundColor: 'rgba(6,9,8,0.38)' },
+  heroCard: { borderRadius: radii.hero, overflow: 'hidden', backgroundColor: colors.panel, borderWidth: 1, borderColor: colors.softLine, shadowColor: colors.shadow, shadowOpacity: 0.16, shadowRadius: 28, shadowOffset: { width: 0, height: 14 } }, heroImage: { minHeight: 520, padding: 20, justifyContent: 'space-between' }, heroImageStyle: { borderRadius: radii.hero - 1 }, imageShade: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, backgroundColor: 'rgba(6,9,8,0.16)' }, imageBottomShade: { position: 'absolute', left: 0, right: 0, bottom: 0, height: '78%', backgroundColor: 'rgba(6,9,8,0.48)' },
   heroTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }, heroTime: { color: colors.onImage, fontSize: 12, letterSpacing: 1.2, fontWeight: '600' }, heroBottom: { gap: 11 }, heroTitle: { color: colors.onImage, fontSize: 37, lineHeight: 42, fontWeight: '700', fontFamily: appFont, letterSpacing: -1 }, heroPromise: { color: colors.onImageMuted, fontSize: 16, lineHeight: 23, maxWidth: 390 }, heroGrounding: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: radii.pill, borderWidth: 1, borderColor: 'rgba(255,253,248,0.28)', backgroundColor: colors.darkGlass, paddingHorizontal: 11, paddingVertical: 7 }, heroGroundingMark: { color: colors.onImageAccent, fontSize: 10 }, heroGroundingText: { color: colors.onImage, fontSize: 11, fontWeight: '700' }, heroFacts: { flexDirection: 'row', gap: 18, marginTop: 8 },
-  heroActionArea: { padding: 18 }, wonderText: { color: colors.bone, fontSize: 15, lineHeight: 22, marginBottom: 16 },
+  heroWonder: { color: colors.onImage, fontSize: 15, lineHeight: 22, fontWeight: '600', marginTop: 2, maxWidth: 410 }, heroPrimaryAction: { minHeight: 58, borderRadius: 29, backgroundColor: 'rgba(252,250,245,0.96)', paddingHorizontal: 21, marginTop: 5, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 18, shadowOffset: { width: 0, height: 8 } }, heroPrimaryActionText: { color: colors.bone, fontSize: 16, fontWeight: '800' }, heroPrimaryActionArrow: { color: colors.green, fontSize: 23 },
+  heroActionArea: { paddingHorizontal: 18, paddingBottom: 12 }, wonderText: { color: colors.bone, fontSize: 15, lineHeight: 22, marginBottom: 16 },
   suggestionSwitcher: { minHeight: 66, marginTop: 12, borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.line, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   suggestionArrow: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.04)' },
   suggestionArrowDisabled: { opacity: 0.22 }, suggestionArrowText: { color: colors.bone, fontSize: 20 }, suggestionPosition: { alignItems: 'center', flex: 1 }, suggestionDots: { flexDirection: 'row', gap: 6 }, suggestionDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.line }, suggestionDotActive: { width: 18, backgroundColor: colors.green }, suggestionPositionBody: { color: colors.muted, fontSize: 11, marginTop: 6 },
@@ -1526,5 +1528,9 @@ const styles = StyleSheet.create({
   labDisclosure: { minHeight: 74, borderRadius: radii.card, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.panel, padding: 15, marginTop: 26, marginBottom: 12, flexDirection: 'row', alignItems: 'center', gap: 12 }, labDisclosureTitle: { color: colors.bone, fontSize: 15, fontWeight: '700' }, labDisclosureBody: { color: colors.muted, fontSize: 11, lineHeight: 16, marginTop: 4 }, blueprintTrust: { color: colors.green, fontSize: 11, lineHeight: 17, marginTop: 8 },
   profileChoiceList: { gap: 8, marginBottom: 24 }, profileChoice: { minHeight: 64, borderRadius: 18, borderWidth: 1, borderColor: colors.line, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 11 }, profileChoiceSelected: { borderColor: colors.green, backgroundColor: colors.accentSoft }, profileChoiceTitle: { color: colors.bone, fontSize: 15, fontWeight: '600' }, profileChoiceBody: { color: colors.muted, fontSize: 11, marginTop: 4 }, profileChoiceMark: { color: colors.green, fontSize: 14, marginLeft: 12 },
   liveControlCard: { borderRadius: radii.card, borderWidth: 1, borderColor: colors.line, borderLeftWidth: 3, borderLeftColor: colors.green, backgroundColor: colors.panel, padding: 17, marginTop: 22 }, liveControlMessage: { color: colors.muted, fontSize: 11, lineHeight: 17, marginTop: 6, marginBottom: 14 }, sourceRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginTop: 11 }, sourceState: { width: 8, height: 8, borderRadius: 4, marginTop: 4 }, sourceLive: { backgroundColor: colors.green }, sourceError: { backgroundColor: '#C56F61' }, sourceWaiting: { backgroundColor: colors.gold }, sourceName: { color: colors.bone, fontSize: 12, fontWeight: '600' }, sourceDetail: { color: colors.muted, fontSize: 10, lineHeight: 15, marginTop: 2 }, liveControlActions: { marginTop: 12 }, sourcePrivacy: { color: colors.muted, fontSize: 9, lineHeight: 14, textAlign: 'center' }, futureSources: { marginTop: 24 }, futureSourceRow: { minHeight: 42, borderBottomWidth: 1, borderBottomColor: colors.line, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, futureSourceLabel: { color: colors.muted, fontSize: 12 }, futureSourceState: { color: colors.gold, fontSize: 8, letterSpacing: 1.2, fontWeight: '700' },
+  timelineRowPast: { opacity: 0.58 },
+  discoveryCanvas: { minHeight: 260, justifyContent: 'flex-end', marginBottom: -34 }, discoveryCanvasImage: { borderRadius: radii.hero }, discoveryCanvasCopy: { padding: 20, paddingBottom: 66 }, discoveryCanvasLabel: { color: colors.onImageAccent, fontSize: 11, letterSpacing: 1.3, fontWeight: '800' }, discoveryCanvasTitle: { color: colors.onImage, fontSize: 28, lineHeight: 33, letterSpacing: -0.6, fontWeight: '700', fontFamily: appFont, marginTop: 10 }, discoveryCanvasBody: { color: colors.onImageMuted, fontSize: 13, lineHeight: 19, marginTop: 8, maxWidth: 420 },
+  lifeLandscape: { padding: 18, marginBottom: 12, borderRadius: radii.card, borderWidth: 1, borderColor: colors.softLine, backgroundColor: colors.panel }, lifeSummaryEyebrow: { color: colors.green, fontSize: 11, letterSpacing: 1.2, fontWeight: '800' }, lifeSummaryHeadline: { color: colors.bone, fontFamily: appFont, fontSize: 24, lineHeight: 30, fontWeight: '700', marginTop: 8 }, lifeThemeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 13 }, lifeTheme: { borderRadius: 99, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.panelRaised, paddingHorizontal: 11, paddingVertical: 7 }, lifeThemeText: { color: colors.bone, fontSize: 11, fontWeight: '600' },
+  capsuleShapeCard: { borderRadius: radii.card, borderWidth: 1, borderColor: colors.softLine, backgroundColor: colors.panel, padding: 17, marginBottom: 20 }, capsuleShapeHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 }, capsuleShapeLabel: { color: colors.green, fontSize: 11, letterSpacing: 1.25, fontWeight: '800' }, capsuleShapeTitle: { color: colors.bone, fontFamily: appFont, fontSize: 21, lineHeight: 27, fontWeight: '700', marginTop: 7 }, capsuleShapeGlyph: { fontSize: 28, fontWeight: '300' }, capsuleShapeRail: { flexDirection: 'row', gap: 8, marginTop: 17 }, capsuleShapeStep: { flex: 1, minHeight: 92, borderRadius: radii.control, backgroundColor: colors.panelRaised, padding: 11 }, capsuleShapeNumber: { width: 25, height: 25, borderRadius: 13, borderWidth: 1, alignItems: 'center', justifyContent: 'center' }, capsuleShapeNumberText: { color: colors.bone, fontSize: 10, fontWeight: '700' }, capsuleShapeStepText: { color: colors.bone, fontSize: 11, lineHeight: 15, fontWeight: '600', marginTop: 8 }, capsuleShapeNote: { color: colors.muted, fontSize: 12, lineHeight: 18, marginTop: 14 },
   calendarControlCard: { borderRadius: radii.card, borderWidth: 1, borderColor: colors.line, borderLeftWidth: 3, borderLeftColor: colors.gold, backgroundColor: colors.panel, padding: 17, marginTop: 22, gap: 9 },
 });
