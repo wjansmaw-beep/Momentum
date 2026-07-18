@@ -25,6 +25,7 @@ type GenerationRequest = {
   requestMode: 'active-intent' | 'contextual-suggestion';
   intent: string;
   clarificationTerms: string;
+  variationSeed: string;
   context: Pick<PrototypeContext, 'dayPart' | 'company' | 'availableMinutes' | 'hasKettlebell'>;
   domains: BlueprintDomain[];
   contractVersion: 'experience-draft-v1';
@@ -181,10 +182,10 @@ function localSynthesis(request: GenerationRequest, candidates: Experience[]): E
     const source = candidates.find((candidate) => candidate.kind === kind && candidate.duration + 5 <= request.context.availableMinutes && candidate.company.includes(request.context.company));
     if (!source) return [];
     const variants = synthesisLanguage[kind];
-    const language = variants[hash(`${request.intent}-${request.clarificationTerms}-${kind}`) % variants.length];
+    const language = variants[hash(`${request.intent}-${request.clarificationTerms}-${request.variationSeed}-${kind}`) % variants.length];
     return [{
       ...source,
-      id: `synthesis-${kind}-${hash(`${request.intent}-${kind}-${index}`)}`,
+      id: `synthesis-${kind}-${hash(`${request.intent}-${request.variationSeed}-${kind}-${index}`)}`,
       title: language.title,
       promise: language.promise,
       wonder: language.wonder,
@@ -217,9 +218,9 @@ export async function inspectGeneratorRuntime(): Promise<GeneratorRuntimeStatus>
   }
 }
 
-export async function generateExperienceCandidates(intent: string, clarificationTerms: string, context: PrototypeContext, candidates: Experience[]): Promise<GenerationOutcome> {
+export async function generateExperienceCandidates(intent: string, clarificationTerms: string, context: PrototypeContext, candidates: Experience[], variationSeed = `${Date.now()}`): Promise<GenerationOutcome> {
   const domains = detectBlueprintDomains(`${intent} ${clarificationTerms}`);
-  const request: GenerationRequest = { requestMode: 'active-intent', intent: intent.trim(), clarificationTerms, context: { dayPart: context.dayPart, company: context.company, availableMinutes: context.availableMinutes, hasKettlebell: context.hasKettlebell }, domains, contractVersion: 'experience-draft-v1' };
+  const request: GenerationRequest = { requestMode: 'active-intent', intent: intent.trim(), clarificationTerms, variationSeed, context: { dayPart: context.dayPart, company: context.company, availableMinutes: context.availableMinutes, hasKettlebell: context.hasKettlebell }, domains, contractVersion: 'experience-draft-v1' };
   if (!request.intent && !clarificationTerms) return { experiences: [], mode: 'local-synthesis', message: 'Geen expliciete richting om nieuwe inhoud voor te maken.', rejected: 0 };
 
   const endpointConfigured = Boolean(generatorUrl);
@@ -244,9 +245,9 @@ export async function generateExperienceCandidates(intent: string, clarification
   };
 }
 
-export async function generateContextualSuggestion(domain: BlueprintDomain, context: PrototypeContext, candidates: Experience[]): Promise<GenerationOutcome> {
+export async function generateContextualSuggestion(domain: BlueprintDomain, context: PrototypeContext, candidates: Experience[], variationSeed = 'stable'): Promise<GenerationOutcome> {
   const request: GenerationRequest = {
-    requestMode: 'contextual-suggestion', intent: '', clarificationTerms: '', domains: [domain], contractVersion: 'experience-draft-v1',
+    requestMode: 'contextual-suggestion', intent: '', clarificationTerms: '', variationSeed, domains: [domain], contractVersion: 'experience-draft-v1',
     context: { dayPart: context.dayPart, company: context.company, availableMinutes: context.availableMinutes, hasKettlebell: context.hasKettlebell },
   };
   if (generatorUrl) {

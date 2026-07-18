@@ -10,6 +10,7 @@ Menselijk moment:
 - Gezelschap: ${request.context.company}
 - Kettlebell expliciet beschikbaar: ${request.context.hasKettlebell ? 'ja' : 'nee'}
 - Mogelijke domeinen: ${request.domains.join(', ') || 'kies de meest eerlijke richting'}
+- Variatiesleutel: ${request.variationSeed || 'standaard'} (alleen bedoeld om bij dezelfde context een andere geldige uitwerking te maken)
 
 Onveranderlijke regels:
 1. De ervaring is uitvoerbaar binnen de tijd en heeft een echt begin, midden en einde.

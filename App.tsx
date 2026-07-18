@@ -100,7 +100,19 @@ import { routingCapability, verifyRouteBeforeHandoff } from './src/routing/route
 type FlowStage = 'invite' | 'promise' | 'prepare' | 'presence' | 'remember' | 'profile' | null;
 type Memory = { id: string; title: string; date: string; image: string; note: string; sharedWith?: string[]; meaning?: string; experienceSnapshot?: Experience };
 type ActiveSession = { experienceId: string; experienceSnapshot?: Experience; stage: 'prepare' | 'presence'; stepIndex: number; origin: Surface; company?: Company; guideDepth?: GuideDepth; shared?: SharedCapsuleState; updatedAt: string };
-type PrototypeEvidence = { started: number; completed: number; reflected: number; skippedReflection: number; lastUpdated?: string };
+type GenerationEvaluationSignal = 'personal' | 'surprising' | 'executable' | 'content-useful';
+type PrototypeEvidence = {
+  started: number;
+  completed: number;
+  reflected: number;
+  skippedReflection: number;
+  generatedShown: number;
+  generatedRejected: number;
+  generatedEvaluated: number;
+  generationSignals: Record<GenerationEvaluationSignal, number>;
+  lastGenerationNote?: string;
+  lastUpdated?: string;
+};
 type ContextualSuggestionCache = { signature: string; expiresAt: string; experience: Experience };
 
 const editorialFont = typography.editorial;
@@ -110,6 +122,8 @@ const personalProfileKey = 'momentum.personal-profile.v1';
 const activeSessionKey = 'momentum.active-session.v1';
 const evidenceKey = 'momentum.prototype-evidence.v1';
 const contextualSuggestionKey = 'momentum.contextual-suggestion.v1';
+const emptyGenerationSignals = (): Record<GenerationEvaluationSignal, number> => ({ personal: 0, surprising: 0, executable: 0, 'content-useful': 0 });
+const emptyPrototypeEvidence = (): PrototypeEvidence => ({ started: 0, completed: 0, reflected: 0, skippedReflection: 0, generatedShown: 0, generatedRejected: 0, generatedEvaluated: 0, generationSignals: emptyGenerationSignals() });
 const timeOptions = [15, 30, 60, 120];
 const defaultRegion = { coordinates: { latitude: 53.325, longitude: 5.999 }, label: 'Dokkum proefcontext · niet gebruikt voor keuzes' };
 const generationLabel = (experience: Experience) => experience.generation?.provider === 'momentum-fixture'
@@ -132,7 +146,7 @@ export default function App() {
   const [inviteIssue, setInviteIssue] = useState<'invalid' | 'expired' | null>(null);
   const [sharedDraft, setSharedDraft] = useState<SharedCapsuleState | null>(null);
   const [inviteGuestMode, setInviteGuestMode] = useState(false);
-  const [evidence, setEvidence] = useState<PrototypeEvidence>({ started: 0, completed: 0, reflected: 0, skippedReflection: 0 });
+  const [evidence, setEvidence] = useState<PrototypeEvidence>(emptyPrototypeEvidence);
   const [sessionHydrated, setSessionHydrated] = useState(false);
   const [evidenceHydrated, setEvidenceHydrated] = useState(false);
   const [liveWorld, setLiveWorld] = useState<LiveWorldSnapshot | null>(null);
@@ -168,7 +182,11 @@ export default function App() {
       const stored = JSON.parse(value) as ActiveSession;
       if (stored.experienceId && ['prepare', 'presence'].includes(stored.stage)) setActiveSession(stored);
     }).catch(() => undefined).finally(() => setSessionHydrated(true));
-    AsyncStorage.getItem(evidenceKey).then((value) => { if (value) setEvidence((current) => ({ ...current, ...JSON.parse(value) })); }).catch(() => undefined).finally(() => setEvidenceHydrated(true));
+    AsyncStorage.getItem(evidenceKey).then((value) => {
+      if (!value) return;
+      const stored = JSON.parse(value) as Partial<PrototypeEvidence>;
+      setEvidence((current) => ({ ...current, ...stored, generationSignals: { ...current.generationSignals, ...(stored.generationSignals ?? {}) } }));
+    }).catch(() => undefined).finally(() => setEvidenceHydrated(true));
     loadLiveWorldCache(defaultRegion.coordinates).then((cached) => {
       if (cached) { setLiveWorld(cached); setLiveMessage(`Eerdere regionale context · ${Math.round(snapshotAgeMinutes(cached))} min oud`); }
       return loadLiveWorld(defaultRegion.coordinates, defaultRegion.label);
@@ -278,7 +296,7 @@ export default function App() {
           AsyncStorage.removeItem(contextualSuggestionKey).catch(() => undefined);
         }
       }
-      const outcome = await generateContextualSuggestion(contextualDomain, effectiveContext, baseCandidatePool);
+      const outcome = await generateContextualSuggestion(contextualDomain, effectiveContext, baseCandidatePool, contextualSignature);
       const experience = outcome.experiences[0];
       if (!active || !experience) return;
       setContextualGenerated(experience);
@@ -333,7 +351,14 @@ export default function App() {
       const choices = personalProfile.preferredKinds.length ? personalProfile.preferredKinds : (['outside', 'restore', 'learn'] as ExperienceKind[]);
       const currentIndex = contextualGenerated ? choices.indexOf(contextualGenerated.kind) : -1;
       const nextDomain = choices[(currentIndex + 1 + choices.length) % choices.length];
-      const outcome = await generateContextualSuggestion(nextDomain, effectiveContext, baseCandidatePool);
+      const outcome = await generateContextualSuggestion(nextDomain, effectiveContext, baseCandidatePool, `momentmaker-${Date.now()}`);
+      setEvidence((current) => ({
+        ...current,
+        generatedShown: current.generatedShown + outcome.experiences.length,
+        generatedRejected: current.generatedRejected + outcome.rejected,
+        lastGenerationNote: outcome.rejected > 0 ? `${outcome.rejected} concept(en) voldeden niet aan het capsulecontract.` : 'De gegenereerde capsule voldeed aan het contract en werd zichtbaar gemaakt.',
+        lastUpdated: new Date().toISOString(),
+      }));
       const draft = outcome.experiences[0];
       if (!draft) return;
       const prepared = attachMeaningThread(
@@ -404,7 +429,7 @@ export default function App() {
   };
 
   const closeFlow = () => setFlowStage(null);
-  const finishExperience = (input: ReflectionInput) => {
+  const finishExperience = (input: ReflectionInput, generationEvaluation: GenerationEvaluationSignal[] = []) => {
     const memory: Memory = {
       id: `${selected.id}-${Date.now()}`,
       title: selected.title,
@@ -417,7 +442,13 @@ export default function App() {
     };
     setMemories((current) => [memory, ...current.filter((item) => item.id !== selected.id)].slice(0, 12));
     setPersonalProfile((current) => applyReflection(current, selected, input));
-    setEvidence((current) => ({ ...current, reflected: current.reflected + 1, lastUpdated: new Date().toISOString() }));
+    setEvidence((current) => ({
+      ...current,
+      reflected: current.reflected + 1,
+      generatedEvaluated: current.generatedEvaluated + (selected.generation ? 1 : 0),
+      generationSignals: selected.generation ? generationEvaluation.reduce((counts, signal) => ({ ...counts, [signal]: counts[signal] + 1 }), current.generationSignals) : current.generationSignals,
+      lastUpdated: new Date().toISOString(),
+    }));
     setFlowStage(null);
     setCompletedSession(null);
     setSurface('lifebook');
@@ -447,8 +478,8 @@ export default function App() {
   return (
     <View style={[styles.root, { minHeight: height }]}>
       <StatusBar style="light" />
-      <View pointerEvents="none" style={styles.ambientGold} />
-      <View pointerEvents="none" style={styles.ambientGreen} />
+      <View style={[styles.ambientGold, { pointerEvents: 'none' }]} />
+      <View style={[styles.ambientGreen, { pointerEvents: 'none' }]} />
       <SafeAreaView style={styles.safe}>
         <View style={styles.appFrame}>
           {flowStage === null && (
@@ -464,7 +495,7 @@ export default function App() {
           {flowStage === 'prepare' && <PrepareScreen experience={selected} personal={personalProfile} hostName={personalProfile.firstName || 'Iemand'} initialCompany={(activeSession?.experienceId === selected.id ? activeSession.company : sharedDraft ? 'together' : personalProfile.defaultCompany) ?? 'solo'} initialGuideDepth={activeSession?.experienceId === selected.id ? activeSession.guideDepth : undefined} initialShared={activeSession?.experienceId === selected.id ? activeSession.shared : sharedDraft ?? undefined} onBack={() => setFlowStage('promise')} onDraftChange={savePreparation} onStart={startPresence} />}
           {flowStage === 'presence' && <PresenceScreen experience={selected} personal={personalProfile} company={activeSession?.company ?? personalProfile.defaultCompany} guideDepth={activeSession?.guideDepth ?? 'guide'} shared={activeSession?.shared} initialStep={activeSession?.experienceId === selected.id ? activeSession.stepIndex : 0} onStepChange={(stepIndex) => setActiveSession((current) => current && current.experienceId === selected.id ? { ...current, stage: 'presence', stepIndex, updatedAt: new Date().toISOString() } : current)} onBack={() => { setActiveSession((current) => current ? { ...current, stage: 'prepare', updatedAt: new Date().toISOString() } : current); setFlowStage('prepare'); }} onFinish={finishPresence} />}
           {flowStage === 'remember' && <RememberScreen experience={selected} personal={personalProfile} shared={completedSession?.shared} onSkip={skipReflection} onSave={finishExperience} />}
-          {flowStage === 'profile' && <ProfileScreen personal={personalProfile} evidence={evidence} composition={compositionAudit.summary} opportunitySummary={opportunityResult} generatorStatus={generatorStatus} context={prototypeContext} calendar={calendarContext} calendarLoading={calendarLoading} liveWorld={liveWorld} locationConfirmed={selectionLocationConfirmed} contentCatalog={contentCatalog} liveLoading={liveLoading} liveMessage={liveMessage} onChange={setPrototypeContext} onPersonalChange={setPersonalProfile} onForgetReflection={(id) => setPersonalProfile((current) => forgetReflection(current, id))} onForgetLearningEvent={(id) => setPersonalProfile((current) => forgetLearningEvent(current, id))} onResetEvidence={() => setEvidence({ started: 0, completed: 0, reflected: 0, skippedReflection: 0 })} onResetLearning={() => setPersonalProfile((current) => resetLearning(current))} onRedoOnboarding={() => setPersonalProfile((current) => ({ ...current, onboardingComplete: false }))} onClearLiveCache={() => { clearLiveWorldCache().catch(() => undefined); setLiveMessage('Regionale live cache gewist'); }} onConnectCalendar={connectCalendar} onRefresh={() => refreshLiveWorld()} onUseLocation={useApproximateLocation} onClose={closeFlow} />}
+          {flowStage === 'profile' && <ProfileScreen personal={personalProfile} evidence={evidence} composition={compositionAudit.summary} opportunitySummary={opportunityResult} generatorStatus={generatorStatus} context={prototypeContext} calendar={calendarContext} calendarLoading={calendarLoading} liveWorld={liveWorld} locationConfirmed={selectionLocationConfirmed} contentCatalog={contentCatalog} liveLoading={liveLoading} liveMessage={liveMessage} onChange={setPrototypeContext} onPersonalChange={setPersonalProfile} onForgetReflection={(id) => setPersonalProfile((current) => forgetReflection(current, id))} onForgetLearningEvent={(id) => setPersonalProfile((current) => forgetLearningEvent(current, id))} onResetEvidence={() => setEvidence(emptyPrototypeEvidence())} onResetLearning={() => setPersonalProfile((current) => resetLearning(current))} onRedoOnboarding={() => setPersonalProfile((current) => ({ ...current, onboardingComplete: false }))} onClearLiveCache={() => { clearLiveWorldCache().catch(() => undefined); setLiveMessage('Regionale live cache gewist'); }} onConnectCalendar={connectCalendar} onRefresh={() => refreshLiveWorld()} onUseLocation={useApproximateLocation} onClose={closeFlow} />}
         </View>
       </SafeAreaView>
     </View>
@@ -475,7 +506,7 @@ function IncomingInviteScreen({ invite, expired, available, onAccept, onDecline 
   const [guestName, setGuestName] = useState('');
   return <View style={styles.root}>
     <StatusBar style="light" />
-    <View pointerEvents="none" style={styles.ambientGold} />
+    <View style={[styles.ambientGold, { pointerEvents: 'none' }]} />
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.inviteScreen} showsVerticalScrollIndicator={false}>
         <Text style={styles.eyebrow}>UITNODIGING VAN {invite.hostName.toUpperCase()}</Text>
@@ -1024,17 +1055,19 @@ function PresenceScreen({ experience, personal, company, guideDepth, shared, ini
   );
 }
 
-function RememberScreen({ experience, personal, shared, onSkip, onSave }: { experience: Experience; personal: PersonalProfile; shared?: SharedCapsuleState; onSkip: () => void; onSave: (input: ReflectionInput) => void }) {
+function RememberScreen({ experience, personal, shared, onSkip, onSave }: { experience: Experience; personal: PersonalProfile; shared?: SharedCapsuleState; onSkip: () => void; onSave: (input: ReflectionInput, generationEvaluation?: GenerationEvaluationSignal[]) => void }) {
   const [note, setNote] = useState('');
   const [aspects, setAspects] = useState<ReflectionAspect[]>([]);
   const [outcome, setOutcome] = useState<LearningOutcome>('worth-it');
   const [learningOpen, setLearningOpen] = useState(false);
+  const [generationEvaluation, setGenerationEvaluation] = useState<GenerationEvaluationSignal[]>([]);
   const visibleInsights = experience.steps.flatMap((step) => step.insight ? [step.insight] : []).filter((insight) => !personal.mutedInsightExperienceIds.includes(experience.id) && !personal.mutedInsightTopics.includes(insight.topic));
   const hasInsight = visibleInsights.length > 0;
   const meaningThread = visibleInsights.map((insight) => insight.title).slice(0, 2);
   const options = (Object.keys(reflectionAspectLabels) as ReflectionAspect[]).filter((aspect) => !['content-not-useful', 'topic-not-useful'].includes(aspect) || hasInsight);
   const toggle = (aspect: ReflectionAspect) => setAspects((current) => current.includes(aspect) ? current.filter((item) => item !== aspect) : [...current, aspect]);
-  const save = (selectedAspects = aspects) => onSave({ note, outcome, aspects: selectedAspects });
+  const toggleGenerationSignal = (signal: GenerationEvaluationSignal) => setGenerationEvaluation((current) => current.includes(signal) ? current.filter((item) => item !== signal) : [...current, signal]);
+  const save = (selectedAspects = aspects) => onSave({ note, outcome, aspects: selectedAspects }, generationEvaluation);
   return (
     <ScrollView contentContainerStyle={styles.flowScroll} keyboardShouldPersistTaps="handled">
       <Text style={styles.eyebrow}>MEMORY</Text><Text style={styles.flowTitle}>Wat blijft er over?</Text><Text style={styles.screenSubtitle}>{experience.memoryPrompt}</Text>
@@ -1051,6 +1084,16 @@ function RememberScreen({ experience, personal, shared, onSkip, onSave }: { expe
       <TextInput value={note} onChangeText={setNote} placeholder="Optioneel: één zin die je wilt bewaren…" placeholderTextColor="rgba(174,180,174,0.52)" multiline style={styles.memoryInput} />
       <Pressable accessibilityRole="button" accessibilityState={{ expanded: learningOpen }} onPress={() => setLearningOpen((value) => !value)} style={styles.learningDisclosure}><View style={styles.flex}><Text style={styles.learningDisclosureTitle}>Help Momentum hiervan leren</Text><Text style={styles.learningDisclosureBody}>Alleen je bewuste keuzes worden aan je lokale profiel toegevoegd.</Text></View><Text style={styles.whyChevron}>{learningOpen ? '⌃' : '⌄'}</Text></Pressable>
       {learningOpen && <><Text style={styles.fieldLabel}>WAT MAG VOLGENDE KEER ANDERS?</Text><View style={styles.chipRow}>{options.map((aspect) => <ChoiceChip key={aspect} label={reflectionAspectLabels[aspect]} selected={aspects.includes(aspect)} onPress={() => toggle(aspect)} />)}</View></>}
+      {experience.generation && <View style={styles.learningCard}>
+        <Text style={styles.learningTitle}>Beoordeel de Momentmaker</Text>
+        <Text style={styles.learningBody}>Deze signalen meten de kwaliteit van de generator. Ze veranderen je persoonlijke profiel niet.</Text>
+        <View style={styles.chipRow}>
+          <ChoiceChip label="Voelde persoonlijk" selected={generationEvaluation.includes('personal')} onPress={() => toggleGenerationSignal('personal')} />
+          <ChoiceChip label="Verraste me" selected={generationEvaluation.includes('surprising')} onPress={() => toggleGenerationSignal('surprising')} />
+          <ChoiceChip label="Was direct uitvoerbaar" selected={generationEvaluation.includes('executable')} onPress={() => toggleGenerationSignal('executable')} />
+          <ChoiceChip label="De inhoud hielp" selected={generationEvaluation.includes('content-useful')} onPress={() => toggleGenerationSignal('content-useful')} />
+        </View>
+      </View>}
       <PrimaryButton label="Bewaar dit moment" onPress={() => save(learningOpen ? aspects : [])} />
       <SecondaryButton label="Afronden zonder bewaren" onPress={onSkip} />
     </ScrollView>
@@ -1095,6 +1138,17 @@ function ProfileScreen({ personal, evidence, composition, opportunitySummary, ge
     <SecondaryButton label={locationConfirmed ? 'Werk mijn globale omgeving bij' : 'Gebruik mijn globale omgeving'} onPress={onUseLocation} />
     <Pressable accessibilityRole="button" accessibilityState={{ expanded: labOpen }} onPress={() => setLabOpen((value) => !value)} style={styles.labDisclosure}><View style={styles.flex}><Text style={styles.labDisclosureTitle}>Momentum Lab</Text><Text style={styles.labDisclosureBody}>Testcontext, bronstatus en lokale compositiediagnostiek.</Text></View><Text style={styles.whyChevron}>{labOpen ? '⌃' : '⌄'}</Text></Pressable>
     {labOpen && <>
+    <Text style={styles.fieldLabel}>MOMENTMAKER EVALUATIE</Text>
+    <View style={styles.personalCard}>
+      <ProfileRow label="Geldige concepten getoond" value={`${evidence.generatedShown}`} />
+      <ProfileRow label="Door contract tegengehouden" value={`${evidence.generatedRejected}`} />
+      <ProfileRow label="Na beleven beoordeeld" value={`${evidence.generatedEvaluated}`} />
+      <ProfileRow label="Voelde persoonlijk" value={`${evidence.generationSignals.personal}`} />
+      <ProfileRow label="Was verrassend" value={`${evidence.generationSignals.surprising}`} />
+      <ProfileRow label="Was uitvoerbaar" value={`${evidence.generationSignals.executable}`} />
+      <ProfileRow label="Inhoud hielp" value={`${evidence.generationSignals['content-useful']}`} />
+    </View>
+    <Text style={styles.screenSubtitle}>{evidence.lastGenerationNote ?? 'Maak een nieuw moment om de generatorroute te evalueren.'} Deze lokale evaluatie staat los van je persoonlijke voorkeuren en herinneringen.</Text>
     <Text style={styles.fieldLabel}>AUTOMATISCHE COMPOSITIE</Text>
     <View style={styles.personalCard}><ProfileRow label="Kaarten gecontroleerd" value={`${composition.checked}`} /><ProfileRow label="Automatisch verrijkt" value={`${composition.automaticallyComposed}`} /><ProfileRow label="Gidsmomenten" value={`${composition.guideMoments}`} /><ProfileRow label="Actueel bron-onderbouwd" value={`${composition.liveGrounded}`} /><ProfileRow label="Tegenhouden" value={`${composition.rejected}`} /></View>
     <Text style={styles.screenSubtitle}>Elke kandidaat wordt lokaal gecontroleerd op een complete belofte, uitvoerbare stappen, tijd, gezelschap, route en bronversheid. Een afgekeurde kaart bereikt Nu, Vandaag en Ontdekken niet.</Text>

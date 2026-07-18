@@ -84,13 +84,14 @@ export function validateRequest(value) {
   const requestMode = value.requestMode === 'contextual-suggestion' ? 'contextual-suggestion' : 'active-intent';
   const intent = clean(value.intent, 600);
   const clarificationTerms = clean(value.clarificationTerms, 300);
+  const variationSeed = clean(value.variationSeed, 80);
   const context = value.context && typeof value.context === 'object' ? value.context : {};
   const availableMinutes = Number.isFinite(context.availableMinutes) ? Math.round(context.availableMinutes) : 0;
   if (requestMode === 'active-intent' && !intent && !clarificationTerms) return { ok: false, error: 'Een expliciete richting ontbreekt.' };
   if (!dayParts.includes(context.dayPart) || !companies.includes(context.company) || availableMinutes < 8 || availableMinutes > 240) return { ok: false, error: 'De momentcontext is niet bruikbaar.' };
   const domains = Array.isArray(value.domains) ? value.domains.filter((domain) => experienceKinds.includes(domain)).slice(0, 3) : [];
   if (requestMode === 'contextual-suggestion' && domains.length !== 1) return { ok: false, error: 'Een contextueel voorstel vereist precies één gekozen richting.' };
-  return { ok: true, value: { intent, clarificationTerms, domains, requestMode, contractVersion: 'experience-draft-v1', context: { dayPart: context.dayPart, company: context.company, availableMinutes, hasKettlebell: Boolean(context.hasKettlebell) } } };
+  return { ok: true, value: { intent, clarificationTerms, variationSeed, domains, requestMode, contractVersion: 'experience-draft-v1', context: { dayPart: context.dayPart, company: context.company, availableMinutes, hasKettlebell: Boolean(context.hasKettlebell) } } };
 }
 
 export function validateDrafts(value, request) {
