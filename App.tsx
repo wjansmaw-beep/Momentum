@@ -101,6 +101,7 @@ type FlowStage = 'invite' | 'promise' | 'prepare' | 'presence' | 'remember' | 'p
 type Memory = { id: string; title: string; date: string; image: string; note: string; sharedWith?: string[]; meaning?: string; experienceSnapshot?: Experience };
 type ActiveSession = { experienceId: string; experienceSnapshot?: Experience; stage: 'prepare' | 'presence'; stepIndex: number; origin: Surface; company?: Company; guideDepth?: GuideDepth; shared?: SharedCapsuleState; updatedAt: string };
 type GenerationEvaluationSignal = 'personal' | 'surprising' | 'executable' | 'content-useful';
+type GenerationKindEvidence = { shown: number; evaluated: number; personal: number; surprising: number; executable: number; contentUseful: number };
 type PrototypeEvidence = {
   started: number;
   completed: number;
@@ -110,6 +111,7 @@ type PrototypeEvidence = {
   generatedRejected: number;
   generatedEvaluated: number;
   generationSignals: Record<GenerationEvaluationSignal, number>;
+  generationByKind: Record<ExperienceKind, GenerationKindEvidence>;
   lastGenerationNote?: string;
   lastUpdated?: string;
 };
@@ -123,7 +125,9 @@ const activeSessionKey = 'momentum.active-session.v1';
 const evidenceKey = 'momentum.prototype-evidence.v1';
 const contextualSuggestionKey = 'momentum.contextual-suggestion.v1';
 const emptyGenerationSignals = (): Record<GenerationEvaluationSignal, number> => ({ personal: 0, surprising: 0, executable: 0, 'content-useful': 0 });
-const emptyPrototypeEvidence = (): PrototypeEvidence => ({ started: 0, completed: 0, reflected: 0, skippedReflection: 0, generatedShown: 0, generatedRejected: 0, generatedEvaluated: 0, generationSignals: emptyGenerationSignals() });
+const emptyKindEvidence = (): GenerationKindEvidence => ({ shown: 0, evaluated: 0, personal: 0, surprising: 0, executable: 0, contentUseful: 0 });
+const emptyGenerationByKind = (): Record<ExperienceKind, GenerationKindEvidence> => ({ outside: emptyKindEvidence(), food: emptyKindEvidence(), movement: emptyKindEvidence(), restore: emptyKindEvidence(), connect: emptyKindEvidence(), learn: emptyKindEvidence(), culture: emptyKindEvidence() });
+const emptyPrototypeEvidence = (): PrototypeEvidence => ({ started: 0, completed: 0, reflected: 0, skippedReflection: 0, generatedShown: 0, generatedRejected: 0, generatedEvaluated: 0, generationSignals: emptyGenerationSignals(), generationByKind: emptyGenerationByKind() });
 const timeOptions = [15, 30, 60, 120];
 const defaultRegion = { coordinates: { latitude: 53.325, longitude: 5.999 }, label: 'Dokkum proefcontext · niet gebruikt voor keuzes' };
 const generationLabel = (experience: Experience) => experience.generation?.provider === 'momentum-fixture'
@@ -185,7 +189,16 @@ export default function App() {
     AsyncStorage.getItem(evidenceKey).then((value) => {
       if (!value) return;
       const stored = JSON.parse(value) as Partial<PrototypeEvidence>;
-      setEvidence((current) => ({ ...current, ...stored, generationSignals: { ...current.generationSignals, ...(stored.generationSignals ?? {}) } }));
+      const storedByKind = stored.generationByKind ?? {} as Partial<Record<ExperienceKind, Partial<GenerationKindEvidence>>>;
+      setEvidence((current) => {
+        const currentByKind = current.generationByKind ?? emptyGenerationByKind();
+        return {
+          ...current,
+          ...stored,
+          generationSignals: { ...(current.generationSignals ?? emptyGenerationSignals()), ...(stored.generationSignals ?? {}) },
+          generationByKind: (Object.keys(currentByKind) as ExperienceKind[]).reduce((all, kind) => ({ ...all, [kind]: { ...currentByKind[kind], ...(storedByKind[kind] ?? {}) } }), currentByKind),
+        };
+      });
     }).catch(() => undefined).finally(() => setEvidenceHydrated(true));
     loadLiveWorldCache(defaultRegion.coordinates).then((cached) => {
       if (cached) { setLiveWorld(cached); setLiveMessage(`Eerdere regionale context · ${Math.round(snapshotAgeMinutes(cached))} min oud`); }
@@ -356,6 +369,7 @@ export default function App() {
         ...current,
         generatedShown: current.generatedShown + outcome.experiences.length,
         generatedRejected: current.generatedRejected + outcome.rejected,
+        generationByKind: draft ? { ...current.generationByKind, [draft.kind]: { ...current.generationByKind[draft.kind], shown: current.generationByKind[draft.kind].shown + 1 } } : current.generationByKind,
         lastGenerationNote: outcome.rejected > 0 ? `${outcome.rejected} concept(en) voldeden niet aan het capsulecontract.` : 'De gegenereerde capsule voldeed aan het contract en werd zichtbaar gemaakt.',
         lastUpdated: new Date().toISOString(),
       }));
@@ -371,6 +385,34 @@ export default function App() {
       setFlowStage('promise');
       const cache: ContextualSuggestionCache = { signature: contextualSignature, expiresAt: new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString(), experience: draft };
       AsyncStorage.setItem(contextualSuggestionKey, JSON.stringify(cache)).catch(() => undefined);
+    } finally {
+      setGeneratorStatus(await inspectGeneratorRuntime());
+      setMomentGenerationLoading(false);
+    }
+  };
+
+  const createEvaluationMoment = async (kind: ExperienceKind, evaluationContext: PrototypeContext) => {
+    if (momentGenerationLoading) return;
+    setMomentGenerationLoading(true);
+    try {
+      const outcome = await generateContextualSuggestion(kind, evaluationContext, baseCandidatePool, `lab-${kind}-${evaluationContext.dayPart}-${evaluationContext.company}-${evaluationContext.availableMinutes}-${evaluationContext.hasKettlebell}-${Date.now()}`);
+      const draft = outcome.experiences[0];
+      setEvidence((current) => ({
+        ...current,
+        generatedShown: current.generatedShown + outcome.experiences.length,
+        generatedRejected: current.generatedRejected + outcome.rejected,
+        generationByKind: draft ? { ...current.generationByKind, [draft.kind]: { ...current.generationByKind[draft.kind], shown: current.generationByKind[draft.kind].shown + 1 } } : current.generationByKind,
+        lastGenerationNote: draft ? `${experienceKindLabels[draft.kind]}: de capsule voldeed aan het contract en werd geopend.` : `${experienceKindLabels[kind]}: geen concept doorstond alle controles.`,
+        lastUpdated: new Date().toISOString(),
+      }));
+      if (!draft) return;
+      const prepared = attachMeaningThread(
+        composeGuideMoments(attachNearestPlaceKnowledge(overlayVerifiedWorldContext(draft, selectionLocationConfirmed ? liveWorld ?? undefined : undefined), selectionLocationConfirmed ? liveWorld ?? undefined : undefined)),
+        personalProfile,
+      );
+      setSelected(prepared);
+      setOrigin('now');
+      setFlowStage('promise');
     } finally {
       setGeneratorStatus(await inspectGeneratorRuntime());
       setMomentGenerationLoading(false);
@@ -447,6 +489,13 @@ export default function App() {
       reflected: current.reflected + 1,
       generatedEvaluated: current.generatedEvaluated + (selected.generation ? 1 : 0),
       generationSignals: selected.generation ? generationEvaluation.reduce((counts, signal) => ({ ...counts, [signal]: counts[signal] + 1 }), current.generationSignals) : current.generationSignals,
+      generationByKind: selected.generation ? {
+        ...current.generationByKind,
+        [selected.kind]: generationEvaluation.reduce((kindEvidence, signal) => ({
+          ...kindEvidence,
+          [signal === 'content-useful' ? 'contentUseful' : signal]: kindEvidence[signal === 'content-useful' ? 'contentUseful' : signal] + 1,
+        }), { ...current.generationByKind[selected.kind], evaluated: current.generationByKind[selected.kind].evaluated + 1 }),
+      } : current.generationByKind,
       lastUpdated: new Date().toISOString(),
     }));
     setFlowStage(null);
@@ -495,7 +544,7 @@ export default function App() {
           {flowStage === 'prepare' && <PrepareScreen experience={selected} personal={personalProfile} hostName={personalProfile.firstName || 'Iemand'} initialCompany={(activeSession?.experienceId === selected.id ? activeSession.company : sharedDraft ? 'together' : personalProfile.defaultCompany) ?? 'solo'} initialGuideDepth={activeSession?.experienceId === selected.id ? activeSession.guideDepth : undefined} initialShared={activeSession?.experienceId === selected.id ? activeSession.shared : sharedDraft ?? undefined} onBack={() => setFlowStage('promise')} onDraftChange={savePreparation} onStart={startPresence} />}
           {flowStage === 'presence' && <PresenceScreen experience={selected} personal={personalProfile} company={activeSession?.company ?? personalProfile.defaultCompany} guideDepth={activeSession?.guideDepth ?? 'guide'} shared={activeSession?.shared} initialStep={activeSession?.experienceId === selected.id ? activeSession.stepIndex : 0} onStepChange={(stepIndex) => setActiveSession((current) => current && current.experienceId === selected.id ? { ...current, stage: 'presence', stepIndex, updatedAt: new Date().toISOString() } : current)} onBack={() => { setActiveSession((current) => current ? { ...current, stage: 'prepare', updatedAt: new Date().toISOString() } : current); setFlowStage('prepare'); }} onFinish={finishPresence} />}
           {flowStage === 'remember' && <RememberScreen experience={selected} personal={personalProfile} shared={completedSession?.shared} onSkip={skipReflection} onSave={finishExperience} />}
-          {flowStage === 'profile' && <ProfileScreen personal={personalProfile} evidence={evidence} composition={compositionAudit.summary} opportunitySummary={opportunityResult} generatorStatus={generatorStatus} context={prototypeContext} calendar={calendarContext} calendarLoading={calendarLoading} liveWorld={liveWorld} locationConfirmed={selectionLocationConfirmed} contentCatalog={contentCatalog} liveLoading={liveLoading} liveMessage={liveMessage} onChange={setPrototypeContext} onPersonalChange={setPersonalProfile} onForgetReflection={(id) => setPersonalProfile((current) => forgetReflection(current, id))} onForgetLearningEvent={(id) => setPersonalProfile((current) => forgetLearningEvent(current, id))} onResetEvidence={() => setEvidence(emptyPrototypeEvidence())} onResetLearning={() => setPersonalProfile((current) => resetLearning(current))} onRedoOnboarding={() => setPersonalProfile((current) => ({ ...current, onboardingComplete: false }))} onClearLiveCache={() => { clearLiveWorldCache().catch(() => undefined); setLiveMessage('Regionale live cache gewist'); }} onConnectCalendar={connectCalendar} onRefresh={() => refreshLiveWorld()} onUseLocation={useApproximateLocation} onClose={closeFlow} />}
+          {flowStage === 'profile' && <ProfileScreen personal={personalProfile} evidence={evidence} composition={compositionAudit.summary} opportunitySummary={opportunityResult} generatorStatus={generatorStatus} generatingMoment={momentGenerationLoading} context={prototypeContext} calendar={calendarContext} calendarLoading={calendarLoading} liveWorld={liveWorld} locationConfirmed={selectionLocationConfirmed} contentCatalog={contentCatalog} liveLoading={liveLoading} liveMessage={liveMessage} onChange={setPrototypeContext} onEvaluateGenerator={createEvaluationMoment} onPersonalChange={setPersonalProfile} onForgetReflection={(id) => setPersonalProfile((current) => forgetReflection(current, id))} onForgetLearningEvent={(id) => setPersonalProfile((current) => forgetLearningEvent(current, id))} onResetEvidence={() => setEvidence(emptyPrototypeEvidence())} onResetLearning={() => setPersonalProfile((current) => resetLearning(current))} onRedoOnboarding={() => setPersonalProfile((current) => ({ ...current, onboardingComplete: false }))} onClearLiveCache={() => { clearLiveWorldCache().catch(() => undefined); setLiveMessage('Regionale live cache gewist'); }} onConnectCalendar={connectCalendar} onRefresh={() => refreshLiveWorld()} onUseLocation={useApproximateLocation} onClose={closeFlow} />}
         </View>
       </SafeAreaView>
     </View>
@@ -1100,8 +1149,13 @@ function RememberScreen({ experience, personal, shared, onSkip, onSave }: { expe
   );
 }
 
-function ProfileScreen({ personal, evidence, composition, opportunitySummary, generatorStatus, context, calendar, calendarLoading, liveWorld, locationConfirmed, contentCatalog, liveLoading, liveMessage, onChange, onPersonalChange, onForgetReflection, onForgetLearningEvent, onResetEvidence, onResetLearning, onRedoOnboarding, onClearLiveCache, onConnectCalendar, onRefresh, onUseLocation, onClose }: { personal: PersonalProfile; evidence: PrototypeEvidence; composition: CompositionSummary; opportunitySummary: OpportunityEngineResult; generatorStatus: GeneratorRuntimeStatus; context: PrototypeContext; calendar: CalendarContextSnapshot; calendarLoading: boolean; liveWorld: LiveWorldSnapshot | null; locationConfirmed: boolean; contentCatalog: ResolvedContentCatalog; liveLoading: boolean; liveMessage: string; onChange: (context: PrototypeContext) => void; onPersonalChange: (profile: PersonalProfile) => void; onForgetReflection: (id: string) => void; onForgetLearningEvent: (id: string) => void; onResetEvidence: () => void; onResetLearning: () => void; onRedoOnboarding: () => void; onClearLiveCache: () => void; onConnectCalendar: () => void; onRefresh: () => void; onUseLocation: () => void; onClose: () => void }) {
+function ProfileScreen({ personal, evidence, composition, opportunitySummary, generatorStatus, generatingMoment, context, calendar, calendarLoading, liveWorld, locationConfirmed, contentCatalog, liveLoading, liveMessage, onChange, onEvaluateGenerator, onPersonalChange, onForgetReflection, onForgetLearningEvent, onResetEvidence, onResetLearning, onRedoOnboarding, onClearLiveCache, onConnectCalendar, onRefresh, onUseLocation, onClose }: { personal: PersonalProfile; evidence: PrototypeEvidence; composition: CompositionSummary; opportunitySummary: OpportunityEngineResult; generatorStatus: GeneratorRuntimeStatus; generatingMoment: boolean; context: PrototypeContext; calendar: CalendarContextSnapshot; calendarLoading: boolean; liveWorld: LiveWorldSnapshot | null; locationConfirmed: boolean; contentCatalog: ResolvedContentCatalog; liveLoading: boolean; liveMessage: string; onChange: (context: PrototypeContext) => void; onEvaluateGenerator: (kind: ExperienceKind, context: PrototypeContext) => Promise<void>; onPersonalChange: (profile: PersonalProfile) => void; onForgetReflection: (id: string) => void; onForgetLearningEvent: (id: string) => void; onResetEvidence: () => void; onResetLearning: () => void; onRedoOnboarding: () => void; onClearLiveCache: () => void; onConnectCalendar: () => void; onRefresh: () => void; onUseLocation: () => void; onClose: () => void }) {
   const [labOpen, setLabOpen] = useState(false);
+  const [evaluationKind, setEvaluationKind] = useState<ExperienceKind>('outside');
+  const [evaluationMinutes, setEvaluationMinutes] = useState(30);
+  const [evaluationDayPart, setEvaluationDayPart] = useState<DayPart>(context.dayPart);
+  const [evaluationCompany, setEvaluationCompany] = useState<Company>('solo');
+  const [evaluationKettlebell, setEvaluationKettlebell] = useState(context.hasKettlebell);
   const dayParts: DayPart[] = ['morning', 'midday', 'afternoon', 'evening'];
   const profiles: PrototypeProfile[] = ['balanced', 'explorer', 'mover', 'family'];
   const companies: Array<{ id: Company; label: string }> = [{ id: 'solo', label: 'Alleen' }, { id: 'together', label: 'Samen' }, { id: 'family', label: 'Met gezin' }];
@@ -1138,6 +1192,17 @@ function ProfileScreen({ personal, evidence, composition, opportunitySummary, ge
     <SecondaryButton label={locationConfirmed ? 'Werk mijn globale omgeving bij' : 'Gebruik mijn globale omgeving'} onPress={onUseLocation} />
     <Pressable accessibilityRole="button" accessibilityState={{ expanded: labOpen }} onPress={() => setLabOpen((value) => !value)} style={styles.labDisclosure}><View style={styles.flex}><Text style={styles.labDisclosureTitle}>Momentum Lab</Text><Text style={styles.labDisclosureBody}>Testcontext, bronstatus en lokale compositiediagnostiek.</Text></View><Text style={styles.whyChevron}>{labOpen ? '⌃' : '⌄'}</Text></Pressable>
     {labOpen && <>
+    <Text style={styles.fieldLabel}>MOMENTMAKER-PROEFBANK</Text>
+    <Text style={styles.screenSubtitle}>Open telkens één volledige capsule met gecontroleerde testcontext. Dit wijzigt je profiel, agenda en gewone Nu-selectie niet.</Text>
+    <Text style={styles.fieldLabel}>RICHTING</Text>
+    <View style={styles.chipRow}>{(Object.keys(experienceKindLabels) as ExperienceKind[]).map((kind) => <ChoiceChip key={kind} label={experienceKindLabels[kind]} selected={evaluationKind === kind} onPress={() => setEvaluationKind(kind)} />)}</View>
+    <Text style={styles.fieldLabel}>TIJD EN DAGDEEL</Text>
+    <View style={styles.chipRow}>{timeOptions.map((minutes) => <ChoiceChip key={minutes} label={minutes < 60 ? `${minutes} min` : minutes === 60 ? '1 uur' : '2 uur'} selected={evaluationMinutes === minutes} onPress={() => setEvaluationMinutes(minutes)} />)}</View>
+    <View style={styles.chipRow}>{dayParts.map((dayPart) => <ChoiceChip key={dayPart} label={dayPartLabels[dayPart]} selected={evaluationDayPart === dayPart} onPress={() => setEvaluationDayPart(dayPart)} />)}</View>
+    <Text style={styles.fieldLabel}>GEZELSCHAP EN MATERIAAL</Text>
+    <View style={styles.chipRow}>{companies.map((item) => <ChoiceChip key={item.id} label={item.label} selected={evaluationCompany === item.id} onPress={() => setEvaluationCompany(item.id)} />)}</View>
+    {evaluationKind === 'movement' && <View style={styles.chipRow}><ChoiceChip label="Kettlebell beschikbaar" selected={evaluationKettlebell} onPress={() => setEvaluationKettlebell(true)} /><ChoiceChip label="Zonder materiaal" selected={!evaluationKettlebell} onPress={() => setEvaluationKettlebell(false)} /></View>}
+    <PrimaryButton label={generatingMoment ? 'Capsule wordt opgebouwd…' : `Proef ${experienceKindLabels[evaluationKind].toLowerCase()}`} onPress={() => { if (!generatingMoment) onEvaluateGenerator(evaluationKind, { ...context, availableMinutes: evaluationMinutes, dayPart: evaluationDayPart, company: evaluationCompany, hasKettlebell: evaluationKettlebell }); }} />
     <Text style={styles.fieldLabel}>MOMENTMAKER EVALUATIE</Text>
     <View style={styles.personalCard}>
       <ProfileRow label="Geldige concepten getoond" value={`${evidence.generatedShown}`} />
@@ -1149,6 +1214,12 @@ function ProfileScreen({ personal, evidence, composition, opportunitySummary, ge
       <ProfileRow label="Inhoud hielp" value={`${evidence.generationSignals['content-useful']}`} />
     </View>
     <Text style={styles.screenSubtitle}>{evidence.lastGenerationNote ?? 'Maak een nieuw moment om de generatorroute te evalueren.'} Deze lokale evaluatie staat los van je persoonlijke voorkeuren en herinneringen.</Text>
+    <Text style={styles.fieldLabel}>DEKKING PER RICHTING</Text>
+    <View style={styles.personalCard}>{(Object.keys(experienceKindLabels) as ExperienceKind[]).map((kind) => {
+      const item = evidence.generationByKind[kind];
+      const qualities = [item.personal ? `${item.personal} persoonlijk` : '', item.surprising ? `${item.surprising} verrassend` : '', item.executable ? `${item.executable} uitvoerbaar` : '', item.contentUseful ? `${item.contentUseful} inhoud` : ''].filter(Boolean).join(' · ');
+      return <ProfileRow key={kind} label={experienceKindLabels[kind]} value={`${item.shown} getoond · ${item.evaluated} beoordeeld${qualities ? ` · ${qualities}` : ''}`} />;
+    })}</View>
     <Text style={styles.fieldLabel}>AUTOMATISCHE COMPOSITIE</Text>
     <View style={styles.personalCard}><ProfileRow label="Kaarten gecontroleerd" value={`${composition.checked}`} /><ProfileRow label="Automatisch verrijkt" value={`${composition.automaticallyComposed}`} /><ProfileRow label="Gidsmomenten" value={`${composition.guideMoments}`} /><ProfileRow label="Actueel bron-onderbouwd" value={`${composition.liveGrounded}`} /><ProfileRow label="Tegenhouden" value={`${composition.rejected}`} /></View>
     <Text style={styles.screenSubtitle}>Elke kandidaat wordt lokaal gecontroleerd op een complete belofte, uitvoerbare stappen, tijd, gezelschap, route en bronversheid. Een afgekeurde kaart bereikt Nu, Vandaag en Ontdekken niet.</Text>

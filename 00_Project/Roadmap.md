@@ -275,6 +275,8 @@ The four continuous tracks are Philosophy, Experience, Understanding, and Trust.
 
 **Implementation note (2026-07-18):** Generator evaluation now covers two complete controlled variants for each of the seven experience kinds, with practical moment context and explicit equipment affecting the result. Optional post-experience quality signals are aggregated locally in Momentum Lab and never become personal-profile learning. Verified live evidence still enters only after generation through its owning adapters. See ADR-048.
 
+**Implementation note (2026-07-18):** Momentum Lab now provides a Founder-only evaluation bench for one explicit experience kind and practical context at a time. Every test still opens the normal complete Capsule and contributes only local per-kind coverage evidence; `Now` remains one suggestion at a time. See ADR-049.
+
 ## Advancement rule
 
 A phase may begin discovery before the prior phase is fully complete, but implementation may not use unresolved foundational questions as silent assumptions. Founder approval is required to lift the no-application-code gate.
