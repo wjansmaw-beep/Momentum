@@ -35,3 +35,5 @@ The Expo prototype now centralizes the palette, typography family, and core radi
 A second refinement pass reduces competing tinted panels in Promise, Prepare, and Presence. These stages now share neutral surfaces and use sage only for primary action, state, and trustworthy live context, so the experience becomes visually quieter after commitment.
 
 The same hierarchy now extends across Today, Discover, and Life Book. Day opportunities, active-intent input, generated Capsule previews, memories, and primary navigation use the shared neutral surfaces, system typography, and restrained semantic accents instead of introducing separate visual dialects.
+
+Onboarding, Shared Capsule invitations, Memory, and Profile complete the same end-to-end system. Trust and live-state panels use a restrained semantic edge rather than a fully tinted card, while reflective and account-free surfaces remain visually subordinate to the experience itself.
