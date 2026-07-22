@@ -1,14 +1,28 @@
 import { createServer } from 'node:http';
-import { draftSchema, validateDrafts, validateRequest } from './contract.mjs';
-import { createFixtureDraft } from './fixture.mjs';
-import { buildPrompt } from './prompt.mjs';
+import { CONTRACT_VERSION, validateDrafts, validateRequest } from './contract.mjs';
+import { createBudgetTracker } from './budget.mjs';
+import { createFixtureProvider } from './providers/fixture.mjs';
+import { estimateCostUsd, selectProvider } from './providers/provider.mjs';
 
-const port = Number(process.env.MOMENTUM_GENERATOR_PORT || 8787);
-const host = process.env.MOMENTUM_GENERATOR_HOST || '127.0.0.1';
-const fixtureMode = process.argv.includes('--fixture') || process.env.MOMENTUM_GENERATOR_MODE === 'fixture';
-const model = process.env.OPENAI_MODEL || 'gpt-5.6-terra';
-const allowedOrigins = new Set((process.env.MOMENTUM_ALLOWED_ORIGINS || 'http://127.0.0.1:8081,http://localhost:8081').split(',').map((origin) => origin.trim()));
+const env = process.env;
+const port = Number(env.MOMENTUM_GENERATOR_PORT || 8787);
+const host = env.MOMENTUM_GENERATOR_HOST || '127.0.0.1';
+const allowedOrigins = new Set((env.MOMENTUM_ALLOWED_ORIGINS || 'http://127.0.0.1:8081,http://localhost:8081').split(',').map((origin) => origin.trim()));
+
+// Exactly one provider is selected at startup (ADR-056). A missing or unknown
+// MOMENTUM_GENERATOR_PROVIDER falls back to fixture; keys are never guessed.
+const provider = selectProvider(env, process.argv);
+const fixtureProvider = createFixtureProvider();
+const budget = createBudgetTracker(env);
+
 const requestCounts = new Map();
+// Memory-leak fix (ADR-056): expired per-address windows are swept
+// periodically instead of accumulating for the lifetime of the process.
+const sweep = setInterval(() => {
+  const cutoff = Date.now() - 60_000;
+  for (const [address, record] of requestCounts) if (record.startedAt < cutoff) requestCounts.delete(address);
+}, 60_000);
+sweep.unref();
 
 const json = (response, status, payload, origin) => {
   response.writeHead(status, {
@@ -39,34 +53,34 @@ const withinRateLimit = (address) => {
   return current.count <= 20;
 };
 
-const outputText = (payload) => {
-  if (typeof payload?.output_text === 'string') return payload.output_text;
-  for (const item of payload?.output ?? []) for (const content of item?.content ?? []) if (content?.type === 'output_text' && typeof content.text === 'string') return content.text;
-  return '';
+// The effective provider for this moment. A selected model provider that is
+// unconfigured or budget-exhausted never silently serves model output under a
+// fixture label or vice versa: mode follows the provider that actually ran.
+const resolveRuntime = () => {
+  const isModel = provider.kind === 'model';
+  const configured = !isModel || provider.isConfigured(env);
+  const budgetExhausted = isModel && configured && !budget.canSpend();
+  const active = isModel && configured && !budgetExhausted ? provider : fixtureProvider;
+  return { active, isModel, configured, budgetExhausted };
 };
 
-async function generateWithOpenAI(request) {
-  const response = await fetch('https://api.openai.com/v1/responses', {
-    method: 'POST',
-    headers: { authorization: `Bearer ${process.env.OPENAI_API_KEY}`, 'content-type': 'application/json' },
-    body: JSON.stringify({
-      model,
-      store: false,
-      reasoning: { effort: 'low' },
-      input: [{ role: 'developer', content: [{ type: 'input_text', text: buildPrompt(request) }] }],
-      text: { format: { type: 'json_schema', name: 'momentum_experience_drafts', strict: true, schema: draftSchema } },
-      max_output_tokens: 3200,
-    }),
-  });
-  if (!response.ok) {
-    const detail = (await response.text()).slice(0, 500);
-    throw new Error(`openai_${response.status}:${detail}`);
-  }
-  const payload = await response.json();
-  const text = outputText(payload);
-  if (!text) throw new Error('openai_empty_output');
-  return JSON.parse(text);
-}
+const logModelCall = (active, usage, latencyMs) => {
+  const model = active.modelName(env);
+  const estimatedCostUsd = estimateCostUsd(model, usage);
+  budget.record(estimatedCostUsd);
+  // Operational log per model call: provider, model, tokens, latency, and the
+  // estimated cost line only. Never prompt or draft content (ADR-036/ADR-056).
+  console.log(JSON.stringify({
+    event: 'generator_model_call',
+    provider: active.name,
+    model,
+    inputTokens: usage?.inputTokens ?? null,
+    outputTokens: usage?.outputTokens ?? null,
+    latencyMs,
+    estimatedCostUsd: estimatedCostUsd === null ? null : Number(estimatedCostUsd.toFixed(6)),
+    budget: budget.status(),
+  }));
+};
 
 const server = createServer(async (request, response) => {
   const origin = request.headers.origin;
@@ -80,7 +94,17 @@ const server = createServer(async (request, response) => {
     response.end(); return;
   }
   if (request.method === 'GET' && request.url === '/health') {
-    json(response, 200, { ok: true, service: 'momentum-generator', mode: fixtureMode ? 'fixture' : process.env.OPENAI_API_KEY ? 'openai' : 'unconfigured', model: process.env.OPENAI_API_KEY ? model : undefined }, origin); return;
+    const { active, isModel, configured, budgetExhausted } = resolveRuntime();
+    json(response, 200, {
+      ok: true,
+      service: 'momentum-generator',
+      mode: isModel && !configured ? 'unconfigured' : active.kind,
+      provider: isModel && !configured ? provider.name : active.name,
+      configuredProvider: provider.name,
+      model: active.kind === 'model' ? active.modelName(env) : undefined,
+      budgetExhausted: budgetExhausted || undefined,
+      budget: isModel ? budget.status() : undefined,
+    }, origin); return;
   }
   if (request.method !== 'POST' || request.url !== '/v1/experience-drafts') { json(response, 404, { error: 'not_found' }, origin); return; }
   if (!origin || !allowedOrigins.has(origin)) { json(response, 403, { error: 'origin_not_allowed' }, origin); return; }
@@ -89,19 +113,36 @@ const server = createServer(async (request, response) => {
   try {
     const parsed = validateRequest(await readBody(request));
     if (!parsed.ok) { json(response, 400, { error: 'invalid_request', message: parsed.error }, origin); return; }
-    if (!fixtureMode && !process.env.OPENAI_API_KEY) { json(response, 503, { error: 'provider_not_configured' }, origin); return; }
-    const raw = fixtureMode ? { drafts: [createFixtureDraft(parsed.value)] } : await generateWithOpenAI(parsed.value);
+    const { active, isModel, configured, budgetExhausted } = resolveRuntime();
+    if (isModel && !configured) { json(response, 503, { error: 'provider_not_configured' }, origin); return; }
+    if (budgetExhausted) {
+      console.log(JSON.stringify({ event: 'generator_budget_exhausted_fixture_fallback', configuredProvider: provider.name, budget: budget.status() }));
+    }
+    const startedAt = Date.now();
+    const raw = await active.generate(parsed.value, env);
+    if (active.kind === 'model') logModelCall(active, raw.usage, Date.now() - startedAt);
     const drafts = validateDrafts(raw, parsed.value);
     if (!drafts.length) { json(response, 422, { error: 'no_valid_draft' }, origin); return; }
-    json(response, 200, { contractVersion: 'experience-draft-v1', mode: fixtureMode ? 'fixture' : 'model', provider: fixtureMode ? 'momentum-fixture' : 'openai-responses', model: fixtureMode ? undefined : model, drafts }, origin);
+    json(response, 200, {
+      contractVersion: CONTRACT_VERSION,
+      mode: active.kind,
+      provider: active.name,
+      model: active.kind === 'model' ? active.modelName(env) : undefined,
+      budgetExhausted: budgetExhausted || undefined,
+      drafts,
+    }, origin);
   } catch (error) {
+    if (!(error instanceof SyntaxError) && !(error instanceof Error && error.message === 'request_too_large')) {
+      console.warn(JSON.stringify({ event: 'generator_call_failed', provider: provider.name, reason: error instanceof Error ? error.message.slice(0, 120) : 'unknown' }));
+    }
     const code = error instanceof Error && error.message === 'request_too_large' ? 413 : error instanceof SyntaxError ? 400 : 502;
     json(response, code, { error: code === 502 ? 'generation_failed' : 'invalid_request' }, origin);
   }
 });
 
 server.listen(port, host, () => {
-  const mode = fixtureMode ? 'fixture' : process.env.OPENAI_API_KEY ? `openai:${model}` : 'unconfigured';
+  const { isModel, configured } = resolveRuntime();
+  const mode = isModel ? `${provider.name}:${provider.modelName(env)}${configured ? '' : ' (not configured)'}` : provider.name;
   console.log(`Momentum Generator listening on http://${host}:${port} (${mode})`);
 });
 

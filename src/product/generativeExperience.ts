@@ -4,6 +4,12 @@ import { PrototypeContext } from './localIntelligence';
 import { Platform } from 'react-native';
 
 declare const process: { env: { EXPO_PUBLIC_MOMENTUM_GENERATOR_URL?: string } };
+// Client-side copy of the draft contract version. It MUST stay equal to
+// CONTRACT_VERSION in services/generator/contract.mjs (the server source of
+// truth). One shared module is impossible because the server is plain .mjs
+// and the client is TypeScript; parity is pinned by
+// services/generator/test/contractVersion.test.mjs.
+const GENERATOR_CONTRACT_VERSION = 'experience-draft-v1';
 const developmentGeneratorUrl = Platform.OS === 'web' ? 'http://127.0.0.1:8787/v1/experience-drafts' : undefined;
 const generatorUrl = process.env.EXPO_PUBLIC_MOMENTUM_GENERATOR_URL || developmentGeneratorUrl;
 
@@ -135,7 +141,7 @@ async function requestRemoteDrafts(request: GenerationRequest): Promise<{ drafts
     if (!response.ok) throw new Error(`Generator antwoordde met ${response.status}`);
     const payload: unknown = await response.json();
     const envelope = payload && typeof payload === 'object' ? payload as { contractVersion?: unknown; drafts?: unknown[]; mode?: unknown; provider?: unknown } : {};
-    if (envelope.contractVersion !== 'experience-draft-v1' || !['fixture', 'model'].includes(String(envelope.mode))) throw new Error('Generatorcontract niet herkend');
+    if (envelope.contractVersion !== GENERATOR_CONTRACT_VERSION || !['fixture', 'model'].includes(String(envelope.mode))) throw new Error('Generatorcontract niet herkend');
     const rawDrafts = Array.isArray(envelope.drafts) ? envelope.drafts : [];
     const mode = envelope.mode === 'fixture' ? 'fixture' : 'model';
     const provider = typeof envelope.provider === 'string' ? envelope.provider.slice(0, 80) : 'secure-generator-endpoint';
@@ -207,9 +213,13 @@ export async function inspectGeneratorRuntime(): Promise<GeneratorRuntimeStatus>
     const healthUrl = generatorUrl.replace(/\/v1\/experience-drafts\/?$/, '/health');
     const response = await fetch(healthUrl, { signal: controller.signal });
     if (!response.ok) throw new Error(`Generator antwoordde met ${response.status}`);
-    const payload = await response.json() as { mode?: unknown; model?: unknown };
+    const payload = await response.json() as { mode?: unknown; model?: unknown; provider?: unknown };
     if (payload.mode === 'fixture') return { state: 'fixture', label: 'Demonstratiesynthese', detail: 'De volledige generatorroute werkt met gecontroleerde voorbeeldinhoud; er wordt geen betaald AI-model gebruikt.' };
-    if (payload.mode === 'openai') return { state: 'model', label: 'AI-synthese actief', detail: 'Nieuwe capsules worden door de beveiligde generator gemaakt en daarna lokaal gecontroleerd.', model: typeof payload.model === 'string' ? payload.model : undefined };
+    // ADR-056: the envelope mode is generic ('model'); the provider name is display-only.
+    if (payload.mode === 'model') {
+      const provider = typeof payload.provider === 'string' && payload.provider ? payload.provider.slice(0, 80) : undefined;
+      return { state: 'model', label: 'AI-synthese actief', detail: `Nieuwe capsules worden door de beveiligde generator${provider ? ` (${provider})` : ''} gemaakt en daarna lokaal gecontroleerd.`, model: typeof payload.model === 'string' ? payload.model : undefined };
+    }
     return { state: 'offline', label: 'Generator niet verbonden', detail: 'Momentum gebruikt automatisch de lokale, gecontroleerde synthese.' };
   } catch {
     return { state: 'offline', label: 'Generator niet verbonden', detail: 'Momentum gebruikt automatisch de lokale, gecontroleerde synthese.' };
@@ -220,7 +230,7 @@ export async function inspectGeneratorRuntime(): Promise<GeneratorRuntimeStatus>
 
 export async function generateExperienceCandidates(intent: string, clarificationTerms: string, context: PrototypeContext, candidates: Experience[], variationSeed = `${Date.now()}`): Promise<GenerationOutcome> {
   const domains = detectBlueprintDomains(`${intent} ${clarificationTerms}`);
-  const request: GenerationRequest = { requestMode: 'active-intent', intent: intent.trim(), clarificationTerms, variationSeed, context: { dayPart: context.dayPart, company: context.company, availableMinutes: context.availableMinutes, hasKettlebell: context.hasKettlebell }, domains, contractVersion: 'experience-draft-v1' };
+  const request: GenerationRequest = { requestMode: 'active-intent', intent: intent.trim(), clarificationTerms, variationSeed, context: { dayPart: context.dayPart, company: context.company, availableMinutes: context.availableMinutes, hasKettlebell: context.hasKettlebell }, domains, contractVersion: GENERATOR_CONTRACT_VERSION };
   if (!request.intent && !clarificationTerms) return { experiences: [], mode: 'local-synthesis', message: 'Geen expliciete richting om nieuwe inhoud voor te maken.', rejected: 0 };
 
   const endpointConfigured = Boolean(generatorUrl);
@@ -247,7 +257,7 @@ export async function generateExperienceCandidates(intent: string, clarification
 
 export async function generateContextualSuggestion(domain: BlueprintDomain, context: PrototypeContext, candidates: Experience[], variationSeed = 'stable'): Promise<GenerationOutcome> {
   const request: GenerationRequest = {
-    requestMode: 'contextual-suggestion', intent: '', clarificationTerms: '', variationSeed, domains: [domain], contractVersion: 'experience-draft-v1',
+    requestMode: 'contextual-suggestion', intent: '', clarificationTerms: '', variationSeed, domains: [domain], contractVersion: GENERATOR_CONTRACT_VERSION,
     context: { dayPart: context.dayPart, company: context.company, availableMinutes: context.availableMinutes, hasKettlebell: context.hasKettlebell },
   };
   if (generatorUrl) {
