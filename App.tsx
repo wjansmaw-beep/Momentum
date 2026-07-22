@@ -166,6 +166,7 @@ export default function App() {
   const [calendarLoading, setCalendarLoading] = useState(false);
   const [memories, setMemories] = useState<Memory[]>([]);
   const [contextualGenerated, setContextualGenerated] = useState<Experience | null>(null);
+  const [pendingContextual, setPendingContextual] = useState<Experience | null>(null);
   const [generatorStatus, setGeneratorStatus] = useState<GeneratorRuntimeStatus>({ state: 'checking', label: 'Generator controleren', detail: 'Momentum controleert welke synthese beschikbaar is.' });
   const [momentGenerationLoading, setMomentGenerationLoading] = useState(false);
   const [momentNotice, setMomentNotice] = useState('');
@@ -305,6 +306,48 @@ export default function App() {
   }, [effectiveContext.dayPart, personalProfile.preferredKinds]);
   const contextualSignature = `${new Date().toISOString().slice(0, 10)}:${effectiveContext.dayPart}:${effectiveContext.company}:${Math.round(effectiveContext.availableMinutes / 15) * 15}:${contextualDomain}`;
 
+  // Hero stability (review finding): an arriving generated candidate may never replace the
+  // hero while the user is looking at it. Chosen variant: a calm, user-gated switch.
+  // `heroAnchorRef` holds the signature of the hero currently established on screen;
+  // `contextualGeneratedRef` mirrors state so the async effect can compare without stale closures.
+  const heroAnchorRef = useRef<string | null>(null);
+  const contextualGeneratedRef = useRef<Experience | null>(null);
+  useEffect(() => { contextualGeneratedRef.current = contextualGenerated; }, [contextualGenerated]);
+  // A pending candidate belongs to the signature it was created for; drop it on any natural change.
+  useEffect(() => { setPendingContextual(null); }, [contextualSignature]);
+
+  // Adoption policy (the 6-hour cache and signature logic below are unchanged):
+  // - The same capsule arriving again (an effect re-run) is adopted silently and never shows the pill.
+  // - First arrival after opening: a cache hit lands inside the opening frame and adopts directly;
+  //   a fresh generation resolves seconds later, while the user is already reading the hero,
+  //   so it is offered as a quiet "Nieuwe blik beschikbaar" pill instead of swapping the hero.
+  // - A new day-part signature is a natural change and adopts directly again.
+  // - An explicit refresh (createFreshMoment) already adopts by design, and pressing the pill
+  //   is the user's conscious switch. Declining the hero leaves the pill available.
+  const settleContextualCandidate = (experience: Experience, fromCache: boolean, signature: string) => {
+    if (contextualGeneratedRef.current?.id === experience.id) { setPendingContextual(null); return; }
+    const anchor = heroAnchorRef.current;
+    if (anchor === null) {
+      heroAnchorRef.current = signature;
+      if (fromCache) { setContextualGenerated(experience); setPendingContextual(null); }
+      else setPendingContextual(experience);
+      return;
+    }
+    if (anchor !== signature) {
+      heroAnchorRef.current = signature;
+      setContextualGenerated(experience);
+      setPendingContextual(null);
+      return;
+    }
+    setPendingContextual(experience);
+  };
+  const showPendingContextual = () => {
+    if (!pendingContextual) return;
+    heroAnchorRef.current = contextualSignature;
+    setContextualGenerated(pendingContextual);
+    setPendingContextual(null);
+  };
+
   useEffect(() => {
     if (!personalHydrated || !contextHydrated || !personalProfile.onboardingComplete || activeSession) return;
     let active = true;
@@ -314,7 +357,7 @@ export default function App() {
         try {
           const cached = JSON.parse(stored) as ContextualSuggestionCache;
           if (cached.signature === contextualSignature && Date.parse(cached.expiresAt) > Date.now() && cached.experience) {
-            setContextualGenerated(cached.experience); return;
+            settleContextualCandidate(cached.experience, true, contextualSignature); return;
           }
         } catch {
           AsyncStorage.removeItem(contextualSuggestionKey).catch(() => undefined);
@@ -323,7 +366,7 @@ export default function App() {
       const outcome = await generateContextualSuggestion(contextualDomain, effectiveContext, baseCandidatePool, contextualSignature);
       const experience = outcome.experiences[0];
       if (!active || !experience) return;
-      setContextualGenerated(experience);
+      settleContextualCandidate(experience, false, contextualSignature);
       const cache: ContextualSuggestionCache = { signature: contextualSignature, expiresAt: new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString(), experience };
       AsyncStorage.setItem(contextualSuggestionKey, JSON.stringify(cache)).catch(() => undefined);
     }).catch(() => undefined);
@@ -586,7 +629,7 @@ export default function App() {
         <View style={[styles.appFrame, Platform.OS === 'web' && styles.webAppFrame]}>
           {flowStage === null && (
             <>
-              {surface === 'now' && <NowScreen firstName={personalProfile.firstName} suggestions={nowSuggestions} resumableExperience={resumableExperience} context={effectiveContext} calendar={calendarContext} liveWorld={liveWorld} liveLoading={liveLoading} generatorStatus={generatorStatus} generatingMoment={momentGenerationLoading} momentNotice={momentNotice} onDismissMomentNotice={() => setMomentNotice('')} onGenerateMoment={createFreshMoment} onResume={resumeSession} onDiscardSession={() => setActiveSession(null)} onOpen={(item, stage) => openExperience(item, 'now', stage)} onProfile={() => setFlowStage('profile')} onDiscover={() => setSurface('discover')} onFeedback={(item, outcome) => setPersonalProfile((current) => applyLearning(current, item, outcome))} />}
+              {surface === 'now' && <NowScreen firstName={personalProfile.firstName} suggestions={nowSuggestions} resumableExperience={resumableExperience} context={effectiveContext} calendar={calendarContext} liveWorld={liveWorld} liveLoading={liveLoading} generatorStatus={generatorStatus} generatingMoment={momentGenerationLoading} momentNotice={momentNotice} onDismissMomentNotice={() => setMomentNotice('')} onGenerateMoment={createFreshMoment} pendingExperience={pendingContextual} onShowPendingExperience={showPendingContextual} onResume={resumeSession} onDiscardSession={() => setActiveSession(null)} onOpen={(item, stage) => openExperience(item, 'now', stage)} onProfile={() => setFlowStage('profile')} onDiscover={() => setSurface('discover')} onFeedback={(item, outcome) => setPersonalProfile((current) => applyLearning(current, item, outcome))} />}
               {surface === 'today' && <TodayScreen decisions={dayDecisions} calendar={calendarContext} onOpen={(item) => openExperience(item, 'today')} />}
               {surface === 'discover' && <DiscoverScreen context={prototypeContext} candidatePool={candidatePool} learning={learningContext} personal={personalProfile} onOpen={(item) => openExperience(item, 'discover')} />}
               {surface === 'lifebook' && <LifeBookScreen memories={memories} personal={personalProfile} onProfile={() => setFlowStage('profile')} onOpen={(item) => { setPersonalProfile((current) => applyLearning(current, item, 'repeat')); openExperience(item, 'lifebook'); }} />}
@@ -700,7 +743,7 @@ function ScreenHeader({ eyebrow, title, subtitle, onProfile, profileName }: { ey
   );
 }
 
-function NowScreen({ firstName, suggestions, resumableExperience, context, calendar, liveWorld, liveLoading, generatorStatus, generatingMoment, momentNotice, onDismissMomentNotice, onGenerateMoment, onResume, onDiscardSession, onOpen, onProfile, onDiscover, onFeedback }: { firstName: string; suggestions: Array<{ experience: Experience; decision: LocalDecision }>; resumableExperience?: Experience; context: PrototypeContext; calendar: CalendarContextSnapshot; liveWorld: LiveWorldSnapshot | null; liveLoading: boolean; generatorStatus: GeneratorRuntimeStatus; generatingMoment: boolean; momentNotice?: string; onDismissMomentNotice?: () => void; onGenerateMoment: () => void; onResume: () => void; onDiscardSession: () => void; onOpen: (item: Experience, stage?: FlowStage) => void; onProfile: () => void; onDiscover: () => void; onFeedback: (item: Experience, outcome: LearningOutcome) => void }) {
+function NowScreen({ firstName, suggestions, resumableExperience, context, calendar, liveWorld, liveLoading, generatorStatus, generatingMoment, momentNotice, onDismissMomentNotice, onGenerateMoment, pendingExperience, onShowPendingExperience, onResume, onDiscardSession, onOpen, onProfile, onDiscover, onFeedback }: { firstName: string; suggestions: Array<{ experience: Experience; decision: LocalDecision }>; resumableExperience?: Experience; context: PrototypeContext; calendar: CalendarContextSnapshot; liveWorld: LiveWorldSnapshot | null; liveLoading: boolean; generatorStatus: GeneratorRuntimeStatus; generatingMoment: boolean; momentNotice?: string; onDismissMomentNotice?: () => void; onGenerateMoment: () => void; pendingExperience?: Experience | null; onShowPendingExperience?: () => void; onResume: () => void; onDiscardSession: () => void; onOpen: (item: Experience, stage?: FlowStage) => void; onProfile: () => void; onDiscover: () => void; onFeedback: (item: Experience, outcome: LearningOutcome) => void }) {
   const [declined, setDeclined] = useState(false);
   const [whyOpen, setWhyOpen] = useState(false);
   const [suggestionIndex, setSuggestionIndex] = useState(0);
@@ -714,6 +757,7 @@ function NowScreen({ firstName, suggestions, resumableExperience, context, calen
     <ScrollView contentContainerStyle={styles.screenScroll} showsVerticalScrollIndicator={false}>
       <ScreenHeader eyebrow={`${dayPartLabels[context.dayPart].toUpperCase()}${firstName ? ` · ${firstName.toUpperCase()}` : ''}`} title="Vandaag wacht er iets moois op je." subtitle="Dit past waarschijnlijk bij je moment. Jij beslist." onProfile={onProfile} profileName={firstName} />
       <LiveWorldBar snapshot={liveWorld} loading={liveLoading} />
+      {pendingExperience ? <Pressable accessibilityRole="button" accessibilityLabel={`Toon de nieuwe blik: ${pendingExperience.title}`} onPress={onShowPendingExperience} style={styles.pendingHeroPill}><Text style={styles.pendingHeroPillMark}>✦</Text><View style={styles.flex}><Text style={styles.pendingHeroPillText}>Nieuwe blik beschikbaar</Text><Text style={styles.pendingHeroPillBody}>{pendingExperience.title} wacht rustig tot jij wilt wisselen.</Text></View><Text style={styles.pendingHeroPillAction}>Toon</Text></Pressable> : null}
       {resumableExperience && <View style={styles.resumeCard}><Pressable accessibilityLabel={`Hervat ${resumableExperience.title}`} onPress={onResume} style={styles.resumeMain}><View style={styles.resumeMark}><Text style={styles.resumeMarkText}>▶</Text></View><View style={styles.flex}><Text style={styles.resumeLabel}>GA VERDER</Text><Text style={styles.resumeTitle}>{resumableExperience.title}</Text></View><Text style={styles.arrow}>→</Text></Pressable><Pressable accessibilityLabel="Sluit open ervaring" onPress={onDiscardSession} style={styles.resumeDiscard}><Text style={styles.resumeDiscardText}>Sluit</Text></Pressable></View>}
       {calendar.state === 'live' && calendar.currentFreeMinutes ? <View style={styles.contextNotice}><Text style={styles.contextNoticeMark}>◷</Text><View style={styles.flex}><Text style={styles.contextNoticeTitle}>{calendar.currentFreeMinutes} minuten ruimte herkend</Text><Text style={styles.contextNoticeBody}>Alleen begin- en eindtijden verwerkt · afspraakinhoud genegeerd</Text></View></View> : null}
       {decision.confidence === 'low' && !declined ? <View style={styles.silentCard}>
@@ -950,6 +994,7 @@ function PrepareScreen({ experience, personal, hostName, initialCompany, initial
   const [shared, setShared] = useState<SharedCapsuleState | undefined>(initialShared);
   const [shareStatus, setShareStatus] = useState('');
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const guide = buildExperienceGuide(experience, 0);
   const freshEvidence = guide.evidence.filter((item) => item.freshness === 'current');
   const guideInsights = ([guide.currentInsight, ...guide.furtherInsights].filter(Boolean) as NonNullable<typeof guide.currentInsight>[]).filter((insight) => !guidanceMuted && !personal.mutedInsightTopics.includes(insight.topic));
@@ -986,8 +1031,14 @@ function PrepareScreen({ experience, personal, hostName, initialCompany, initial
       readiness: { ...(current.readiness ?? { timing: false, pace: false, practical: false }), [key]: !(current.readiness?.[key] ?? false) },
     } : current);
   };
+  // North Star Frame 5: de voorbereiding toont in eerste zicht alleen het noodzakelijke —
+  // fotokaart/belofte → capsule-essentie (tijd, wat je nodig hebt, gezelschap) → primaire actie.
+  // Verdieping (live-aanwijzingen, route, verhaal van de plek) blijft ongewijzigd beschikbaar
+  // achter een rustige disclosure; de primaire actie blijft via een sticky voettekst altijd
+  // zichtbaar, zonder content te overlappen (extra padding onderaan de scroll).
   return (
-    <ScrollView contentContainerStyle={styles.flowScroll} showsVerticalScrollIndicator={false}>
+    <View style={styles.flowScreen}>
+    <ScrollView contentContainerStyle={[styles.flowScroll, styles.flowScrollStickyAction]} showsVerticalScrollIndicator={false}>
       <BackButton label="Terug" onPress={onBack} />
       <Text style={styles.eyebrow}>{experienceKindLabels[experience.kind].toUpperCase()} · UITNODIGING</Text><Text style={styles.flowTitle}>{experience.title}</Text><Text style={styles.screenSubtitle}>{experience.promise}</Text>
       <ImageBackground source={{ uri: experience.image }} style={styles.prepareExpectationCard} imageStyle={styles.prepareExpectationImage}>
@@ -1000,7 +1051,8 @@ function PrepareScreen({ experience, personal, hostName, initialCompany, initial
       </ImageBackground>
       <CapsuleShapePreview experience={experience} />
       {experience.meaningThread && <MeaningThreadCard experience={experience} compact />}
-      {freshEvidence.length ? <View style={styles.prepareLiveCard}><Text style={styles.liveEvidenceTitle}>WAT DE WERELD NU LAAT ZIEN</Text>{freshEvidence.slice(0, 3).map((evidence) => <View key={`${evidence.sourceName}-${evidence.label}`} style={styles.prepareLiveRow}><View style={styles.liveEvidenceDot} /><View style={styles.flex}><Text style={styles.liveEvidenceLabel}>{evidence.label}</Text><Text style={styles.liveEvidenceMeta}>{evidence.sourceName} · {evidence.certainty === 'observation' ? 'recente waarneming' : 'actuele verwachting'} · {evidence.freshnessLabel.toLowerCase()}</Text></View></View>)}</View> : <View style={styles.editorialDepthCard}><Text style={styles.expectationLabel}>TIJDENS JE ERVARING</Text><Text style={styles.editorialDepthText}>{experience.steps.find((step) => step.insight)?.insight?.title ?? experience.wonder}</Text><Text style={styles.editorialDepthSource}>Een verdiepend gidsmoment is beschikbaar wanneer het helpt.</Text>{guide.evidence.some((item) => item.freshness === 'expired') ? <Text style={styles.expiredEvidenceText}>Eerdere broncontext is verlopen en wordt niet meer als actuele aanwijzing gebruikt.</Text> : null}</View>}
+      <View style={styles.commitmentCard}><Text style={styles.commitmentLabel}>TIJD EN INSPANNING</Text><Text style={styles.commitmentValue}>{experience.duration} minuten · {experience.effort.toLowerCase()}</Text>{experience.distance && <Text style={styles.commitmentBody}>{experience.distance} is meegenomen voordat je begint.</Text>}</View>
+      <Text style={styles.fieldLabel}>{experience.kind === 'food' ? 'INGREDIËNTEN EN KEUKEN' : experience.kind === 'movement' ? 'MATERIAAL EN OPBOUW' : experience.kind === 'restore' ? 'MAAK RUIMTE VOOR RUST' : experience.kind === 'outside' ? 'VOOR ROUTE EN OMSTANDIGHEDEN' : 'ALLEEN WAT JE NODIG HEBT'}</Text><View style={styles.prepareCard}>{experience.prepare.map((item) => <View key={item} style={styles.prepareRow}><View style={[styles.prepareBullet, { backgroundColor: experience.accent }]} /><Text style={styles.prepareText}>{item}</Text></View>)}</View>
       <View style={styles.readySummary}>
         <View style={styles.flex}><Text style={styles.readySummaryLabel}>ZO GA JE</Text><Text style={styles.readySummaryTitle}>{company === 'solo' ? 'Alleen' : company === 'family' ? 'Met gezin' : 'Samen'} · {guideDepth === 'quiet' ? 'rustige begeleiding' : guideDepth === 'deep' ? 'verdiepende gids' : 'gids op het juiste moment'}</Text></View>
         <Pressable accessibilityRole="button" accessibilityState={{ expanded: detailsOpen }} onPress={() => setDetailsOpen((value) => !value)} style={styles.adjustButton}><Text style={styles.adjustButtonText}>{detailsOpen ? 'Sluit keuzes' : 'Gezelschap & gids'}</Text></Pressable>
@@ -1035,7 +1087,9 @@ function PrepareScreen({ experience, personal, hostName, initialCompany, initial
         <Text style={styles.guidePreviewSource}>{guide.coverageLabel}{guide.compositionLabel ? ` · ${guide.compositionLabel}` : ''}. Je kunt tijdens de ervaring altijd terugschakelen naar je omgeving.</Text>
       </View>
       </>}
-      <Text style={styles.fieldLabel}>{experience.kind === 'food' ? 'INGREDIËNTEN EN KEUKEN' : experience.kind === 'movement' ? 'MATERIAAL EN OPBOUW' : experience.kind === 'restore' ? 'MAAK RUIMTE VOOR RUST' : experience.kind === 'outside' ? 'VOOR ROUTE EN OMSTANDIGHEDEN' : 'ALLEEN WAT JE NODIG HEBT'}</Text><View style={styles.prepareCard}>{experience.prepare.map((item) => <View key={item} style={styles.prepareRow}><View style={[styles.prepareBullet, { backgroundColor: experience.accent }]} /><Text style={styles.prepareText}>{item}</Text></View>)}</View>
+      <Pressable accessibilityRole="button" accessibilityState={{ expanded: moreOpen }} onPress={() => setMoreOpen((value) => !value)} style={styles.learningDisclosure}><View style={styles.flex}><Text style={styles.learningDisclosureTitle}>Meer over deze ervaring</Text><Text style={styles.learningDisclosureBody}>{moreOpen ? 'Sluit de verdieping' : 'Actuele aanwijzingen, route en verhaal van de plek'}</Text></View><Text style={styles.whyChevron}>{moreOpen ? '⌃' : '⌄'}</Text></Pressable>
+      {moreOpen && <>
+      {freshEvidence.length ? <View style={styles.prepareLiveCard}><Text style={styles.liveEvidenceTitle}>WAT DE WERELD NU LAAT ZIEN</Text>{freshEvidence.slice(0, 3).map((evidence) => <View key={`${evidence.sourceName}-${evidence.label}`} style={styles.prepareLiveRow}><View style={styles.liveEvidenceDot} /><View style={styles.flex}><Text style={styles.liveEvidenceLabel}>{evidence.label}</Text><Text style={styles.liveEvidenceMeta}>{evidence.sourceName} · {evidence.certainty === 'observation' ? 'recente waarneming' : 'actuele verwachting'} · {evidence.freshnessLabel.toLowerCase()}</Text></View></View>)}</View> : <View style={styles.editorialDepthCard}><Text style={styles.expectationLabel}>TIJDENS JE ERVARING</Text><Text style={styles.editorialDepthText}>{experience.steps.find((step) => step.insight)?.insight?.title ?? experience.wonder}</Text><Text style={styles.editorialDepthSource}>Een verdiepend gidsmoment is beschikbaar wanneer het helpt.</Text>{guide.evidence.some((item) => item.freshness === 'expired') ? <Text style={styles.expiredEvidenceText}>Eerdere broncontext is verlopen en wordt niet meer als actuele aanwijzing gebruikt.</Text> : null}</View>}
       {experience.routePlan && <View style={styles.routePlanCard}>
         <Text style={styles.liveEvidenceTitle}>ROUTE NAAR HET BEGIN</Text><Text style={styles.routePlanTitle}>{experience.routePlan.destinationName}</Text>
         <View style={styles.routeBudget}><MiniFact value={`${experience.routePlan.outboundMinutes} min`} label="heen" /><MiniFact value={`${experience.routePlan.experienceMinutes} min`} label="beleven" /><MiniFact value={`${experience.routePlan.returnMinutes} min`} label="terug" /><MiniFact value={`${experience.routePlan.bufferMinutes} min`} label="buffer" /></View>
@@ -1052,9 +1106,12 @@ function PrepareScreen({ experience, personal, hostName, initialCompany, initial
         <Text style={styles.placeKnowledgeBody}>{experience.placeKnowledge.summary}</Text>
         <Pressable accessibilityRole="link" accessibilityLabel={`Open bron over ${experience.placeKnowledge.title}`} onPress={() => Linking.openURL(experience.placeKnowledge!.sourceUrl).catch(() => undefined)}><Text style={[styles.placeKnowledgeSource, { color: experience.accent }]}>{experience.placeKnowledge.sourceLabel} · Bekijk bron ↗</Text></Pressable>
       </View>}
-      <View style={styles.commitmentCard}><Text style={styles.commitmentLabel}>TIJD EN INSPANNING</Text><Text style={styles.commitmentValue}>{experience.duration} minuten · {experience.effort.toLowerCase()}</Text>{experience.distance && <Text style={styles.commitmentBody}>{experience.distance} is meegenomen voordat je begint.</Text>}</View>
-      <PrimaryButton label={company === 'solo' ? 'Ik ga nu' : 'Wij gaan beginnen'} onPress={() => onStart(company, guideDepth, shared ? { ...shared, coordination } : undefined)} />
+      </>}
     </ScrollView>
+    <View style={styles.stickyActionBar}>
+      <PrimaryButton label={company === 'solo' ? 'Ik ga nu' : 'Wij gaan beginnen'} onPress={() => onStart(company, guideDepth, shared ? { ...shared, coordination } : undefined)} />
+    </View>
+    </View>
   );
 }
 
@@ -1573,4 +1630,12 @@ const styles = StyleSheet.create({
   lifeLandscape: { padding: 18, marginBottom: 12, borderRadius: radii.card, borderWidth: 1, borderColor: colors.softLine, backgroundColor: colors.panel }, lifeSummaryEyebrow: { color: colors.accent, fontSize: 11, letterSpacing: 1.2, fontWeight: '800' }, lifeSummaryHeadline: { color: colors.bone, fontFamily: appFont, fontSize: 24, lineHeight: 30, fontWeight: '700', marginTop: 8 }, lifeThemeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 13 }, lifeTheme: { borderRadius: 99, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.panelRaised, paddingHorizontal: 11, paddingVertical: 7 }, lifeThemeText: { color: colors.bone, fontSize: 11, fontWeight: '600' },
   capsuleShapeCard: { borderRadius: radii.card, borderWidth: 1, borderColor: colors.softLine, backgroundColor: colors.panel, padding: 17, marginBottom: 20 }, capsuleShapeHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 }, capsuleShapeLabel: { color: colors.accent, fontSize: 11, letterSpacing: 1.25, fontWeight: '800' }, capsuleShapeTitle: { color: colors.bone, fontFamily: appFont, fontSize: 21, lineHeight: 27, fontWeight: '700', marginTop: 7 }, capsuleShapeGlyph: { fontSize: 28, fontWeight: '300' }, capsuleShapeRail: { flexDirection: 'row', gap: 8, marginTop: 17 }, capsuleShapeStep: { flex: 1, minHeight: 92, borderRadius: radii.control, backgroundColor: colors.panelRaised, padding: 11 }, capsuleShapeNumber: { width: 25, height: 25, borderRadius: 13, borderWidth: 1, alignItems: 'center', justifyContent: 'center' }, capsuleShapeNumberText: { color: colors.bone, fontSize: 11, fontWeight: '700' }, capsuleShapeStepText: { color: colors.bone, fontSize: 11, lineHeight: 15, fontWeight: '600', marginTop: 8 }, capsuleShapeNote: { color: colors.muted, fontSize: 12, lineHeight: 18, marginTop: 14 },
   calendarControlCard: { borderRadius: radii.card, borderWidth: 1, borderColor: colors.line, borderLeftWidth: 3, borderLeftColor: colors.gold, backgroundColor: colors.panel, padding: 17, marginTop: 22, gap: 9 },
+  flowScreen: { flex: 1 },
+  flowScrollStickyAction: { paddingBottom: 136 },
+  stickyActionBar: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 18, backgroundColor: colors.ink, borderTopWidth: 1, borderTopColor: colors.softLine },
+  pendingHeroPill: { minHeight: 48, borderRadius: radii.pill, borderWidth: 1, borderColor: colors.accentLine, backgroundColor: colors.accentSoft, paddingHorizontal: 15, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 },
+  pendingHeroPillMark: { color: colors.accent, fontSize: 13 },
+  pendingHeroPillText: { color: colors.bone, fontSize: 12, fontWeight: '700' },
+  pendingHeroPillBody: { color: colors.muted, fontSize: 11, lineHeight: 15, marginTop: 2 },
+  pendingHeroPillAction: { color: colors.accentText, fontSize: 12, fontWeight: '700' },
 });
