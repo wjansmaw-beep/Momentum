@@ -10,14 +10,14 @@ Momentum uses AI as a role-based product team. Tools may change; responsibilitie
 - **Founder:** owns vision, priorities, product intuition, and final decisions.
 - **Product Guardian:** performs the mandatory preflight before every product proposal or implementation. It reads the Constitution, roadmap, open questions, relevant approved flows and decisions; detects drift; and blocks implementation that contradicts repository truth until the mismatch is resolved or the Founder explicitly changes the truth.
 - **Product thinking:** owns philosophy, human experience, strategy, critical analysis, and design intent. It asks “why” before “how.”
-- **Engineering (Codex):** owns repository changes, implementation plans, code, tests, refactoring, commits, and verification. It implements approved philosophy and does not invent it.
+- **Engineering (AI coding agent):** owns repository changes, implementation plans, code, tests, refactoring, commits, and verification. It implements approved philosophy and does not invent it.
 - **Operations:** keeps document status, roadmap, decisions, releases, and implementation alignment organized.
 
 Product thinking may challenge a decision once when useful. After the Founder decides, the team supports execution unless safety or truth requires renewed attention.
 
 ## Role assignment per task
 
-Codex names and adopts the role appropriate to the current task rather than defaulting to implementation:
+The AI coding agent names and adopts the role appropriate to the current task rather than defaulting to implementation:
 
 - **Product Guardian** for repository alignment and drift detection — always first;
 - **Product Architect** for product structure, flows and boundaries;
@@ -71,6 +71,10 @@ Once approved, small vertical slices may iterate across layers, but code never b
 8. Verify behavior, accessibility, performance, privacy, and screen-time impact.
 9. Commit intentional groups with clear messages.
 10. Report changes, verification, and open questions.
+
+## Reporting to the Founder
+
+After every completed change, the agent delivers a plain-language summary for the Founder: what changed, why, what was verified, and what remains open. The Founder is non-technical and maintains a separate readable project log, so the summary must be understandable without reading code or diffs.
 
 ## Feature gate
 
