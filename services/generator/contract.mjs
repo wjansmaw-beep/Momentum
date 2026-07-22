@@ -1,3 +1,10 @@
+// Single server-side source of truth for the draft contract version (ADR-056).
+// The client keeps its own copy (GENERATOR_CONTRACT_VERSION in
+// src/product/generativeExperience.ts) because one shared module is impossible:
+// the server is plain .mjs and the client is TypeScript. Both copies MUST stay
+// equal; parity is pinned by services/generator/test/contractVersion.test.mjs.
+export const CONTRACT_VERSION = 'experience-draft-v1';
+
 export const experienceKinds = ['outside', 'food', 'movement', 'restore', 'connect', 'learn', 'culture'];
 export const companies = ['solo', 'together', 'family'];
 export const dayParts = ['morning', 'midday', 'afternoon', 'evening'];
@@ -80,7 +87,7 @@ const clean = (value, max) => typeof value === 'string' ? value.trim().slice(0, 
 const cleanList = (value, limit, max) => Array.isArray(value) ? value.map((item) => clean(item, max)).filter(Boolean).slice(0, limit) : [];
 
 export function validateRequest(value) {
-  if (!value || typeof value !== 'object' || value.contractVersion !== 'experience-draft-v1') return { ok: false, error: 'Ongeldig contract.' };
+  if (!value || typeof value !== 'object' || value.contractVersion !== CONTRACT_VERSION) return { ok: false, error: 'Ongeldig contract.' };
   const requestMode = value.requestMode === 'contextual-suggestion' ? 'contextual-suggestion' : 'active-intent';
   const intent = clean(value.intent, 600);
   const clarificationTerms = clean(value.clarificationTerms, 300);
@@ -91,7 +98,7 @@ export function validateRequest(value) {
   if (!dayParts.includes(context.dayPart) || !companies.includes(context.company) || availableMinutes < 8 || availableMinutes > 240) return { ok: false, error: 'De momentcontext is niet bruikbaar.' };
   const domains = Array.isArray(value.domains) ? value.domains.filter((domain) => experienceKinds.includes(domain)).slice(0, 3) : [];
   if (requestMode === 'contextual-suggestion' && domains.length !== 1) return { ok: false, error: 'Een contextueel voorstel vereist precies één gekozen richting.' };
-  return { ok: true, value: { intent, clarificationTerms, variationSeed, domains, requestMode, contractVersion: 'experience-draft-v1', context: { dayPart: context.dayPart, company: context.company, availableMinutes, hasKettlebell: Boolean(context.hasKettlebell) } } };
+  return { ok: true, value: { intent, clarificationTerms, variationSeed, domains, requestMode, contractVersion: CONTRACT_VERSION, context: { dayPart: context.dayPart, company: context.company, availableMinutes, hasKettlebell: Boolean(context.hasKettlebell) } } };
 }
 
 export function validateDrafts(value, request) {

@@ -11,6 +11,7 @@
     "web": "expo start --web",
     "generator": "node services/generator/server.mjs",
     "generator:fixture": "node services/generator/server.mjs --fixture",
+    "test:generator": "node --test \"services/generator/test/*.test.mjs\"",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

@@ -23,7 +23,7 @@ One-page onboarding for any AI assistant (Claude Code, Kimi, Codex, Cursor, or a
 - `13_Technical_Feasibility/` — technical feasibility assessments;
 - `App.tsx`, `index.js`, `app.json` — Expo application entry points and configuration;
 - `src/` — application code by domain (`content`, `context`, `decision`, `design`, `guidance`, `liveworld`, `product`, `profile`, `routing`, `sharing`);
-- `services/generator/` — the local Generator Service (`server.mjs`, `contract.mjs`, `prompt.mjs`, `fixture.mjs`);
+- `services/generator/` — the local Generator Service (`server.mjs`, `contract.mjs`, `prompt.mjs`, `fixture.mjs`, `budget.mjs`, `providers/` adapter layer, `test/` contract tests);
 - `tests/` — scenario test runners.
 
 ## Tech stack and commands

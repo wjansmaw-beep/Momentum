@@ -36,7 +36,7 @@ The first Living World slice uses:
 
 Calendar is the first private context source. In an iOS development build, the user can connect it from Profile; Momentum derives free windows locally and immediately discards titles, notes, locations, attendees, and identifiers. The web preview and Expo Go retain manual time input because real Calendar access is unavailable there.
 
-HealthKit, background location, and accounts are not connected. A local Generator Service fixture now exercises complete adaptive capsules; an optional server-only OpenAI provider is configuration-ready but has not been runtime-tested without an API key. Foreground approximate location is requested only after the user explicitly asks for nearby live context.
+HealthKit, background location, and accounts are not connected. A local Generator Service fixture exercises complete adaptive capsules; behind the same validated boundary (ADR-056) the service also has provider adapters for OpenAI, Anthropic, and Moonshot, selected explicitly through `MOMENTUM_GENERATOR_PROVIDER`. The model adapters are covered by mocked contract tests but have not been runtime-tested with real API keys yet. Foreground approximate location is requested only after the user explicitly asks for nearby live context.
 
 ## Run
 
@@ -70,15 +70,35 @@ For the complete local web flow, start the fixture service in a separate termina
 npm run generator:fixture
 ```
 
-The web app automatically checks `http://127.0.0.1:8787/v1/experience-drafts`. When the service is unavailable, Discover falls back to device-local synthesis.
+The web app automatically checks `http://127.0.0.1:8787/v1/experience-drafts`. When the service is unavailable, Discover falls back to device-local synthesis. `npm run test:generator` runs the provider contract tests (`node:test`, fully mocked; no API keys or spending required).
 
-To use the optional OpenAI provider, set `OPENAI_API_KEY` only in the server environment and run:
+To use a model provider (ADR-056), select exactly one explicitly and set its server-only credentials before running `npm run generator`:
 
 ```text
-npm run generator
+MOMENTUM_GENERATOR_PROVIDER=fixture | openai | anthropic | moonshot
 ```
 
-The model can be changed with `OPENAI_MODEL`; the default is `gpt-5.6-terra`. To connect a remotely deployed application-owned service, configure only its public endpoint URL in Expo:
+A missing or unknown value falls back to the fixture provider; the service never guesses a provider from which keys happen to be present, and `--fixture` remains the CLI shortcut. Per provider:
+
+```text
+OPENAI_API_KEY / OPENAI_MODEL             (default gpt-5.4-mini)
+ANTHROPIC_API_KEY / ANTHROPIC_MODEL       (default claude-haiku-4-5-20251001)
+MOONSHOT_API_KEY / MOONSHOT_MODEL         (default kimi-k2.6)
+MOONSHOT_BASE_URL                         (default https://api.moonshot.ai/v1; use https://api.moonshot.cn/v1 for China-hosted keys)
+```
+
+Operational guard rails, all optional with conservative defaults:
+
+```text
+MOMENTUM_GENERATOR_TIMEOUT_MS             (default 20000)
+MOMENTUM_GENERATOR_MAX_OUTPUT_TOKENS      (default 3200)
+MOMENTUM_GENERATOR_DAILY_CALL_LIMIT       (default 100; 0 blocks all model calls)
+MOMENTUM_GENERATOR_BUDGET_EUR             (default 10, the Founder ceiling; 0 blocks all model calls)
+```
+
+When the daily limit or budget is reached, the service stops model calls, serves the fixture path, and says so honestly (`budgetExhausted: true` in health and responses; the `mode` field always names what actually ran). Provider dashboards must also carry hard spending limits; see the runbook.
+
+To connect a remotely deployed application-owned service, configure only its public endpoint URL in Expo:
 
 ```text
 EXPO_PUBLIC_MOMENTUM_GENERATOR_URL=https://your-service.example/v1/experience-drafts
