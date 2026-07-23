@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ImageStyle, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
+import Reanimated from 'react-native-reanimated';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '../design/theme';
@@ -7,31 +8,37 @@ import { colors } from '../design/theme';
 // Echte beeldlaag (ADR-057, Horizon A): expo-image met cover-fit, fade-transition
 // en schijfcache. De placeholder is een zacht theme-kleurveld; bij een mislukte
 // load blijft dat rustige kleurveld staan — nooit een kapot beeld.
+// Horizon B: `imageContainerStyle` accepteert een Reanimated-stijl rond alleen
+// het beeld (Ken Burns / beeldcontinuïteit), zonder de tekstlagen mee te schalen.
 
 type CoverImageProps = {
   uri?: string;
   style?: StyleProp<ViewStyle>;
   /** Randradius/opacity van de afbeelding zelf (zoals ImageBackground imageStyle). */
   imageStyle?: StyleProp<ImageStyle>;
+  /** Optionele geanimeerde stijl rond de beeldcontainer (Reanimated). */
+  imageContainerStyle?: StyleProp<ViewStyle>;
   children?: React.ReactNode;
 };
 
-export function CoverImage({ uri, style, imageStyle, children }: CoverImageProps) {
+export function CoverImage({ uri, style, imageStyle, imageContainerStyle, children }: CoverImageProps) {
   const [failed, setFailed] = useState(false);
   useEffect(() => setFailed(false), [uri]);
   return (
     <View style={style}>
       <View style={[StyleSheet.absoluteFill, imageStyle, styles.placeholder]} />
       {uri && !failed ? (
-        <Image
-          source={{ uri }}
-          style={[StyleSheet.absoluteFill, imageStyle]}
-          contentFit="cover"
-          transition={300}
-          cachePolicy="memory-disk"
-          onError={() => setFailed(true)}
-          accessibilityIgnoresInvertColors
-        />
+        <Reanimated.View pointerEvents="none" style={[StyleSheet.absoluteFill, imageContainerStyle]}>
+          <Image
+            source={{ uri }}
+            style={[StyleSheet.absoluteFill, imageStyle]}
+            contentFit="cover"
+            transition={300}
+            cachePolicy="memory-disk"
+            onError={() => setFailed(true)}
+            accessibilityIgnoresInvertColors
+          />
+        </Reanimated.View>
       ) : null}
       {children}
     </View>
