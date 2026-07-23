@@ -10,6 +10,7 @@ import {
   withRepeat,
   withTiming,
 } from 'react-native-reanimated';
+import { motion as motionTokens } from './theme';
 
 // Beweging volgens ADR-057: rustige, overdragende motion — nooit aandacht vangend.
 // Elke animatie in deze module respecteert reduced-motion als harde eis:
@@ -66,7 +67,7 @@ export type EntranceOptions = {
  * Verspringende entree voor gestapelde lagen (fade + lichte stijging).
  * Geeft per laag een animated style terug. Bij reduced-motion: direct eindtoestand.
  */
-export function useStaggeredEntrance(count: number, { offset = 100, duration = 420, distance = 14 }: EntranceOptions = {}): Array<StyleProp<ViewStyle>> {
+export function useStaggeredEntrance(count: number, { offset = motionTokens.entranceStaggerMs, duration = 420, distance = 14 }: EntranceOptions = {}): Array<StyleProp<ViewStyle>> {
   const { reduced, checked } = useReducedMotionState();
   const values = useMemo(() => Array.from({ length: count }, () => new Animated.Value(reduced ? 1 : 0)), [count]);
   const started = useRef(false);
@@ -136,7 +137,7 @@ type BreathingOptions = {
  * quiet-state-orb, Phone Away-gloed). Eén heel trage heen-en-weer-cyclus;
  * sub-perceptueel en nooit opvallend. Bij reduced-motion: volledig stil.
  */
-export function useBreathing({ period = 12000, scaleTo = 1.06, opacityTo, delay = 0 }: BreathingOptions = {}) {
+export function useBreathing({ period = motionTokens.ambientBreathMs, scaleTo = 1.06, opacityTo, delay = 0 }: BreathingOptions = {}) {
   const reduced = useReducedMotion();
   const progress = useSharedValue(0);
   useEffect(() => {
@@ -158,7 +159,7 @@ export function useBreathing({ period = 12000, scaleTo = 1.06, opacityTo, delay 
  * Sub-perceptuele Ken Burns op de Nu-hero (ADR-057: ≤4% scale, ≥8s per richting,
  * zeer traag heen-en-weer — geen opvallende loop). Bij reduced-motion: stilstaand.
  */
-export function useKenBurns({ scaleTo = 1.04, period = 9500 }: { scaleTo?: number; period?: number } = {}) {
+export function useKenBurns({ scaleTo = 1.04, period = motionTokens.kenBurnsMs }: { scaleTo?: number; period?: number } = {}) {
   const reduced = useReducedMotion();
   const progress = useSharedValue(0);
   useEffect(() => {
@@ -174,17 +175,23 @@ export function useKenBurns({ scaleTo = 1.04, period = 9500 }: { scaleTo?: numbe
 }
 
 /**
- * Beeldcontinuïteit Nu → Prepare → Presence (Horizon B, punt 6).
+ * Beeldcontinuïteit Nu → Prepare → Presence (Horizon B, punt 6; Horizon C-besluit).
  * Gekozen aanpak: gecoördineerde enter-transities. Elke flow-stage toont dezelfde
  * beeld-uri (expo-image memory-disk-cache maakt die direct beschikbaar) en de
  * container maakt bij het binnenkomen één rustige "neerleg"-beweging — een lichte
  * scale van 1.045 naar 1 met een zachte fade — met dezelfde duur en easing in
  * elke stage. Daardoor voelt het alsof het beeld doorreist in plaats van springt.
- * Bewust géén echte shared-element-transitie: die vereist gedeelde layout-meting
- * vanuit een navigatie-framework, en dat is Horizon C (niet goedgekeurd).
+ *
+ * Horizon C (ADR-058) heeft de navigatie-fundering gelegd maar bewust géén echte
+ * shared-element-transitie ingevoerd: react-navigation native-stack kent geen
+ * stabiele shared-element-ondersteuning, en Reanimated 4 shared transitions zijn
+ * experimenteel, niet afgedekt op web (de web-preview moet blijven werken) en
+ * moeilijk reduced-motion-zeker te maken. Deze gecoördineerde overgang blijft
+ * daarom de goedgekeurde benadering; een echte shared element vraagt een eigen
+ * besluit zodra de onderliggende techniek stabiel is.
  * Bij reduced-motion: direct eindtoestand.
  */
-export function useImageContinuity({ duration = 560 }: { duration?: number } = {}) {
+export function useImageContinuity({ duration = motionTokens.settleMs }: { duration?: number } = {}) {
   const reduced = useReducedMotion();
   const progress = useSharedValue(0);
   useEffect(() => {

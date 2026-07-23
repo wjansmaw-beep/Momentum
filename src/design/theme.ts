@@ -7,8 +7,6 @@ export const colors = {
   bone: '#1D2722',
   muted: '#687269',
   accent: '#9A6848',
-  /** @deprecated Tijdelijke alias voor `accent`; blijft tot alle bestaande gebruiken zijn gemigreerd. */
-  green: '#9A6848',
   gold: '#B68755',
   /** Donkerdere umber-variant voor tekst op lichte vlakken: circa 4,9:1 op `panel` (WCAG AA voor kleine tekst). */
   accentText: '#8F6539',
@@ -49,4 +47,47 @@ export const radii = {
   card: 24,
   hero: 28,
   pill: 999,
+};
+
+/**
+ * Spacing-schaal (ADR-058): de vaste stappen die de gedeelde stijlen al
+ * gebruikten, nu benoemd zodat nieuwe oppervlakken één ritme houden.
+ */
+export const spacing = {
+  xs: 4,
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 20,
+  xxl: 24,
+  screenGutter: 20,
+  navInset: 18,
+};
+
+/**
+ * Elevation-tokens (ADR-058): schaduwrollen voor drijvende lagen. `frame` is
+ * de zachte web-omlijsting van het appFrame (ongewijzigd overgenomen).
+ */
+export const elevation = {
+  frame: {
+    shadowColor: colors.shadow,
+    shadowOpacity: 0.16,
+    shadowRadius: 38,
+    shadowOffset: { width: 0, height: 8 },
+  },
+};
+
+/**
+ * Motion-tokens (ADR-058): gedeelde tempo's, in lijn met src/design/motion.ts.
+ * Alle beweging respecteert reduced-motion als harde eis (ADR-057).
+ */
+export const motion = {
+  /** Duur van één rustige enter-transitie / beeld-neerleg in ms. */
+  settleMs: 560,
+  /** Verspringing tussen opeenvolgende entree-lagen in ms. */
+  entranceStaggerMs: 100,
+  /** Minimale ademhalingscyclus voor ambient-lagen in ms (sub-perceptueel). */
+  ambientBreathMs: 12000,
+  /** Minimale Ken Burns-cyclus op de hero in ms. */
+  kenBurnsMs: 9500,
 };
