@@ -3,6 +3,11 @@ import { Experience, ExperienceKind, experiences } from './experienceModel';
 export type DayPart = 'morning' | 'midday' | 'afternoon' | 'evening';
 export type PrototypeProfile = 'balanced' | 'explorer' | 'mover' | 'family';
 export type Company = 'solo' | 'together' | 'family';
+// Per-moment vervoer (ADR-059, punt 4): het huidige routemodel kent te voet en
+// fiets (RoutePlan.mode). OV en auto maakt het model niet kent; die worden
+// bewust niet aangeboden om geen ongeverifieerde claims te doen.
+export type TransportMode = 'walking' | 'cycling';
+export const transportLabels: Record<TransportMode, string> = { walking: 'Te voet', cycling: 'Fiets' };
 
 export type PrototypeContext = {
   dayPart: DayPart;

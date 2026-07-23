@@ -59,7 +59,7 @@ export function PresenceScreen() {
   const timedStepInProgress = Boolean(current.seconds && remaining > 0);
   const unfilteredGuide = buildExperienceGuide(experience, stepIndex);
   const insightAllowed = (insight: NonNullable<typeof current.insight>) => !personal.mutedInsightTopics.includes(insight.topic) && !personal.mutedInsightExperienceIds.includes(experience.id);
-  const guide = { ...unfilteredGuide, currentInsight: unfilteredGuide.currentInsight && insightAllowed(unfilteredGuide.currentInsight) ? unfilteredGuide.currentInsight : undefined, furtherInsights: unfilteredGuide.furtherInsights.filter(insightAllowed) };
+  const guide = { ...unfilteredGuide, currentInsight: unfilteredGuide.currentInsight && insightAllowed(unfilteredGuide.currentInsight) ? unfilteredGuide.currentInsight : undefined, furtherInsights: unfilteredGuide.furtherInsights.filter(insightAllowed), moments: unfilteredGuide.moments.filter((moment) => insightAllowed(moment.insight)) };
 
   useEffect(() => {
     setRemaining(current.seconds ?? 0);
@@ -158,7 +158,7 @@ export function PresenceScreen() {
         {stepIndex > 0 && <SecondaryButton label="Vorige stap" onPress={() => setStepIndex((value) => Math.max(0, value - 1))} />}
         <Text style={styles.presenceFooter}>{experience.presenceMode === 'quiet' ? 'Gebruik alleen de aanwijzing die helpt. Leg daarna je telefoon weg.' : 'Alleen de huidige stap vraagt aandacht.'}</Text>
       </View>
-      {guideOpen && <ExperienceGuidePanel guide={guide} depth={guideDepth} accent={experience.accent} onClose={() => setGuideOpen(false)} />}
+      {guideOpen && <ExperienceGuidePanel guide={guide} depth={guideDepth} accent={experience.accent} image={experience.image} onClose={() => setGuideOpen(false)} />}
     </CoverImage>
     </FlowFrame>
   );

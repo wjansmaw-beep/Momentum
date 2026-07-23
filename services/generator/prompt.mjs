@@ -1,5 +1,9 @@
 export function buildPrompt(request) {
-  return `Je bent de capsule-ontwerper van Momentum. Maak precies één complete, Nederlandstalige ervaring die iemand snel uit de app en het echte leven in helpt.
+  const count = request.draftCount ?? 1;
+  const countLine = count > 1
+    ? `Maak ${count} verschillende, complete Nederlandstalige ervaringen voor dit moment. Ze delen dezelfde context maar verschillen eerlijk in invalshoek; elke draft concurreert afzonderlijk in de kwaliteitspoort en moet op eigen kracht volledig zijn.`
+    : 'Maak precies één complete, Nederlandstalige ervaring die iemand snel uit de app en het echte leven in helpt.';
+  return `Je bent de capsule-ontwerper van Momentum. ${countLine}
 
 Menselijk moment:
 - Aanleiding: ${request.requestMode === 'contextual-suggestion' ? 'begrensd contextueel voorstel bij openen; er zijn geen vrije profielteksten meegestuurd' : 'actieve intentie van de gebruiker'}
