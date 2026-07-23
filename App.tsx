@@ -11,11 +11,13 @@ import {
   SafeAreaView,
   ScrollView,
   Share,
+  StyleProp,
   StyleSheet,
   Text,
   TextInput,
   useWindowDimensions,
   View,
+  ViewStyle,
 } from 'react-native';
 import {
   byId,
@@ -98,8 +100,21 @@ import { useFonts } from 'expo-font';
 import { Fraunces_500Medium, Fraunces_500Medium_Italic, Fraunces_600SemiBold } from '@expo-google-fonts/fraunces';
 import { Ionicons } from '@expo/vector-icons';
 import { CoverImage, DimShade, ImageShade } from './src/ui/CoverImage';
+import { Glass } from './src/ui/Glass';
+import { QuietCanvas } from './src/ui/QuietCanvas';
 import { impactLight, impactMedium, notificationSuccess } from './src/design/haptics';
-import { usePressSpring, useStaggeredEntrance } from './src/design/motion';
+import { useBreathing, useImageContinuity, useKenBurns, usePressSpring, useStaggeredEntrance } from './src/design/motion';
+// Horizon B (ADR-057): Reanimated + gesture-handler voor drag-/swipe-fysica,
+// pull-to-refresh en ademende ambient-lagen. De Horizon A-entree en pressed-
+// springs blijven bewust op de ingebouwde Animated API (zie src/design/motion.ts).
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Reanimated, {
+  interpolate,
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated';
 import { attachMeaningThread, meaningThreadFitsExperience } from './src/product/meaningThread';
 import { generateContextualSuggestion, generateExperienceCandidates, GenerationOutcome, GeneratorRuntimeStatus, inspectGeneratorRuntime, isRemoteGenerationConfigured } from './src/product/generativeExperience';
 import { routingCapability, verifyRouteBeforeHandoff } from './src/routing/routeIntelligence';
@@ -638,13 +653,12 @@ export default function App() {
   return (
     <View style={[styles.root, { minHeight: height }]}>
       <StatusBar style={flowStage === 'presence' ? 'light' : 'dark'} />
-      <View style={[styles.ambientGold, { pointerEvents: 'none' }]} />
-      <View style={[styles.ambientUmber, { pointerEvents: 'none' }]} />
+      <AmbientBlobs />
       <SafeAreaView style={styles.safe}>
         <View style={[styles.appFrame, Platform.OS === 'web' && styles.webAppFrame]}>
           {flowStage === null && (
             <>
-              {surface === 'now' && <NowScreen firstName={personalProfile.firstName} suggestions={nowSuggestions} resumableExperience={resumableExperience} context={effectiveContext} calendar={calendarContext} liveWorld={liveWorld} liveLoading={liveLoading} generatorStatus={generatorStatus} generatingMoment={momentGenerationLoading} momentNotice={momentNotice} onDismissMomentNotice={() => setMomentNotice('')} onGenerateMoment={createFreshMoment} pendingExperience={pendingContextual} onShowPendingExperience={showPendingContextual} onResume={resumeSession} onDiscardSession={() => setActiveSession(null)} onOpen={(item, stage) => openExperience(item, 'now', stage)} onProfile={() => setFlowStage('profile')} onDiscover={() => setSurface('discover')} onFeedback={(item, outcome) => setPersonalProfile((current) => applyLearning(current, item, outcome))} />}
+              {surface === 'now' && <NowScreen firstName={personalProfile.firstName} suggestions={nowSuggestions} resumableExperience={resumableExperience} context={effectiveContext} calendar={calendarContext} liveWorld={liveWorld} liveLoading={liveLoading} generatorStatus={generatorStatus} generatingMoment={momentGenerationLoading} momentNotice={momentNotice} onDismissMomentNotice={() => setMomentNotice('')} onGenerateMoment={createFreshMoment} pendingExperience={pendingContextual} onShowPendingExperience={showPendingContextual} onResume={resumeSession} onDiscardSession={() => setActiveSession(null)} onOpen={(item, stage) => openExperience(item, 'now', stage)} onProfile={() => setFlowStage('profile')} onDiscover={() => setSurface('discover')} onRefresh={() => refreshLiveWorld()} onFeedback={(item, outcome) => setPersonalProfile((current) => applyLearning(current, item, outcome))} />}
               {surface === 'today' && <TodayScreen decisions={dayDecisions} calendar={calendarContext} onOpen={(item) => openExperience(item, 'today')} />}
               {surface === 'discover' && <DiscoverScreen context={prototypeContext} candidatePool={candidatePool} learning={learningContext} personal={personalProfile} onOpen={(item) => openExperience(item, 'discover')} />}
               {surface === 'lifebook' && <LifeBookScreen memories={memories} personal={personalProfile} onProfile={() => setFlowStage('profile')} onOpen={(item) => { setPersonalProfile((current) => applyLearning(current, item, 'repeat')); openExperience(item, 'lifebook'); }} />}
@@ -661,11 +675,23 @@ export default function App() {
   );
 }
 
+// Living Canvas (ADR-057, Horizon B): de twee ambient-lagen ademen heel traag
+// (sub-perceptueel, ≥12s per cyclus). Bij reduced-motion staan ze volledig stil;
+// de loops worden opgeschoond bij unmount (centraal in useBreathing).
+function AmbientBlobs({ goldOnly = false }: { goldOnly?: boolean }) {
+  const goldBreath = useBreathing({ period: 13000, scaleTo: 1.06, opacityTo: 0.78 });
+  const umberBreath = useBreathing({ period: 17000, scaleTo: 1.05, opacityTo: 0.82, delay: 2600 });
+  return <>
+    <Reanimated.View pointerEvents="none" style={[styles.ambientGold, goldBreath]} />
+    {!goldOnly && <Reanimated.View pointerEvents="none" style={[styles.ambientUmber, umberBreath]} />}
+  </>;
+}
+
 function IncomingInviteScreen({ invite, expired, available, onAccept, onDecline }: { invite: SharedCapsuleInvite; expired: boolean; available: boolean; onAccept: (guestName: string) => void; onDecline: () => void }) {
   const [guestName, setGuestName] = useState('');
   return <View style={styles.root}>
     <StatusBar style="light" />
-    <View style={[styles.ambientGold, { pointerEvents: 'none' }]} />
+    <AmbientBlobs goldOnly />
     <SafeAreaView style={styles.safe}>
       <ScrollView contentContainerStyle={styles.inviteScreen} showsVerticalScrollIndicator={false}>
         <Text style={styles.eyebrow}>UITNODIGING VAN {invite.hostName.toUpperCase()}</Text>
@@ -758,32 +784,104 @@ function ScreenHeader({ eyebrow, title, subtitle, onProfile, profileName }: { ey
   );
 }
 
-function NowScreen({ firstName, suggestions, resumableExperience, context, calendar, liveWorld, liveLoading, generatorStatus, generatingMoment, momentNotice, onDismissMomentNotice, onGenerateMoment, pendingExperience, onShowPendingExperience, onResume, onDiscardSession, onOpen, onProfile, onDiscover, onFeedback }: { firstName: string; suggestions: Array<{ experience: Experience; decision: LocalDecision }>; resumableExperience?: Experience; context: PrototypeContext; calendar: CalendarContextSnapshot; liveWorld: LiveWorldSnapshot | null; liveLoading: boolean; generatorStatus: GeneratorRuntimeStatus; generatingMoment: boolean; momentNotice?: string; onDismissMomentNotice?: () => void; onGenerateMoment: () => void; pendingExperience?: Experience | null; onShowPendingExperience?: () => void; onResume: () => void; onDiscardSession: () => void; onOpen: (item: Experience, stage?: FlowStage) => void; onProfile: () => void; onDiscover: () => void; onFeedback: (item: Experience, outcome: LearningOutcome) => void }) {
+function NowScreen({ firstName, suggestions, resumableExperience, context, calendar, liveWorld, liveLoading, generatorStatus, generatingMoment, momentNotice, onDismissMomentNotice, onGenerateMoment, pendingExperience, onShowPendingExperience, onResume, onDiscardSession, onOpen, onProfile, onDiscover, onRefresh, onFeedback }: { firstName: string; suggestions: Array<{ experience: Experience; decision: LocalDecision }>; resumableExperience?: Experience; context: PrototypeContext; calendar: CalendarContextSnapshot; liveWorld: LiveWorldSnapshot | null; liveLoading: boolean; generatorStatus: GeneratorRuntimeStatus; generatingMoment: boolean; momentNotice?: string; onDismissMomentNotice?: () => void; onGenerateMoment: () => void; pendingExperience?: Experience | null; onShowPendingExperience?: () => void; onResume: () => void; onDiscardSession: () => void; onOpen: (item: Experience, stage?: FlowStage) => void; onProfile: () => void; onDiscover: () => void; onRefresh: () => Promise<boolean>; onFeedback: (item: Experience, outcome: LearningOutcome) => void }) {
   const [declined, setDeclined] = useState(false);
   const [whyOpen, setWhyOpen] = useState(false);
   const [suggestionIndex, setSuggestionIndex] = useState(0);
+  const [pullRefreshing, setPullRefreshing] = useState(false);
   // Entree volgens ADR-057: hero-lagen verschijnen verspringend (respecteert reduced-motion).
   const heroEntrance = useStaggeredEntrance(5);
+  // Living Canvas (Horizon B): sub-perceptuele Ken Burns op de hero (≤4%, ≥8s, stil bij reduced-motion).
+  const kenBurns = useKenBurns();
   const currentSuggestion = suggestions[Math.min(suggestionIndex, suggestions.length - 1)] ?? suggestions[0];
   const experience = currentSuggestion.experience;
   const decision = currentSuggestion.decision;
   const grounding = evidenceSummary(experience);
   useEffect(() => { setSuggestionIndex(0); setWhyOpen(false); setDeclined(false); }, [suggestions.map((item) => item.experience.id).join('|')]);
   const showSuggestion = (index: number) => { setSuggestionIndex(index); setWhyOpen(false); setDeclined(false); };
+  // suggestionIndexRef spiegelt de state zodat gebaar-callbacks nooit met een
+  // verouderde closure werken.
+  const suggestionIndexRef = useRef(suggestionIndex);
+  useEffect(() => { suggestionIndexRef.current = suggestionIndex; }, [suggestionIndex]);
+  const shiftSuggestion = (direction: number) => {
+    const nextIndex = Math.max(0, Math.min(suggestions.length - 1, suggestionIndexRef.current + direction));
+    if (nextIndex === suggestionIndexRef.current) return;
+    impactLight();
+    showSuggestion(nextIndex);
+  };
+
+  // Swipe tussen de eindige Nu-suggesties (Horizon B): horizontale pan op de
+  // hero-pager; de pijltjes en dots blijven als rustige fallback (web/toegankelijkheid).
+  const swipeGesture = Gesture.Pan()
+    .activeOffsetX([-16, 16])
+    .failOffsetY([-12, 12])
+    .onEnd((event) => {
+      'worklet';
+      if (event.translationX < -48 || event.velocityX < -420) runOnJS(shiftSuggestion)(1);
+      else if (event.translationX > 48 || event.velocityX > 420) runOnJS(shiftSuggestion)(-1);
+    });
+
+  // Pull-to-refresh (Horizon B): omlaag trekken bovenaan de scroll ververst de
+  // live wereld via het bestaande refreshLiveWorld-pad, met rubber-band-demping.
+  // Op web blijft de verversknop in de LiveWorldBar de expliciete fallback.
+  const scrollTop = useSharedValue(0);
+  const pull = useSharedValue(0);
+  const runRefresh = async () => {
+    setPullRefreshing(true);
+    impactLight();
+    try { await onRefresh(); }
+    finally {
+      setPullRefreshing(false);
+      pull.value = withSpring(0, { damping: 22, stiffness: 200 });
+    }
+  };
+  const pullGesture = Gesture.Pan()
+    .activeOffsetY(26)
+    .failOffsetX([-14, 14])
+    .onUpdate((event) => {
+      'worklet';
+      if (scrollTop.value <= 0 && event.translationY > 0) {
+        // Rubber-band: de afstand wordt logaritmisch gedempt naarmate je verder trekt.
+        pull.value = Math.min(112, event.translationY * 0.42);
+      }
+    })
+    .onEnd(() => {
+      'worklet';
+      if (pull.value >= 58) {
+        pull.value = withSpring(46, { damping: 20, stiffness: 190 });
+        runOnJS(runRefresh)();
+      } else {
+        pull.value = withSpring(0, { damping: 22, stiffness: 200 });
+      }
+    });
+  const pullContentStyle = useAnimatedStyle(() => ({ transform: [{ translateY: pull.value }] }));
+  const pullIndicatorStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(pull.value, [8, 46], [0, 1], 'clamp'),
+    transform: [{ translateY: interpolate(pull.value, [0, 46], [-14, 0], 'clamp') }],
+  }));
+
   return (
-    <ScrollView contentContainerStyle={styles.screenScroll} showsVerticalScrollIndicator={false}>
+    <GestureDetector gesture={pullGesture}>
+      <View style={styles.flex}>
+        <Reanimated.View pointerEvents="none" style={[styles.pullIndicator, pullIndicatorStyle]}>
+          <Ionicons name="arrow-down" size={13} color={colors.accent} />
+          <Text style={styles.pullIndicatorText}>{pullRefreshing ? 'Live wereld wordt ververst…' : 'Loslaten om de live wereld te verversen'}</Text>
+        </Reanimated.View>
+        <Reanimated.View style={[styles.flex, pullContentStyle]}>
+          <ScrollView contentContainerStyle={styles.screenScroll} showsVerticalScrollIndicator={false} onScroll={(event) => { scrollTop.value = event.nativeEvent.contentOffset.y; }} scrollEventThrottle={16}>
       <ScreenHeader eyebrow={`${dayPartLabels[context.dayPart].toUpperCase()}${firstName ? ` · ${firstName.toUpperCase()}` : ''}`} title="Vandaag wacht er iets moois op je." subtitle="Dit past waarschijnlijk bij je moment. Jij beslist." onProfile={onProfile} profileName={firstName} />
-      <LiveWorldBar snapshot={liveWorld} loading={liveLoading} />
+      <LiveWorldBar snapshot={liveWorld} loading={liveLoading} onRefresh={Platform.OS === 'web' ? onRefresh : undefined} />
       {pendingExperience ? <Pressable accessibilityRole="button" accessibilityLabel={`Toon de nieuwe blik: ${pendingExperience.title}`} onPress={onShowPendingExperience} style={styles.pendingHeroPill}><Ionicons name="sparkles" size={14} color={colors.accent} /><View style={styles.flex}><Text style={styles.pendingHeroPillText}>Nieuwe blik beschikbaar</Text><Text style={styles.pendingHeroPillBody}>{pendingExperience.title} wacht rustig tot jij wilt wisselen.</Text></View><Text style={styles.pendingHeroPillAction}>Toon</Text></Pressable> : null}
       {resumableExperience && <View style={styles.resumeCard}><Pressable accessibilityLabel={`Hervat ${resumableExperience.title}`} onPress={onResume} style={styles.resumeMain}><View style={styles.resumeMark}><Ionicons name="play" size={14} color={colors.accent} /></View><View style={styles.flex}><Text style={styles.resumeLabel}>GA VERDER</Text><Text style={styles.resumeTitle}>{resumableExperience.title}</Text></View><Ionicons name="arrow-forward" size={21} color={colors.gold} /></Pressable><Pressable accessibilityLabel="Sluit open ervaring" onPress={onDiscardSession} style={styles.resumeDiscard}><Text style={styles.resumeDiscardText}>Sluit</Text></Pressable></View>}
       {calendar.state === 'live' && calendar.currentFreeMinutes ? <View style={styles.contextNotice}><Ionicons name="time-outline" size={20} color={colors.gold} /><View style={styles.flex}><Text style={styles.contextNoticeTitle}>{calendar.currentFreeMinutes} minuten ruimte herkend</Text><Text style={styles.contextNoticeBody}>Alleen begin- en eindtijden verwerkt · afspraakinhoud genegeerd</Text></View></View> : null}
-      {decision.confidence === 'low' && !declined ? <View style={styles.silentCard}>
-        <Text style={styles.eyebrow}>NOG GEEN EERLIJK BESTE VOORSTEL</Text><Text style={styles.silentTitle}>Wat zou dit moment voor jou de moeite waard maken?</Text>
+      {decision.confidence === 'low' && !declined ? <QuietCanvas eyebrow="NOG GEEN EERLIJK BESTE VOORSTEL" title="Wat zou dit moment voor jou de moeite waard maken?">
         <Text style={styles.screenSubtitle}>Momentum mist voldoende onderscheid. Geef één korte richting; je beschikbare tijd blijft behouden.</Text>
         <PrimaryButton label="Geef richting" onPress={onDiscover} /><SecondaryButton label="Laat dit moment open" onPress={() => setDeclined(true)} />
-      </View> : !declined ? (
+      </QuietCanvas> : !declined ? (
         <View style={styles.heroCard}>
-          <CoverImage uri={experience.image} style={styles.heroImage} imageStyle={styles.heroImageStyle}>
+          <GestureDetector gesture={swipeGesture}>
+            <View collapsable={false}>
+              <CoverImage uri={experience.image} style={styles.heroImage} imageStyle={styles.heroImageStyle} imageContainerStyle={kenBurns as StyleProp<ViewStyle>}>
             <ImageShade />
             <Animated.View style={[styles.heroTop, heroEntrance[0]]}><Pill label={`${experienceKindLabels[experience.kind].toUpperCase()} MOMENT`} accent={experience.accent} /><Text style={styles.heroTime}>{grounding.currentCount ? `LIVE VERRIJKT · ${grounding.currentCount}` : experience.generation ? 'VOOR DIT MOMENT GEMAAKT' : suggestionIndex === 0 ? 'BESTE MATCH' : 'ANDERE BLIK'}</Text></Animated.View>
             <View style={styles.heroBottom}>
@@ -805,6 +903,8 @@ function NowScreen({ firstName, suggestions, resumableExperience, context, calen
               </Animated.View>
             </View>
           </CoverImage>
+            </View>
+          </GestureDetector>
           <View style={styles.heroActionArea}>
             {suggestions.length > 1 && <View style={styles.suggestionSwitcher}>
               <Pressable accessibilityLabel="Vorige suggestie" disabled={suggestionIndex === 0} onPress={() => { impactLight(); showSuggestion(Math.max(0, suggestionIndex - 1)); }} style={[styles.suggestionArrow, suggestionIndex === 0 && styles.suggestionArrowDisabled]}><Ionicons name="chevron-back" size={20} color={colors.bone} /></Pressable>
@@ -819,12 +919,10 @@ function NowScreen({ firstName, suggestions, resumableExperience, context, calen
           </View>
         </View>
       ) : (
-        <View style={styles.silentCard}>
-          <Text style={styles.eyebrow}>MOMENTUM BLIJFT STIL</Text>
-          <Text style={styles.silentTitle}>Prima. Dit moment hoeft niets te worden.</Text>
+        <QuietCanvas eyebrow="MOMENTUM BLIJFT STIL" title="Prima. Dit moment hoeft niets te worden.">
           <Text style={styles.screenSubtitle}>Je keuze verandert je blijvende voorkeuren niet.</Text>
           <SecondaryButton label="Toon het voorstel opnieuw" onPress={() => setDeclined(false)} />
-        </View>
+        </QuietCanvas>
       )}
       <View style={styles.momentMakerCard}>
         <Text style={styles.momentMakerEyebrow}>NOG NIETS GERAAKT?</Text>
@@ -838,7 +936,10 @@ function NowScreen({ firstName, suggestions, resumableExperience, context, calen
         <View style={styles.flex}><Text style={styles.spaceTitle}>Er is ruimte ontstaan</Text><Text style={styles.spaceBody}>Vertel wat er veranderde of waar je zin in hebt</Text></View>
         <Ionicons name="arrow-forward" size={21} color={colors.gold} />
       </Pressable>
-    </ScrollView>
+          </ScrollView>
+        </Reanimated.View>
+      </View>
+    </GestureDetector>
   );
 }
 
@@ -977,7 +1078,7 @@ function DiscoverScreen({ context, candidatePool, learning, personal, onOpen }: 
             {primary.generation && <GeneratedCapsulePreview experience={primary} />}
             <View style={styles.selectionReasons}>{result.selected?.reasons.map((reason) => <Text key={reason.text} style={styles.selectionReason}>• {reason.text}</Text>)}</View>
             {alternative && <><Text style={styles.sectionLabel}>EEN ECHT ANDERE RICHTING</Text><ExperienceTile experience={alternative} onPress={() => onOpen(alternative)} /></>}
-          </> : <View style={styles.silentCard}><Text style={styles.eyebrow}>GEEN EERLIJK VOORSTEL</Text><Text style={styles.silentTitle}>Binnen deze ruimte past nu niets compleet.</Text><Text style={styles.screenSubtitle}>Vergroot de beschikbare tijd of pas één praktische beperking aan.</Text></View>)}
+          </> : <QuietCanvas eyebrow="GEEN EERLIJK VOORSTEL" title="Binnen deze ruimte past nu niets compleet."><Text style={styles.screenSubtitle}>Vergroot de beschikbare tijd of pas één praktische beperking aan.</Text></QuietCanvas>)}
           <SecondaryButton label="Pas mijn woorden aan" onPress={() => { setClarificationChoice(null); setGeneration(null); setMode('idle'); }} />
           <Text style={styles.finiteNote}>Momentum toont bewust geen eindeloze lijst.</Text>
         </View>
@@ -996,6 +1097,9 @@ function LifeBookScreen({ memories, personal, onOpen, onProfile }: { memories: M
       <ScreenHeader eyebrow="JOUW ERVARINGEN" title="Leefboek" subtitle="Niet wat je volhield, maar wat de moeite waard was." />
       <View style={styles.lifeLandscape}><View><Text style={styles.lifeSummaryEyebrow}>JOUW LANDSCHAP</Text><Text style={styles.lifeSummaryHeadline}>{memories.length ? 'Hier krijgt je leven langzaam vorm.' : 'Hier komen je beleefde momenten samen.'}</Text></View><Text style={styles.lifeSummaryTitle}>{memories.length} bewaarde momenten · alleen op dit apparaat</Text>{themes.length > 0 && <View style={styles.lifeThemeRow}>{themes.map((theme) => <View key={theme} style={styles.lifeTheme}><Text style={styles.lifeThemeText}>{theme}</Text></View>)}</View>}</View>
       {memories.length > 0 && <Text style={styles.sectionLabel}>{periodLabel}</Text>}
+      {memories.length === 0 && <QuietCanvas eyebrow="NOG GEEN BEWAARDE MOMENTEN" title="Hier komen je beleefde momenten samen.">
+        <Text style={styles.screenSubtitle}>Bewaar straks wat de moeite waard was. Je herinneringen blijven alleen op dit apparaat.</Text>
+      </QuietCanvas>}
       <View style={styles.memoryGrid}>
         {memories.map((memory, index) => {
           const experience = memory.experienceSnapshot ?? experiences.find((item) => item.title === memory.title) ?? byId('wadden-light');
@@ -1055,6 +1159,9 @@ function PrepareScreen({ experience, personal, hostName, initialCompany, initial
       readiness: { ...(current.readiness ?? { timing: false, pace: false, practical: false }), [key]: !(current.readiness?.[key] ?? false) },
     } : current);
   };
+  // Beeldcontinuïteit (Horizon B, punt 6): dezelfde beeld-uri als op Nu reist mee;
+  // de container legt het beeld met één rustige scale/fade neer (zie motion.ts).
+  const imageContinuity = useImageContinuity();
   // North Star Frame 5: de voorbereiding toont in eerste zicht alleen het noodzakelijke —
   // fotokaart/belofte → capsule-essentie (tijd, wat je nodig hebt, gezelschap) → primaire actie.
   // Verdieping (live-aanwijzingen, route, verhaal van de plek) blijft ongewijzigd beschikbaar
@@ -1065,7 +1172,7 @@ function PrepareScreen({ experience, personal, hostName, initialCompany, initial
     <ScrollView contentContainerStyle={[styles.flowScroll, styles.flowScrollStickyAction]} showsVerticalScrollIndicator={false}>
       <BackButton label="Terug" onPress={onBack} />
       <Text style={styles.eyebrow}>{experienceKindLabels[experience.kind].toUpperCase()} · UITNODIGING</Text><Text style={styles.flowTitle}>{experience.title}</Text><Text style={styles.screenSubtitle}>{experience.promise}</Text>
-      <CoverImage uri={experience.image} style={styles.prepareExpectationCard} imageStyle={styles.prepareExpectationImage}>
+      <CoverImage uri={experience.image} style={styles.prepareExpectationCard} imageStyle={styles.prepareExpectationImage} imageContainerStyle={imageContinuity as StyleProp<ViewStyle>}>
         <ImageShade />
         <View style={styles.prepareExpectationCopy}>
           <Text style={styles.prepareExpectationLabel}>WAT JE KUNT VERWACHTEN</Text>
@@ -1146,6 +1253,9 @@ function PresenceScreen({ experience, personal, company, guideDepth, shared, ini
   const [phoneAway, setPhoneAway] = useState(false);
   const [guideOpen, setGuideOpen] = useState(false);
   const [handoffStatus, setHandoffStatus] = useState('');
+  // Beeldcontinuïteit (Horizon B, punt 6): dezelfde beeld-uri als Nu en Prepare;
+  // de backdrop legt het beeld met dezelfde rustige neerleg-beweging neer.
+  const imageContinuity = useImageContinuity();
   const current = experience.steps[stepIndex] ?? { title: experience.presenceTitle, instruction: experience.presenceCue };
   const insightVisible = guideDepth !== 'quiet' && current.insight && (guideDepth === 'deep' || personal.guidanceBalance > -0.2) && !personal.mutedInsightTopics.includes(current.insight.topic) && !personal.mutedInsightExperienceIds.includes(experience.id);
   const isLast = stepIndex >= experience.steps.length - 1;
@@ -1202,15 +1312,9 @@ function PresenceScreen({ experience, personal, company, guideDepth, shared, ini
     else { impactLight(); setStepIndex((value) => value + 1); }
   };
   const formatTime = (seconds: number) => `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
-  if (phoneAway) return <View style={styles.phoneAwayScreen}>
-    <Text style={styles.phoneAwayEyebrow}>PRESENCE</Text><Text style={styles.phoneAwayTitle}>{experience.title}</Text><Text style={styles.phoneAwayCue}>{current.title}</Text>
-    {current.seconds ? <Text style={styles.phoneAwayTimer}>{formatTime(remaining)}</Text> : <View style={[styles.phoneAwayOrb, { borderColor: experience.accent }]}><Ionicons name="ellipse" size={10} color={experience.accent} /></View>}
-    {shared && <Text style={styles.phoneAwayTogether}>{shared.participants.filter((participant) => participant.status === 'ready').map((participant) => participant.name).join(' + ')} · samen aanwezig</Text>}
-    <Text style={styles.phoneAwayBody}>Je hoeft nu niets te bedienen. De gids blijft met één tik beschikbaar.</Text>
-    <Pressable accessibilityRole="button" accessibilityLabel="Raadpleeg de gids" onPress={() => { setPhoneAway(false); setGuideOpen(true); }} style={styles.reopenGuide}><Text style={styles.reopenGuideText}>Raadpleeg de gids</Text></Pressable>
-  </View>;
+  if (phoneAway) return <PhoneAwayView experience={experience} cue={current.title} seconds={current.seconds} remaining={remaining} formatTime={formatTime} shared={shared} onReopen={() => { setPhoneAway(false); setGuideOpen(true); }} />;
   return (
-    <CoverImage uri={experience.image} style={styles.presenceScreen} imageStyle={styles.presenceBackdrop}>
+    <CoverImage uri={experience.image} style={styles.presenceScreen} imageStyle={styles.presenceBackdrop} imageContainerStyle={imageContinuity as StyleProp<ViewStyle>}>
       <DimShade opacity={0.74} />
       <View style={styles.presenceTopRow}><BackButton label="Voorbereiding" onPress={onBack} /><View style={styles.presenceActions}><Pressable accessibilityRole="button" accessibilityLabel="Open de ervaringsgids" onPress={() => setGuideOpen(true)} style={styles.guideButton}><Text style={styles.guideButtonText}>Gids</Text></Pressable><Pressable accessibilityRole="button" accessibilityLabel="Leg de telefoon weg" onPress={() => setPhoneAway(true)} style={styles.phoneAwayButton}><Text style={styles.phoneAwayButtonText}>Telefoon weg</Text></Pressable></View></View>
       <View style={styles.capsuleProgress}>
@@ -1254,6 +1358,21 @@ function PresenceScreen({ experience, personal, company, guideDepth, shared, ini
       {guideOpen && <ExperienceGuidePanel guide={guide} depth={guideDepth} accent={experience.accent} onClose={() => setGuideOpen(false)} />}
     </CoverImage>
   );
+}
+
+// Phone Away (Horizon B): echt OLED-zwart met één zacht gloeiend, ademend
+// element (Reanimated; geen Skia). Bij reduced-motion staat de gloed stil.
+function PhoneAwayView({ experience, cue, seconds, remaining, formatTime, shared, onReopen }: { experience: Experience; cue: string; seconds?: number; remaining: number; formatTime: (seconds: number) => string; shared?: SharedCapsuleState; onReopen: () => void }) {
+  const breath = useBreathing({ period: 6400, scaleTo: 1.055, opacityTo: 0.72 });
+  return <View style={styles.phoneAwayScreen}>
+    <Text style={styles.phoneAwayEyebrow}>PRESENCE</Text><Text style={styles.phoneAwayTitle}>{experience.title}</Text><Text style={styles.phoneAwayCue}>{cue}</Text>
+    <Reanimated.View style={[styles.phoneAwayGlow, { borderColor: experience.accent, shadowColor: experience.accent }, breath]}>
+      {seconds ? <Text style={styles.phoneAwayTimer}>{formatTime(remaining)}</Text> : <Ionicons name="ellipse" size={10} color={experience.accent} />}
+    </Reanimated.View>
+    {shared && <Text style={styles.phoneAwayTogether}>{shared.participants.filter((participant) => participant.status === 'ready').map((participant) => participant.name).join(' + ')} · samen aanwezig</Text>}
+    <Text style={styles.phoneAwayBody}>Je hoeft nu niets te bedienen. De gids blijft met één tik beschikbaar.</Text>
+    <Pressable accessibilityRole="button" accessibilityLabel="Raadpleeg de gids" onPress={onReopen} style={styles.reopenGuide}><Text style={styles.reopenGuideText}>Raadpleeg de gids</Text></Pressable>
+  </View>;
 }
 
 function RememberScreen({ experience, personal, shared, onSkip, onSave }: { experience: Experience; personal: PersonalProfile; shared?: SharedCapsuleState; onSkip: () => void; onSave: (input: ReflectionInput, generationEvaluation?: GenerationEvaluationSignal[]) => void }) {
@@ -1431,7 +1550,7 @@ function ProfileScreen({ personal, evidence, composition, opportunitySummary, ge
   </ScrollView>;
 }
 
-function LiveWorldBar({ snapshot, loading }: { snapshot: LiveWorldSnapshot | null; loading: boolean }) {
+function LiveWorldBar({ snapshot, loading, onRefresh }: { snapshot: LiveWorldSnapshot | null; loading: boolean; onRefresh?: () => Promise<boolean> }) {
   const weather = snapshot?.weather;
   const air = snapshot?.airQuality;
   const liveCount = snapshot?.sources.filter((source) => source.state === 'live').length ?? 0;
@@ -1440,6 +1559,7 @@ function LiveWorldBar({ snapshot, loading }: { snapshot: LiveWorldSnapshot | nul
   return <View style={styles.liveWorldBar}>
     <View style={[styles.sourceState, liveCount ? styles.sourceLive : styles.sourceWaiting]} />
     <View style={styles.flex}><Text style={styles.liveWorldBarTitle}>{loading && !snapshot ? 'Je omgeving wordt bijgewerkt' : liveCount ? `Actuele omstandigheden rond ${region}` : staleCount ? `Laatste bekende omstandigheden rond ${region}` : `Ervaringen rond ${region}`}</Text><Text style={styles.liveWorldBarDetail}>{weather ? `${Math.round(weather.temperature)}°C · wind ${Math.round(weather.windSpeed)} km/u · zicht ${Math.round(weather.visibilityMeters / 1000)} km${air ? ` · luchtkwaliteit ${Math.round(air.europeanAqi)}` : ''}` : 'Ook zonder live bronnen blijft Momentum bruikbaar'}</Text></View>
+    {onRefresh ? <Pressable accessibilityRole="button" accessibilityLabel="Vernieuw de live wereld" disabled={loading} onPress={() => { onRefresh().catch(() => undefined); }} style={styles.liveWorldRefresh}><Ionicons name="refresh" size={16} color={colors.accent} /></Pressable> : null}
   </View>;
 }
 
@@ -1448,10 +1568,12 @@ function BottomNav({ surface, onChange }: { surface: Surface; onChange: (surface
     { id: 'now', label: 'Nu' }, { id: 'today', label: 'Vandaag' },
     { id: 'discover', label: 'Ontdekken' }, { id: 'lifebook', label: 'Leefboek' },
   ];
-  return <View style={styles.bottomNav}>{items.map((item) => {
+  // Echt glas (Horizon B): expo-blur onder de bottomNav; de fallbackColor blijft
+  // de vroegere rgba-tint zodat web zonder backdrop-filter er identiek uitziet.
+  return <Glass intensity={48} fallbackColor="rgba(252,250,245,0.92)" style={styles.bottomNav}>{items.map((item) => {
     const active = surface === item.id;
     return <Pressable key={item.id} accessibilityRole="tab" accessibilityLabel={item.label} accessibilityState={{ selected: active }} onPress={() => { impactLight(); onChange(item.id); }} style={styles.navItem}><View style={[styles.navIconShell, active && styles.navIconShellActive]}><NavGlyph kind={item.id} active={active} /></View><Text style={[styles.navLabel, active && styles.navActive]}>{item.label}</Text></Pressable>;
-  })}</View>;
+  })}</Glass>;
 }
 
 function NavGlyph({ kind, active }: { kind: Surface; active: boolean }) {
@@ -1594,6 +1716,9 @@ const styles = StyleSheet.create({
   suggestionArrow: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.04)' },
   suggestionArrowDisabled: { opacity: 0.22 }, suggestionPosition: { alignItems: 'center', flex: 1 }, suggestionDots: { flexDirection: 'row', gap: 6 }, suggestionDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.line }, suggestionDotActive: { width: 18, backgroundColor: colors.accent }, suggestionPositionBody: { color: colors.muted, fontSize: 11, marginTop: 6 },
   liveWorldBar: { minHeight: 54, paddingHorizontal: 4, flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 }, liveWorldBarTitle: { color: colors.bone, fontSize: 12, fontWeight: '600' }, liveWorldBarDetail: { color: colors.muted, fontSize: 11, lineHeight: 16, marginTop: 2 }, liveWorldMark: { color: colors.accent, fontSize: 20 },
+  liveWorldRefresh: { width: 40, height: 40, borderRadius: 20, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.panel, alignItems: 'center', justifyContent: 'center' },
+  pullIndicator: { position: 'absolute', top: 8, alignSelf: 'center', zIndex: 5, flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: radii.pill, borderWidth: 1, borderColor: colors.accentLine, backgroundColor: colors.panel, paddingHorizontal: 13, paddingVertical: 8, shadowColor: colors.shadow, shadowOpacity: 0.10, shadowRadius: 12, shadowOffset: { width: 0, height: 4 } },
+  pullIndicatorText: { color: colors.bone, fontSize: 11, fontWeight: '700' },
   contextNotice: { minHeight: 58, borderRadius: 18, borderWidth: 1, borderColor: 'rgba(217,179,107,0.28)', backgroundColor: 'rgba(217,179,107,0.05)', paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 11, marginBottom: 14 }, contextNoticeTitle: { color: colors.bone, fontSize: 12, fontWeight: '700' }, contextNoticeBody: { color: colors.muted, fontSize: 11, marginTop: 3 },
   pill: { alignSelf: 'flex-start', borderRadius: 99, borderWidth: 1, backgroundColor: 'rgba(5,10,10,0.56)', paddingHorizontal: 10, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', gap: 7 }, pillDot: { width: 6, height: 6, borderRadius: 3 }, pillText: { fontSize: 11, letterSpacing: 1.05, fontWeight: '700' },
   miniFact: { minWidth: 70 }, miniFactValue: { color: colors.bone, fontSize: 13, fontWeight: '600' }, miniFactLabel: { color: colors.muted, fontSize: 11, marginTop: 3 }, miniFactValueOnImage: { color: colors.onImage }, miniFactLabelOnImage: { color: colors.onImageMuted },
@@ -1601,7 +1726,6 @@ const styles = StyleSheet.create({
   secondaryButton: { minHeight: 50, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14 }, secondaryButtonText: { color: colors.bone, fontSize: 14, fontWeight: '600' }, pressed: { opacity: 0.74, transform: [{ scale: 0.992 }] },
   inviteScreen: { width: '100%', maxWidth: 620, alignSelf: 'center', paddingHorizontal: 22, paddingTop: 64, paddingBottom: 50 }, invalidInviteScreen: { flex: 1, width: '100%', maxWidth: 620, alignSelf: 'center', justifyContent: 'center', paddingHorizontal: 22, paddingBottom: 50, gap: 20 }, inviteHeadline: { color: colors.bone, fontFamily: editorialFont, fontSize: 39, lineHeight: 44, fontWeight: '700', letterSpacing: -1.1, marginTop: 12 }, invitePromiseCard: { borderRadius: radii.hero, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.panel, padding: 20, marginTop: 26 }, inviteTitle: { color: colors.bone, fontFamily: editorialFont, fontSize: 29, lineHeight: 34, fontWeight: '700', letterSpacing: -0.5, marginTop: 12 }, invitePromise: { color: colors.muted, fontSize: 15, lineHeight: 22, marginTop: 9 }, inviteTrustCard: { borderRadius: radii.card, borderWidth: 1, borderColor: colors.line, borderLeftWidth: 3, borderLeftColor: colors.accent, backgroundColor: colors.panel, padding: 17, marginVertical: 20 }, inviteTrustTitle: { color: colors.accent, fontSize: 14, fontWeight: '700' }, inviteTrustBody: { color: colors.muted, fontSize: 11, lineHeight: 18, marginTop: 6 }, inviteNameInput: { minHeight: 54, borderRadius: radii.control, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.panel, color: colors.bone, paddingHorizontal: 16, fontSize: 16, marginBottom: 15 }, invitePrototypeNote: { color: colors.muted, fontSize: 11, lineHeight: 15, textAlign: 'center', marginTop: 14 }, unavailableInvite: { borderRadius: radii.control, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.panel, padding: 17 }, unavailableInviteTitle: { color: colors.bone, fontSize: 14, fontWeight: '700' }, unavailableInviteBody: { color: colors.muted, fontSize: 11, lineHeight: 17, marginTop: 6 },
   whyButton: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 4 }, whyButtonText: { color: colors.muted, fontSize: 13 }, whyPanel: { borderRadius: 18, backgroundColor: colors.accentSoft, padding: 15, gap: 8 }, whyReason: { color: colors.bone, fontSize: 12, lineHeight: 18 }, proofNote: { color: colors.muted, fontSize: 11, lineHeight: 16, marginTop: 3 }, feedbackActions: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }, feedbackDivider: { width: 1, height: 18, backgroundColor: colors.line, marginHorizontal: 8 }, quietAction: { minHeight: 44, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 10 }, quietActionText: { color: colors.muted, fontSize: 12 },
-  silentCard: { minHeight: 520, borderRadius: 30, borderWidth: 1, borderColor: colors.line, padding: 24, justifyContent: 'center', backgroundColor: colors.panel }, silentTitle: { color: colors.bone, fontSize: 36, lineHeight: 42, fontFamily: editorialMediumFont },
   momentMakerCard: { marginTop: 18, paddingHorizontal: 3, paddingVertical: 16, borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.softLine }, momentMakerHeader: { flexDirection: 'row', alignItems: 'center', gap: 9, marginBottom: 11 }, momentMakerEyebrow: { color: colors.accent, fontSize: 11, letterSpacing: 1.1, fontWeight: '700' }, momentMakerTitle: { color: colors.bone, fontSize: 18, lineHeight: 24, fontWeight: '600', marginTop: 7 }, momentMakerBody: { color: colors.muted, fontSize: 12, lineHeight: 18, marginTop: 6, marginBottom: 4 },
   spaceCard: { marginTop: 16, minHeight: 90, borderRadius: 25, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.panel, padding: 16, flexDirection: 'row', alignItems: 'center', shadowColor: colors.shadow, shadowOpacity: 0.07, shadowRadius: 12, shadowOffset: { width: 0, height: 5 } }, spaceIcon: { width: 45, height: 45, borderRadius: 23, borderWidth: 1, borderColor: colors.gold, alignItems: 'center', justifyContent: 'center', marginRight: 13 }, spaceTitle: { color: colors.bone, fontSize: 17, fontWeight: '600' }, spaceBody: { color: colors.muted, fontSize: 11, lineHeight: 16, marginTop: 3 },
   daySummary: { marginBottom: 28, paddingLeft: 2, maxWidth: 430 }, daySummaryEyebrow: { color: colors.accent, fontSize: 11, letterSpacing: 1.15, fontWeight: '700' }, daySummaryBody: { color: colors.muted, fontSize: 13, lineHeight: 19, marginTop: 5 }, timeline: { gap: 0 }, timelineRow: { width: '100%' }, timelineContent: { paddingBottom: 25 }, dayMomentHeader: { flexDirection: 'row', alignItems: 'center', gap: 9, marginBottom: 10, paddingHorizontal: 2 }, dayMomentMark: { width: 20, height: 3, borderRadius: 2 }, timelineTime: { color: colors.muted, fontSize: 11, letterSpacing: 1.05, fontWeight: '700' }, dayCardImage: { justifyContent: 'flex-end', borderRadius: radii.card, overflow: 'hidden', shadowColor: colors.shadow, shadowOpacity: 0.10, shadowRadius: 16, shadowOffset: { width: 0, height: 8 } }, dayCardImagePrimary: { minHeight: 260 }, dayCardImageSecondary: { minHeight: 172 }, dayCardImageStyle: { borderRadius: radii.card }, dayCardCopy: { padding: 19, paddingTop: 50 }, dayCardTitle: { color: colors.onImage, fontSize: 25, lineHeight: 30, fontWeight: '700', fontFamily: editorialFont, letterSpacing: -0.4 }, dayCardPromise: { color: colors.onImageMuted, fontSize: 13, lineHeight: 19, marginTop: 7, maxWidth: 360 }, dayCardMeta: { color: colors.onImage, fontSize: 11, lineHeight: 16, fontWeight: '600' }, quietDay: { paddingVertical: 18, borderTopWidth: 1, borderTopColor: colors.softLine, marginTop: 2 }, quietDayTitle: { color: colors.bone, fontSize: 15, fontWeight: '700' }, quietDayBody: { color: colors.muted, fontSize: 11, lineHeight: 17, marginTop: 5 },
@@ -1610,7 +1734,7 @@ const styles = StyleSheet.create({
   clarificationPanel: { borderRadius: radii.hero, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.panel, padding: 20 }, clarificationTitle: { color: colors.bone, fontFamily: editorialFont, fontSize: 30, lineHeight: 36, fontWeight: '700', marginTop: 13 }, clarificationBody: { color: colors.muted, fontSize: 14, lineHeight: 21, marginTop: 10 }, intentQuote: { color: colors.accentText, fontFamily: editorialItalicFont, fontSize: 16, lineHeight: 23, fontWeight: '600', marginTop: 12 }, clarificationOptions: { gap: 9, marginTop: 24, marginBottom: 18 }, clarificationOption: { minHeight: 58, borderRadius: radii.control, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.panelRaised, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center' }, clarificationOptionText: { color: colors.bone, fontSize: 15, fontWeight: '600', flex: 1 },
   generationCard: { minHeight: 74, borderRadius: 22, borderWidth: 1, borderColor: colors.accentLine, backgroundColor: colors.accentSoft, padding: 15, marginBottom: 22, flexDirection: 'row', alignItems: 'center', gap: 12 }, generationMark: { width: 34, color: colors.accent, fontSize: 18, fontWeight: '700', textAlign: 'center' }, generationTitle: { color: colors.bone, fontSize: 14, fontWeight: '700' }, generationBody: { color: colors.muted, fontSize: 11, lineHeight: 15, marginTop: 4 }, generationDisclosure: { borderRadius: 18, borderWidth: 1, borderColor: colors.accentLine, backgroundColor: colors.accentSoft, padding: 14, marginTop: -8, marginBottom: 20 }, generationDisclosureLabel: { color: colors.accent, fontSize: 11, letterSpacing: 1.15, fontWeight: '700' }, generationDisclosureBody: { color: colors.muted, fontSize: 11, lineHeight: 15, marginTop: 6 },
   lifeSummary: { flexDirection: 'row', alignItems: 'baseline', paddingBottom: 18, marginBottom: 8, borderBottomWidth: 1, borderBottomColor: colors.softLine }, lifeSummaryBig: { color: colors.accent, fontSize: 32, fontWeight: '400', marginRight: 10 }, lifeSummaryTitle: { color: colors.muted, fontSize: 12, lineHeight: 18, flex: 1 }, memoryGrid: { gap: 12 }, memoryCard: { minHeight: 246 }, memoryCardCompact: { minHeight: 176 }, memoryImage: { minHeight: 246, justifyContent: 'flex-end' }, memoryImageCompact: { minHeight: 176 }, memoryImageStyle: { borderRadius: radii.card }, memoryCopy: { padding: 18 }, memoryDate: { color: colors.onImageAccent, fontSize: 11, letterSpacing: 1.05, fontWeight: '700' }, memoryTitle: { color: colors.onImage, fontFamily: editorialFont, fontSize: 27, lineHeight: 32, fontWeight: '700', letterSpacing: -0.4, marginTop: 7 }, memoryTitleCompact: { fontSize: 22, lineHeight: 27 }, memoryNote: { color: colors.onImageMuted, fontSize: 12, lineHeight: 18, marginTop: 6 }, memoryMeaning: { color: colors.onImageAccent, fontSize: 11, lineHeight: 16, fontWeight: '600', marginTop: 9 }, memoryShared: { color: colors.onImageAccent, fontSize: 11, lineHeight: 16, marginTop: 8 }, learningCard: { padding: 18, marginTop: 22, borderTopWidth: 1, borderTopColor: colors.softLine }, learningTitle: { color: colors.accent, fontSize: 13, fontWeight: '700' }, learningBody: { color: colors.muted, fontSize: 12, lineHeight: 19, marginTop: 7 }, learningAction: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start', marginTop: 8 }, learningActionText: { color: colors.accent, fontSize: 12, fontWeight: '700' },
-  bottomNav: { position: 'absolute', left: 18, right: 18, bottom: 12, minHeight: 70, borderRadius: radii.card, borderWidth: 1, borderColor: colors.softLine, backgroundColor: 'rgba(252,250,245,0.96)', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 5, shadowColor: colors.shadow, shadowOpacity: 0.10, shadowRadius: 20, shadowOffset: { width: 0, height: 9 } }, navItem: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 2, minHeight: 56, borderRadius: radii.control, ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : {}) }, navIconShell: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' }, navIconShellActive: { backgroundColor: colors.accentSoft }, navLabel: { color: colors.muted, fontSize: 11, fontWeight: '600' }, navActive: { color: colors.accent },
+  bottomNav: { position: 'absolute', left: 18, right: 18, bottom: 12, minHeight: 70, borderRadius: radii.card, borderWidth: 1, borderColor: colors.softLine, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 5, shadowColor: colors.shadow, shadowOpacity: 0.10, shadowRadius: 20, shadowOffset: { width: 0, height: 9 } }, navItem: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 2, minHeight: 56, borderRadius: radii.control, ...(Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : {}) }, navIconShell: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' }, navIconShellActive: { backgroundColor: colors.accentSoft }, navLabel: { color: colors.muted, fontSize: 11, fontWeight: '600' }, navActive: { color: colors.accent },
   backButton: { alignSelf: 'flex-start', minHeight: 44, justifyContent: 'center', marginBottom: 10, paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', gap: 3, borderRadius: 22, borderWidth: 1, borderColor: colors.line, backgroundColor: 'rgba(252,250,245,0.90)' }, backButtonText: { color: colors.bone, fontSize: 13, fontWeight: '600' }, detailHero: { height: 390, justifyContent: 'flex-end', marginHorizontal: -20, marginTop: -62, marginBottom: 26 }, detailHeroImage: { borderBottomLeftRadius: radii.hero, borderBottomRightRadius: radii.hero }, detailHeroCopy: { padding: 22, paddingTop: 112 }, detailTitle: { color: colors.onImage, fontSize: 38, lineHeight: 43, fontWeight: '700', fontFamily: editorialFont, letterSpacing: -1, marginTop: 13 }, detailPromise: { color: colors.onImageMuted, fontSize: 15, lineHeight: 22, marginTop: 10 }, wonderHeadline: { color: colors.accent, fontSize: 11, letterSpacing: 1.35, fontWeight: '700' }, wonderLarge: { color: colors.bone, fontSize: 20, lineHeight: 28, fontWeight: '600', fontFamily: editorialFont, marginTop: 9 }, factStrip: { flexDirection: 'row', gap: 14, borderWidth: 1, borderColor: colors.line, borderRadius: radii.control, backgroundColor: colors.panel, paddingHorizontal: 14, paddingVertical: 15, marginVertical: 20 },
   liveEvidenceCard: { borderRadius: radii.card, borderWidth: 1, borderColor: colors.line, borderLeftWidth: 3, borderLeftColor: colors.accent, backgroundColor: colors.panel, padding: 16, gap: 12, marginBottom: 20 }, liveEvidenceTitle: { color: colors.accent, fontSize: 11, letterSpacing: 1.35, fontWeight: '700' }, liveEvidenceRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 }, liveEvidenceDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.accent, marginTop: 5 }, liveEvidenceLabel: { color: colors.bone, fontSize: 12, lineHeight: 17, fontWeight: '600' }, liveEvidenceMeta: { color: colors.muted, fontSize: 11, lineHeight: 15, marginTop: 3 }, liveEvidenceCaution: { color: colors.muted, fontSize: 11, lineHeight: 15, borderTopWidth: 1, borderTopColor: colors.line, paddingTop: 10 }, expiredEvidenceCard: { borderRadius: radii.card, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.panel, padding: 15, marginBottom: 20 }, expiredEvidenceText: { color: colors.muted, fontSize: 11, lineHeight: 17, marginTop: 7 },
   blueprintBadge: { minHeight: 64, borderRadius: radii.control, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.panel, padding: 13, marginTop: -6, marginBottom: 20, flexDirection: 'row', alignItems: 'center', gap: 11 }, blueprintBadgeMark: { color: colors.accent, fontSize: 18 }, blueprintBadgeTitle: { color: colors.bone, fontSize: 13, fontWeight: '700' }, blueprintBadgeBody: { color: colors.muted, fontSize: 11, lineHeight: 16, marginTop: 3 },
@@ -1639,7 +1763,7 @@ const styles = StyleSheet.create({
   presenceStage: { width: '100%', maxWidth: 470, alignItems: 'center', borderRadius: 30, borderWidth: 1, borderColor: colors.line, backgroundColor: 'rgba(252,250,245,0.94)', paddingHorizontal: 22, paddingVertical: 28, shadowColor: colors.shadow, shadowOpacity: 0.22, shadowRadius: 28, shadowOffset: { width: 0, height: 14 } },
   presenceTitle: { color: colors.bone, fontSize: 38, lineHeight: 43, fontWeight: '700', fontFamily: editorialFont, textAlign: 'center', letterSpacing: -0.7 }, presenceCue: { color: colors.muted, fontSize: 16, lineHeight: 24, textAlign: 'center', maxWidth: 390, marginTop: 16 }, presenceUnit: { color: colors.muted, fontSize: 11, letterSpacing: 1.15, fontWeight: '600' }, presenceFooter: { color: colors.onImageMuted, fontSize: 11, lineHeight: 16, textAlign: 'center', marginTop: 9 },
   presenceFooterPanel: { paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(246,242,234,0.08)' },
-  phoneAwayScreen: { flex: 1, padding: 28, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.ink }, phoneAwayEyebrow: { color: colors.accent, fontSize: 11, letterSpacing: 2.2, fontWeight: '700' }, phoneAwayTitle: { color: colors.bone, fontSize: 28, lineHeight: 34, fontWeight: '700', fontFamily: editorialFont, textAlign: 'center', marginTop: 14 }, phoneAwayCue: { color: colors.muted, fontSize: 15, textAlign: 'center', marginTop: 14 }, phoneAwayTimer: { color: colors.bone, fontSize: 62, fontWeight: '200', fontVariant: ['tabular-nums'], marginTop: 34 }, phoneAwayOrb: { width: 130, height: 130, borderRadius: 65, borderWidth: 2, alignItems: 'center', justifyContent: 'center', marginTop: 34 }, phoneAwayTogether: { color: colors.accent, fontSize: 11, marginTop: 20 }, phoneAwayBody: { color: colors.muted, fontSize: 11, lineHeight: 17, textAlign: 'center', maxWidth: 300, marginTop: 26 }, reopenGuide: { minHeight: 48, borderRadius: 24, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.panel, paddingHorizontal: 22, alignItems: 'center', justifyContent: 'center', marginTop: 26 }, reopenGuideText: { color: colors.bone, fontSize: 13, fontWeight: '700' },
+  phoneAwayScreen: { flex: 1, padding: 28, alignItems: 'center', justifyContent: 'center', backgroundColor: '#000000' }, phoneAwayEyebrow: { color: colors.gold, fontSize: 11, letterSpacing: 2.2, fontWeight: '700' }, phoneAwayTitle: { color: colors.onImage, fontSize: 28, lineHeight: 34, fontWeight: '700', fontFamily: editorialFont, textAlign: 'center', marginTop: 14 }, phoneAwayCue: { color: colors.onImageMuted, fontSize: 15, textAlign: 'center', marginTop: 14 }, phoneAwayTimer: { color: colors.onImage, fontSize: 56, fontWeight: '200', fontVariant: ['tabular-nums'] }, phoneAwayGlow: { width: 198, height: 198, borderRadius: 99, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center', marginTop: 34, shadowOpacity: 0.5, shadowRadius: 46, shadowOffset: { width: 0, height: 0 } }, phoneAwayTogether: { color: colors.onImageAccent, fontSize: 11, marginTop: 20 }, phoneAwayBody: { color: colors.onImageMuted, fontSize: 11, lineHeight: 17, textAlign: 'center', maxWidth: 300, marginTop: 26 }, reopenGuide: { minHeight: 48, borderRadius: 24, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.panel, paddingHorizontal: 22, alignItems: 'center', justifyContent: 'center', marginTop: 26 }, reopenGuideText: { color: colors.bone, fontSize: 13, fontWeight: '700' },
   capsuleProgress: { flexDirection: 'row', gap: 5, marginTop: 12, marginBottom: 2, zIndex: 2 }, capsuleProgressPart: { height: 3, flex: 1, borderRadius: 2, backgroundColor: 'rgba(246,242,234,0.14)' },
   capsuleStep: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 20 }, capsuleStepCount: { color: colors.muted, fontSize: 11, lineHeight: 16, marginBottom: 18 }, presenceTogetherCard: { width: '100%', maxWidth: 430, minHeight: 68, borderRadius: radii.control, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.panelRaised, padding: 13, flexDirection: 'row', alignItems: 'center', marginBottom: 20 }, presenceTogetherAvatars: { flexDirection: 'row', marginRight: 11 }, presenceTogetherAvatar: { width: 32, height: 32, borderRadius: 16, borderWidth: 1, borderColor: colors.accent, backgroundColor: colors.panel, alignItems: 'center', justifyContent: 'center', marginRight: -6 }, presenceTogetherTitle: { color: colors.bone, fontSize: 13, fontWeight: '700' }, presenceTogetherBody: { color: colors.muted, fontSize: 11, lineHeight: 16, marginTop: 3 },
   stepMetaPill: { borderWidth: 1, borderRadius: 99, paddingHorizontal: 13, paddingVertical: 8, marginTop: 18 }, stepMetaText: { color: colors.bone, fontSize: 11, fontWeight: '600' },
