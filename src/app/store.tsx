@@ -15,6 +15,7 @@ import {
   buildToday,
   Company,
   defaultPrototypeContext,
+  EnergyLevel,
   PersonalLearningContext,
   PrototypeContext,
   rankForMoment,
@@ -101,6 +102,11 @@ export const personalProfileKey = 'momentum.personal-profile.v1';
 export const activeSessionKey = 'momentum.active-session.v1';
 export const evidenceKey = 'momentum.prototype-evidence.v1';
 export const contextualSuggestionKey = 'momentum.contextual-suggestion.v1';
+// Zelfgerapporteerde energie (ADR-060): bewust een eigen sleutel, per dag
+// geldig. Een nieuwe dag begint weer neutraal; wissen kan altijd.
+export const energyCheckinKey = 'momentum.energy-checkin.v1';
+export type EnergyCheckin = { level: EnergyLevel; date: string };
+export const energyDateKey = (date = new Date()) => `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
 export const emptyGenerationSignals = (): Record<GenerationEvaluationSignal, number> => ({ personal: 0, surprising: 0, executable: 0, 'content-useful': 0 });
 export const emptyKindEvidence = (): GenerationKindEvidence => ({ shown: 0, evaluated: 0, personal: 0, surprising: 0, executable: 0, contentUseful: 0 });
 export const emptyGenerationByKind = (): Record<ExperienceKind, GenerationKindEvidence> => ({ outside: emptyKindEvidence(), food: emptyKindEvidence(), movement: emptyKindEvidence(), restore: emptyKindEvidence(), connect: emptyKindEvidence(), learn: emptyKindEvidence(), culture: emptyKindEvidence() });
@@ -165,6 +171,7 @@ function useAppStore() {
   const [generatorStatus, setGeneratorStatus] = useState<GeneratorRuntimeStatus>({ state: 'checking', label: 'Generator controleren', detail: 'Momentum controleert welke synthese beschikbaar is.' });
   const [momentGenerationLoading, setMomentGenerationLoading] = useState(false);
   const [momentNotice, setMomentNotice] = useState('');
+  const [energyCheckin, setEnergyCheckinState] = useState<EnergyCheckin | null>(null);
 
   useEffect(() => {
     if (typeof document !== 'undefined') {
@@ -210,6 +217,14 @@ function useAppStore() {
     }).catch(() => { setLiveLoading(false); setLiveMessage('Live bronnen konden niet worden bijgewerkt'); });
     loadCalendarContext(false).then(setCalendarContext).catch(() => undefined);
     inspectGeneratorRuntime().then(setGeneratorStatus).catch(() => undefined);
+    AsyncStorage.getItem(energyCheckinKey).then((value) => {
+      if (!value) return;
+      try {
+        const stored = JSON.parse(value) as EnergyCheckin;
+        // Een check-in geldt alleen voor de dag waarop die is gegeven.
+        if (stored?.date === energyDateKey() && ['low', 'steady', 'full'].includes(stored.level)) setEnergyCheckinState(stored);
+      } catch { /* ongeldige check-in wordt genegeerd */ }
+    }).catch(() => undefined);
   }, []);
 
   useEffect(() => {
@@ -271,7 +286,8 @@ function useAppStore() {
     intensityBalance: personalProfile.intensityBalance,
     maxTravelMinutes: personalProfile.maxTravelMinutes,
     travelBiasMinutes: personalProfile.travelBiasMinutes,
-  }), [personalProfile]);
+    energy: energyCheckin?.level,
+  }), [energyCheckin?.level, personalProfile]);
   const primaryDecision = useMemo(() => rankForMoment(effectiveContext, '', [], candidatePool, learningContext), [candidatePool, effectiveContext, learningContext]);
   const primaryExperience = primaryDecision.selected?.experience ?? byId('work-reset');
   const nowSuggestions = useMemo(() => {
@@ -610,6 +626,19 @@ function useAppStore() {
     setPersonalProfile((current) => applyLearning(current, item, outcome));
   };
 
+  // ADR-060: optionele energie-check-in. Opnieuw tikken op dezelfde chip (of
+  // expliciet wissen) maakt de dag weer neutraal; alles blijft on-device.
+  const setEnergyCheckin = (level: EnergyLevel | null) => {
+    const next = level ? { level, date: energyDateKey() } : null;
+    setEnergyCheckinState((current) => {
+      const cleared = current?.level === level || !level;
+      const value = cleared ? null : next;
+      if (value) AsyncStorage.setItem(energyCheckinKey, JSON.stringify(value)).catch(() => undefined);
+      else AsyncStorage.removeItem(energyCheckinKey).catch(() => undefined);
+      return value;
+    });
+  };
+
   const discardSession = () => setActiveSession(null);
   const dismissMomentNotice = () => setMomentNotice('');
   const forgetReflectionById = (id: string) => setPersonalProfile((current) => forgetReflection(current, id));
@@ -649,6 +678,7 @@ function useAppStore() {
     generatorStatus,
     momentGenerationLoading,
     momentNotice,
+    energyLevel: energyCheckin?.level ?? null,
     // computed
     effectiveContext,
     opportunityResult,
@@ -675,6 +705,7 @@ function useAppStore() {
     presenceBack,
     updatePresenceStep,
     applyFeedback,
+    setEnergyCheckin,
     discardSession,
     showPendingContextual,
     dismissMomentNotice,

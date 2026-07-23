@@ -14,6 +14,16 @@ const directionSets = [
   ['rustiger leven', 'samen eten met het gezin'],
   ['betekenisvol werk', 'bewegen in de buitenlucht', 'aandacht voor vrienden'],
 ];
+// ADR-060: energie- en feedback-varianten horen bij de scenariomatrix.
+const energyLevels = [null, 'low', 'steady', 'full'];
+const feedbackVariants = [
+  null,
+  { recentValued: 0 },
+  { recentValued: 2 },
+  { recentValued: 5, valuedKind: 'outside' },
+  { recentValued: 3, valuedKind: 'food' },
+  { recentValued: 7, valuedKind: 'restore' },
+];
 const names = ['', 'Wido', 'Anna'];
 const dates = [new Date('2026-07-23T08:00:00'), new Date('2026-07-24T19:00:00'), new Date('2026-12-31T12:00:00')];
 
@@ -56,6 +66,20 @@ for (const dayPart of dayParts) {
   for (const directions of directionSets) {
     for (const firstName of names) {
       scenarioInputs.push({ dayPart, firstName, directions, date: dates[0], weather: null });
+    }
+  }
+}
+// ADR-060: energie × feedback over alle dagdelen, namen en datums. Deze matrix
+// dekt de toonregels ook voor energiebewuste en feedbackgedragen formuleringen.
+for (const dayPart of dayParts) {
+  for (const energy of energyLevels) {
+    for (const feedback of feedbackVariants) {
+      for (const firstName of names) {
+        for (const date of dates) {
+          scenarioInputs.push({ dayPart, firstName, directions: ['meer tijd in de natuur'], date, weather: null, energy, feedback });
+          scenarioInputs.push({ dayPart, firstName, directions: [], date, weather: { weatherCode: 61, temperature: 9, windSpeed: 18 }, energy, feedback });
+        }
+      }
     }
   }
 }
@@ -103,5 +127,70 @@ test('een richting met druk- of prestatieverwoording wordt nooit letterlijk over
     const { line } = composeDailyAffirmation({ dayPart: 'morning', firstName: 'Anna', directions: [direction], date: dates[1], weather: null });
     assert.ok(!line.includes(direction), `ruwe richtingstekst niet overgenomen: “${line}”`);
     for (const pattern of forbidden) assert.ok(!pattern.test(line), `verboden patroon via richting: “${line}”`);
+  }
+});
+
+// --- ADR-060: energie en live feedback -------------------------------------
+
+test('lage energie geeft een stillere regel zonder duwtaal', () => {
+  for (const dayPart of dayParts) {
+    for (const firstName of names) {
+      const { line, personalized } = composeDailyAffirmation({
+        dayPart, firstName, directions: [], date: dates[0], weather: null, energy: 'low',
+      });
+      assert.equal(personalized, true);
+      // De stille reeks afsluiters voor lage energie.
+      const gentle = /rust hoeft niets te verdienen|klein is vandaag meer dan genoeg|zacht kiezen is ook een volwaardige keuze|deze dag draagt jou|niets aan jou te meten/;
+      assert.ok(gentle.test(line), `lage energie kiest een stille afsluiter: “${line}”`);
+      for (const pattern of forbidden) assert.ok(!pattern.test(line), `verboden patroon bij lage energie: “${line}”`);
+    }
+  }
+});
+
+test('lage energie wordt nooit beoordeeld of als tekort benoemd', () => {
+  const blaming = [/weinig energie/i, /geen energie/i, /moe\b/i, /uitgeput/i, /te zwak/i, /kom op/i, /toch maar/i, /gewoon even/i];
+  for (const energy of energyLevels) {
+    for (const dayPart of dayParts) {
+      const { line } = composeDailyAffirmation({ dayPart, firstName: 'Wido', directions: ['meer tijd in de natuur'], date: dates[1], weather: null, energy });
+      for (const pattern of blaming) assert.ok(!pattern.test(line), `beoordelend patroon ${pattern} in regel “${line}” (energie ${energy})`);
+    }
+  }
+});
+
+test('zonder energie-check-in blijft de regel exact zoals voorheen', () => {
+  const base = { dayPart: 'afternoon', firstName: 'Anna', directions: ['rustiger leven'], date: dates[2], weather: { weatherCode: 0, temperature: 15, windSpeed: 8 } };
+  const neutral = composeDailyAffirmation({ ...base, energy: null });
+  const steady = composeDailyAffirmation({ ...base, energy: 'steady' });
+  assert.equal(neutral.line, steady.line, 'rustig (steady) verandert de regel niet');
+});
+
+test('positieve feedback wordt zacht doorweven, nooit verwijtend', () => {
+  const blaming = [/je hebt/i, /je deed/i, /gisteren/i, /niet gedaan/i, /gemist/i, /verzuimd/i, /weer eens/i];
+  for (const feedback of feedbackVariants) {
+    if (!feedback) continue;
+    for (const dayPart of dayParts) {
+      const { line, personalized } = composeDailyAffirmation({
+        dayPart, firstName: '', directions: [], date: dates[0], weather: null, feedback,
+      });
+      assert.equal(personalized, feedback.recentValued > 0, `feedback zonder positieve bevestiging blijft neutraal (regel: “${line}”)`);
+      for (const pattern of blaming) assert.ok(!pattern.test(line), `verwijtend patroon ${pattern} in regel “${line}”`);
+      for (const pattern of forbidden) assert.ok(!pattern.test(line), `verboden patroon bij feedback: “${line}”`);
+      if (feedback.recentValued > 0 && feedback.valuedKind === 'outside') {
+        assert.ok(/buiten zijn/.test(line), `waardevolle vorm herkenbaar in regel: “${line}”`);
+      }
+    }
+  }
+});
+
+test('energie en feedback samen blijven binnen de toonregels en lengtegrens', () => {
+  for (const energy of energyLevels) {
+    for (const feedback of feedbackVariants) {
+      const { line } = composeDailyAffirmation({
+        dayPart: 'evening', firstName: 'Wido', directions: ['meer tijd in de natuur'],
+        date: dates[0], weather: { weatherCode: 71, temperature: -1, windSpeed: 11 }, energy, feedback,
+      });
+      assert.ok(line.length > 0 && line.length <= 220, `regel binnen redelijke lengte: “${line}” (${line.length})`);
+      assert.ok(line.endsWith('.'), `regel eindigt rustig: “${line}”`);
+    }
   }
 });

@@ -20,8 +20,8 @@ import Reanimated, {
   useSharedValue,
   withSpring,
 } from 'react-native-reanimated';
-import { Experience, experienceFactLabels } from '../../product/experienceModel';
-import { dayPartLabels } from '../../product/localIntelligence';
+import { Experience, ExperienceKind, experienceFactLabels } from '../../product/experienceModel';
+import { dayPartLabels, EnergyLevel, energyLabels } from '../../product/localIntelligence';
 import { composeDailyAffirmation } from '../../product/affirmation';
 import { experienceKindLabels, LearningOutcome } from '../../profile/personalModel';
 import { evidenceSummary } from '../../guidance/experienceGuide';
@@ -30,7 +30,7 @@ import { impactLight } from '../../design/haptics';
 import { useKenBurns, useStaggeredEntrance } from '../../design/motion';
 import { CoverImage, ImageShade } from '../CoverImage';
 import { QuietCanvas } from '../QuietCanvas';
-import { LiveWorldBar, MiniFact, Pill, PrimaryButton, ScreenHeader, SecondaryButton } from '../primitives';
+import { ChoiceChip, LiveWorldBar, MiniFact, Pill, PrimaryButton, ScreenHeader, SecondaryButton } from '../primitives';
 import { SurfaceFrame } from '../frames';
 import { styles } from '../styles/appStyles';
 import { useApp } from '../../app/store';
@@ -61,6 +61,8 @@ export function NowScreen() {
     openExperience,
     refreshLiveWorld,
     applyFeedback,
+    energyLevel,
+    setEnergyCheckin,
   } = useApp();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const firstName = personalProfile.firstName;
@@ -90,16 +92,30 @@ export function NowScreen() {
   const affirmationEntrance = useStaggeredEntrance(1, { duration: 560, distance: 10 });
   // Living Canvas (Horizon B): sub-perceptuele Ken Burns op de hero (≤4%, ≥8s, stil bij reduced-motion).
   const kenBurns = useKenBurns();
-  // Dagelijkse affirmatieregel (ADR-059, punt 1): deterministisch samengesteld
-  // uit dagdeel, live wereldcontext (alleen wanneer gekoppeld) en zelf gekozen
-  // richtingen. Zonder profiel of context blijft de neutrale regel staan.
+  // Dagelijkse affirmatieregel (ADR-059, punt 1; ADR-060, punt 3): deterministisch
+  // samengesteld uit dagdeel, live wereldcontext (alleen wanneer gekoppeld),
+  // zelf gekozen richtingen, recente positieve feedback uit het leermodel en de
+  // optionele energie-check-in. Zonder al die ingangen blijft de neutrale regel.
+  const affirmationFeedback = useMemo(() => {
+    // Alleen positieve bevestigingen (worth-it / repeat) van de laatste twee
+    // weken bereiken de regel; 'not-for-me' komt hier nooit aan bod.
+    const recent = personalProfile.learningEvents.filter((event) =>
+      event.outcome !== 'not-for-me' && Date.now() - Date.parse(event.createdAt) < 14 * 24 * 3600000);
+    if (!recent.length) return null;
+    const counts = new Map<ExperienceKind, number>();
+    recent.forEach((event) => counts.set(event.kind, (counts.get(event.kind) ?? 0) + 1));
+    const valuedKind = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+    return { recentValued: recent.length, valuedKind };
+  }, [personalProfile.learningEvents]);
   const affirmation = useMemo(() => composeDailyAffirmation({
     dayPart: context.dayPart,
     firstName: personalProfile.firstName,
     weather: liveWorld?.weather ? { weatherCode: liveWorld.weather.weatherCode, temperature: liveWorld.weather.temperature, windSpeed: liveWorld.weather.windSpeed } : null,
     directions: [...personalProfile.directions.near, ...personalProfile.directions.growth, ...personalProfile.directions.meaning]
       .filter((value) => !personalProfile.pausedDirections.includes(value)),
-  }), [context.dayPart, liveWorld?.weather, personalProfile]);
+    energy: energyLevel,
+    feedback: affirmationFeedback,
+  }), [affirmationFeedback, context.dayPart, energyLevel, liveWorld?.weather, personalProfile]);
   const currentSuggestion = suggestions[Math.min(suggestionIndex, suggestions.length - 1)] ?? suggestions[0];
   const experience = currentSuggestion.experience;
   const decision = currentSuggestion.decision;
@@ -181,6 +197,23 @@ export function NowScreen() {
       <ScreenHeader eyebrow={`${dayPartLabels[context.dayPart].toUpperCase()}${firstName ? ` · ${firstName.toUpperCase()}` : ''}`} title={affirmation.line} subtitle="Dit past waarschijnlijk bij je moment. Jij beslist." onProfile={onProfile} profileName={firstName} />
       </Animated.View>
       <LiveWorldBar snapshot={liveWorld} loading={liveLoading} onRefresh={Platform.OS === 'web' ? onRefresh : undefined} />
+      {/* Energie-check-in (ADR-060, punt 3b): licht en vrijwillig. Geen meting,
+          geen verplichting; overslaan betekent neutraal. Opnieuw tikken wist. */}
+      <View style={styles.energyCard}>
+        <Text style={styles.energyTitle}>Hoe voelt je energie nu?</Text>
+        <Text style={styles.energyBody}>Geen meting — alleen een zachte richting voor de voorstellen van nu. Overslaan kan altijd.</Text>
+        <View style={styles.chipRow}>
+          {(['low', 'steady', 'full'] as EnergyLevel[]).map((level) => (
+            <ChoiceChip
+              key={level}
+              label={energyLabels[level]}
+              selected={energyLevel === level}
+              onPress={() => setEnergyCheckin(energyLevel === level ? null : level)}
+            />
+          ))}
+        </View>
+        {energyLevel && <Text style={styles.energyNote}>Alleen voor vandaag · tik opnieuw om te wissen · blijft op dit apparaat</Text>}
+      </View>
       {pendingExperience?.length ? <Pressable accessibilityRole="button" accessibilityLabel={`Toon de nieuwe blik: ${pendingExperience[0].title}`} onPress={onShowPendingExperience} style={styles.pendingHeroPill}><Ionicons name="sparkles" size={14} color={colors.accent} /><View style={styles.flex}><Text style={styles.pendingHeroPillText}>{pendingExperience.length > 1 ? `${pendingExperience.length} nieuwe blikken beschikbaar` : 'Nieuwe blik beschikbaar'}</Text><Text style={styles.pendingHeroPillBody}>{pendingExperience[0].title}{pendingExperience.length > 1 ? ` en ${pendingExperience.length - 1} ${pendingExperience.length === 2 ? 'andere blik' : 'andere blikken'}` : ''} {pendingExperience.length > 1 ? 'wachten' : 'wacht'} rustig tot jij wilt wisselen.</Text></View><Text style={styles.pendingHeroPillAction}>Toon</Text></Pressable> : null}
       {resumableExperience && <View style={styles.resumeCard}><Pressable accessibilityLabel={`Hervat ${resumableExperience.title}`} onPress={onResume} style={styles.resumeMain}><View style={styles.resumeMark}><Ionicons name="play" size={14} color={colors.accent} /></View><View style={styles.flex}><Text style={styles.resumeLabel}>GA VERDER</Text><Text style={styles.resumeTitle}>{resumableExperience.title}</Text></View><Ionicons name="arrow-forward" size={21} color={colors.gold} /></Pressable><Pressable accessibilityLabel="Sluit open ervaring" onPress={onDiscardSession} style={styles.resumeDiscard}><Text style={styles.resumeDiscardText}>Sluit</Text></Pressable></View>}
       {calendar.state === 'live' && calendar.currentFreeMinutes ? <View style={styles.contextNotice}><Ionicons name="time-outline" size={20} color={colors.gold} /><View style={styles.flex}><Text style={styles.contextNoticeTitle}>{calendar.currentFreeMinutes} minuten ruimte herkend</Text><Text style={styles.contextNoticeBody}>Alleen begin- en eindtijden verwerkt · afspraakinhoud genegeerd</Text></View></View> : null}
