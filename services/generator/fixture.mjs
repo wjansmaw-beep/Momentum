@@ -107,9 +107,23 @@ const variants = {
   ],
 };
 
-export function createFixtureDraft(request) {
+export function createFixtureDraft(request, variantOffset = 0) {
   const requested = request.domains[0] ?? (/kook|eten|shake/i.test(request.intent) ? 'food' : /sport|beweeg|train/i.test(request.intent) ? 'movement' : /leer|begrijp/i.test(request.intent) ? 'learn' : 'restore');
   const choices = variants[requested] ?? variants.restore;
   const seed = `${request.variationSeed || 'stable'}-${request.context.dayPart}-${request.context.company}-${request.context.availableMinutes}-${request.context.hasKettlebell}`;
-  return choices[hash(seed) % choices.length](request);
+  return choices[(hash(seed) + variantOffset) % choices.length](request);
+}
+
+// ADR-059: the fixture can serve a small candidate set (draftCount 1–3).
+// Distinct variants are offered in order; the library holds two variants per
+// kind, so a larger request truthfully returns fewer drafts rather than
+// padded duplicates.
+export function createFixtureDrafts(request) {
+  const count = Math.min(Math.max(1, request.draftCount ?? 1), 3);
+  const drafts = [];
+  for (let index = 0; index < count; index += 1) {
+    const draft = createFixtureDraft(request, index);
+    if (!drafts.some((existing) => existing.title === draft.title)) drafts.push(draft);
+  }
+  return drafts.length ? drafts : [createFixtureDraft(request)];
 }

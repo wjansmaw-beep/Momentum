@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   Platform,
@@ -22,6 +22,7 @@ import Reanimated, {
 } from 'react-native-reanimated';
 import { Experience, experienceFactLabels } from '../../product/experienceModel';
 import { dayPartLabels } from '../../product/localIntelligence';
+import { composeDailyAffirmation } from '../../product/affirmation';
 import { experienceKindLabels, LearningOutcome } from '../../profile/personalModel';
 import { evidenceSummary } from '../../guidance/experienceGuide';
 import { colors } from '../../design/theme';
@@ -85,8 +86,20 @@ export function NowScreen() {
   const [pullRefreshing, setPullRefreshing] = useState(false);
   // Entree volgens ADR-057: hero-lagen verschijnen verspringend (respecteert reduced-motion).
   const heroEntrance = useStaggeredEntrance(5);
+  // De dagelijkse affirmatieregel krijgt een eigen, rustige entree vóór de hero.
+  const affirmationEntrance = useStaggeredEntrance(1, { duration: 560, distance: 10 });
   // Living Canvas (Horizon B): sub-perceptuele Ken Burns op de hero (≤4%, ≥8s, stil bij reduced-motion).
   const kenBurns = useKenBurns();
+  // Dagelijkse affirmatieregel (ADR-059, punt 1): deterministisch samengesteld
+  // uit dagdeel, live wereldcontext (alleen wanneer gekoppeld) en zelf gekozen
+  // richtingen. Zonder profiel of context blijft de neutrale regel staan.
+  const affirmation = useMemo(() => composeDailyAffirmation({
+    dayPart: context.dayPart,
+    firstName: personalProfile.firstName,
+    weather: liveWorld?.weather ? { weatherCode: liveWorld.weather.weatherCode, temperature: liveWorld.weather.temperature, windSpeed: liveWorld.weather.windSpeed } : null,
+    directions: [...personalProfile.directions.near, ...personalProfile.directions.growth, ...personalProfile.directions.meaning]
+      .filter((value) => !personalProfile.pausedDirections.includes(value)),
+  }), [context.dayPart, liveWorld?.weather, personalProfile]);
   const currentSuggestion = suggestions[Math.min(suggestionIndex, suggestions.length - 1)] ?? suggestions[0];
   const experience = currentSuggestion.experience;
   const decision = currentSuggestion.decision;
@@ -164,9 +177,11 @@ export function NowScreen() {
         </Reanimated.View>
         <Reanimated.View style={[styles.flex, pullContentStyle]}>
           <ScrollView contentContainerStyle={styles.screenScroll} showsVerticalScrollIndicator={false} onScroll={(event) => { scrollTop.value = event.nativeEvent.contentOffset.y; }} scrollEventThrottle={16}>
-      <ScreenHeader eyebrow={`${dayPartLabels[context.dayPart].toUpperCase()}${firstName ? ` · ${firstName.toUpperCase()}` : ''}`} title="Vandaag wacht er iets moois op je." subtitle="Dit past waarschijnlijk bij je moment. Jij beslist." onProfile={onProfile} profileName={firstName} />
+      <Animated.View style={affirmationEntrance[0]}>
+      <ScreenHeader eyebrow={`${dayPartLabels[context.dayPart].toUpperCase()}${firstName ? ` · ${firstName.toUpperCase()}` : ''}`} title={affirmation.line} subtitle="Dit past waarschijnlijk bij je moment. Jij beslist." onProfile={onProfile} profileName={firstName} />
+      </Animated.View>
       <LiveWorldBar snapshot={liveWorld} loading={liveLoading} onRefresh={Platform.OS === 'web' ? onRefresh : undefined} />
-      {pendingExperience ? <Pressable accessibilityRole="button" accessibilityLabel={`Toon de nieuwe blik: ${pendingExperience.title}`} onPress={onShowPendingExperience} style={styles.pendingHeroPill}><Ionicons name="sparkles" size={14} color={colors.accent} /><View style={styles.flex}><Text style={styles.pendingHeroPillText}>Nieuwe blik beschikbaar</Text><Text style={styles.pendingHeroPillBody}>{pendingExperience.title} wacht rustig tot jij wilt wisselen.</Text></View><Text style={styles.pendingHeroPillAction}>Toon</Text></Pressable> : null}
+      {pendingExperience?.length ? <Pressable accessibilityRole="button" accessibilityLabel={`Toon de nieuwe blik: ${pendingExperience[0].title}`} onPress={onShowPendingExperience} style={styles.pendingHeroPill}><Ionicons name="sparkles" size={14} color={colors.accent} /><View style={styles.flex}><Text style={styles.pendingHeroPillText}>{pendingExperience.length > 1 ? `${pendingExperience.length} nieuwe blikken beschikbaar` : 'Nieuwe blik beschikbaar'}</Text><Text style={styles.pendingHeroPillBody}>{pendingExperience[0].title}{pendingExperience.length > 1 ? ` en ${pendingExperience.length - 1} ${pendingExperience.length === 2 ? 'andere blik' : 'andere blikken'}` : ''} {pendingExperience.length > 1 ? 'wachten' : 'wacht'} rustig tot jij wilt wisselen.</Text></View><Text style={styles.pendingHeroPillAction}>Toon</Text></Pressable> : null}
       {resumableExperience && <View style={styles.resumeCard}><Pressable accessibilityLabel={`Hervat ${resumableExperience.title}`} onPress={onResume} style={styles.resumeMain}><View style={styles.resumeMark}><Ionicons name="play" size={14} color={colors.accent} /></View><View style={styles.flex}><Text style={styles.resumeLabel}>GA VERDER</Text><Text style={styles.resumeTitle}>{resumableExperience.title}</Text></View><Ionicons name="arrow-forward" size={21} color={colors.gold} /></Pressable><Pressable accessibilityLabel="Sluit open ervaring" onPress={onDiscardSession} style={styles.resumeDiscard}><Text style={styles.resumeDiscardText}>Sluit</Text></Pressable></View>}
       {calendar.state === 'live' && calendar.currentFreeMinutes ? <View style={styles.contextNotice}><Ionicons name="time-outline" size={20} color={colors.gold} /><View style={styles.flex}><Text style={styles.contextNoticeTitle}>{calendar.currentFreeMinutes} minuten ruimte herkend</Text><Text style={styles.contextNoticeBody}>Alleen begin- en eindtijden verwerkt · afspraakinhoud genegeerd</Text></View></View> : null}
       {decision.confidence === 'low' && !declined ? <QuietCanvas eyebrow="NOG GEEN EERLIJK BESTE VOORSTEL" title="Wat zou dit moment voor jou de moeite waard maken?">

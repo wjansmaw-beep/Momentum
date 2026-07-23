@@ -5,6 +5,18 @@
 // equal; parity is pinned by services/generator/test/contractVersion.test.mjs.
 export const CONTRACT_VERSION = 'experience-draft-v1';
 
+// Additive v1 extension (ADR-059, "Living Now Surface"): a request may carry an
+// optional `draftCount` (1–3) and the response `drafts` array may therefore
+// contain up to 3 drafts instead of exactly 1. The per-draft shape, the
+// request fields and the validation rules are unchanged, so the contract
+// version stays experience-draft-v1: older clients ignore `draftCount` and
+// simply read `drafts[0]`, older servers default it to 1. The small candidate
+// set (2–3 drafts on open) lets each generated candidate compete through the
+// unchanged quality gate and ranking; privacy budget and payload fields are
+// identical to single-draft requests.
+
+export const MAX_DRAFTS_PER_REQUEST = 3;
+
 export const experienceKinds = ['outside', 'food', 'movement', 'restore', 'connect', 'learn', 'culture'];
 export const companies = ['solo', 'together', 'family'];
 export const dayParts = ['morning', 'midday', 'afternoon', 'evening'];
@@ -17,7 +29,7 @@ export const draftSchema = {
     drafts: {
       type: 'array',
       minItems: 1,
-      maxItems: 1,
+      maxItems: MAX_DRAFTS_PER_REQUEST,
       items: {
         type: 'object',
         additionalProperties: false,
@@ -98,12 +110,19 @@ export function validateRequest(value) {
   if (!dayParts.includes(context.dayPart) || !companies.includes(context.company) || availableMinutes < 8 || availableMinutes > 240) return { ok: false, error: 'De momentcontext is niet bruikbaar.' };
   const domains = Array.isArray(value.domains) ? value.domains.filter((domain) => experienceKinds.includes(domain)).slice(0, 3) : [];
   if (requestMode === 'contextual-suggestion' && domains.length !== 1) return { ok: false, error: 'Een contextueel voorstel vereist precies één gekozen richting.' };
-  return { ok: true, value: { intent, clarificationTerms, variationSeed, domains, requestMode, contractVersion: CONTRACT_VERSION, context: { dayPart: context.dayPart, company: context.company, availableMinutes, hasKettlebell: Boolean(context.hasKettlebell) } } };
+  // ADR-059: optional candidate-set size. Absent means the v1 default of 1;
+  // anything outside 1–3 is rejected rather than silently clamped.
+  const draftCount = value.draftCount === undefined ? 1 : value.draftCount;
+  if (!Number.isInteger(draftCount) || draftCount < 1 || draftCount > MAX_DRAFTS_PER_REQUEST) return { ok: false, error: 'Het gevraagde aantal concepten valt buiten 1–3.' };
+  return { ok: true, value: { intent, clarificationTerms, variationSeed, domains, requestMode, draftCount, contractVersion: CONTRACT_VERSION, context: { dayPart: context.dayPart, company: context.company, availableMinutes, hasKettlebell: Boolean(context.hasKettlebell) } } };
 }
 
 export function validateDrafts(value, request) {
   const source = value && typeof value === 'object' && Array.isArray(value.drafts) ? value.drafts : [];
-  const accepted = source.slice(0, 1).flatMap((draft) => {
+  // ADR-059: the set is bounded by the requested draftCount (v1 default 1).
+  // Every draft is validated individually; the gate never weakens for sets.
+  const limit = Math.min(request.draftCount ?? 1, MAX_DRAFTS_PER_REQUEST);
+  const accepted = source.slice(0, limit).flatMap((draft) => {
     if (!draft || typeof draft !== 'object' || !experienceKinds.includes(draft.kind)) return [];
     if (request.domains.length && !request.domains.includes(draft.kind)) return [];
     const steps = Array.isArray(draft.steps) ? draft.steps.slice(0, 8).flatMap((step) => {

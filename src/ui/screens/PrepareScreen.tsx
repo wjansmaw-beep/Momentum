@@ -13,7 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Company } from '../../product/localIntelligence';
+import { Company, TransportMode, transportLabels } from '../../product/localIntelligence';
 import { experienceKindLabels } from '../../profile/personalModel';
 import {
   buildInviteUrl,
@@ -45,13 +45,18 @@ export function PrepareScreen() {
   const initialGuideDepth = activeSession?.experienceId === experience.id ? activeSession.guideDepth : undefined;
   const initialShared = activeSession?.experienceId === experience.id ? activeSession.shared : sharedDraft ?? undefined;
   const onBack = () => navigation.goBack();
-  const onDraftChange = (company: Company, guideDepth: GuideDepth, shared?: SharedCapsuleState) => savePreparation(company, guideDepth, shared);
-  const onStart = (company: Company, guideDepth: GuideDepth, shared?: SharedCapsuleState) => {
-    startPresence(company, guideDepth, shared);
+  // ADR-059, punt 4: gezelschap en vervoer zijn per-moment-verfijningen van
+  // deze kaart. Ze gelden voor deze ervaring (via de sessie) en horen niet in
+  // Profiel. Het model kent te voet en fiets; de standaard volgt het routeplan.
+  const initialTransport: TransportMode = (activeSession?.experienceId === experience.id ? activeSession.transport : undefined) ?? experience.routePlan?.mode ?? 'walking';
+  const onDraftChange = (company: Company, guideDepth: GuideDepth, shared?: SharedCapsuleState, transport?: TransportMode) => savePreparation(company, guideDepth, shared, transport);
+  const onStart = (company: Company, guideDepth: GuideDepth, shared?: SharedCapsuleState, transport?: TransportMode) => {
+    startPresence(company, guideDepth, shared, transport);
     navigation.navigate('Presence');
   };
   const supportedCompanies = experience.company;
   const [company, setCompany] = useState<Company>(supportedCompanies.includes(initialCompany) ? initialCompany : supportedCompanies[0]);
+  const [transport, setTransport] = useState<TransportMode>(initialTransport);
   const guidanceMuted = personal.mutedInsightExperienceIds.includes(experience.id);
   const preferredGuideDepth: GuideDepth = guidanceMuted || personal.guidanceBalance <= -0.2 ? 'quiet' : personal.guidanceBalance >= 0.45 ? 'deep' : experience.presenceMode === 'quiet' ? 'quiet' : 'guide';
   const [guideDepth, setGuideDepth] = useState<GuideDepth>(initialGuideDepth ?? preferredGuideDepth);
@@ -65,8 +70,8 @@ export function PrepareScreen() {
   const guideInsights = ([guide.currentInsight, ...guide.furtherInsights].filter(Boolean) as NonNullable<typeof guide.currentInsight>[]).filter((insight) => !guidanceMuted && !personal.mutedInsightTopics.includes(insight.topic));
   const companyChoices: Array<{ id: Company; label: string }> = [{ id: 'solo', label: 'Alleen' }, { id: 'together', label: 'Samen' }, { id: 'family', label: 'Met gezin' }];
   useEffect(() => {
-    onDraftChange(company, guideDepth, shared ? { ...shared, coordination } : undefined);
-  }, [company, coordination, guideDepth, shared]);
+    onDraftChange(company, guideDepth, shared ? { ...shared, coordination } : undefined, transport);
+  }, [company, coordination, guideDepth, shared, transport]);
   const shareExperience = async () => {
     if (company === 'solo') return;
     const companion = company === 'family' ? 'met gezin' : 'samen';
@@ -123,12 +128,17 @@ export function PrepareScreen() {
       {experience.meaningThread && <MeaningThreadCard experience={experience} compact />}
       <View style={styles.commitmentCard}><Text style={styles.commitmentLabel}>TIJD EN INSPANNING</Text><Text style={styles.commitmentValue}>{experience.duration} minuten · {experience.effort.toLowerCase()}</Text>{experience.distance && <Text style={styles.commitmentBody}>{experience.distance} is meegenomen voordat je begint.</Text>}</View>
       <Text style={styles.fieldLabel}>{experience.kind === 'food' ? 'INGREDIËNTEN EN KEUKEN' : experience.kind === 'movement' ? 'MATERIAAL EN OPBOUW' : experience.kind === 'restore' ? 'MAAK RUIMTE VOOR RUST' : experience.kind === 'outside' ? 'VOOR ROUTE EN OMSTANDIGHEDEN' : 'ALLEEN WAT JE NODIG HEBT'}</Text><View style={styles.prepareCard}>{experience.prepare.map((item) => <View key={item} style={styles.prepareRow}><View style={[styles.prepareBullet, { backgroundColor: experience.accent }]} /><Text style={styles.prepareText}>{item}</Text></View>)}</View>
+      {/* ADR-059, punt 4: per-moment-verfijning hoort bij deze kaart — premium
+          chip-keuzes in eerste zicht, niet achter een disclosure in Profiel. */}
+      <Text style={styles.fieldLabel}>MET WIE BELEEF JE DIT?</Text><View style={styles.chipRow}>{companyChoices.filter((item) => supportedCompanies.includes(item.id)).map((item) => <ChoiceChip key={item.id} label={item.label} selected={company === item.id} onPress={() => chooseCompany(item.id)} />)}</View>
+      {experience.routePlan && <>
+      <Text style={styles.fieldLabel}>HOE GA JE?</Text><View style={styles.chipRow}>{(['walking', 'cycling'] as TransportMode[]).map((mode) => <ChoiceChip key={mode} label={transportLabels[mode]} selected={transport === mode} onPress={() => setTransport(mode)} />)}</View>
+      </>}
       <View style={styles.readySummary}>
-        <View style={styles.flex}><Text style={styles.readySummaryLabel}>ZO GA JE</Text><Text style={styles.readySummaryTitle}>{company === 'solo' ? 'Alleen' : company === 'family' ? 'Met gezin' : 'Samen'} · {guideDepth === 'quiet' ? 'rustige begeleiding' : guideDepth === 'deep' ? 'verdiepende gids' : 'gids op het juiste moment'}</Text></View>
-        <Pressable accessibilityRole="button" accessibilityState={{ expanded: detailsOpen }} onPress={() => setDetailsOpen((value) => !value)} style={styles.adjustButton}><Text style={styles.adjustButtonText}>{detailsOpen ? 'Sluit keuzes' : 'Gezelschap & gids'}</Text></Pressable>
+        <View style={styles.flex}><Text style={styles.readySummaryLabel}>ZO GA JE</Text><Text style={styles.readySummaryTitle}>{company === 'solo' ? 'Alleen' : company === 'family' ? 'Met gezin' : 'Samen'}{experience.routePlan ? ` · ${transportLabels[transport].toLowerCase()}` : ''} · {guideDepth === 'quiet' ? 'rustige begeleiding' : guideDepth === 'deep' ? 'verdiepende gids' : 'gids op het juiste moment'}</Text></View>
+        <Pressable accessibilityRole="button" accessibilityState={{ expanded: detailsOpen }} onPress={() => setDetailsOpen((value) => !value)} style={styles.adjustButton}><Text style={styles.adjustButtonText}>{detailsOpen ? 'Sluit keuzes' : 'Gids & afstemming'}</Text></Pressable>
       </View>
       {detailsOpen && <>
-      <Text style={styles.fieldLabel}>MET WIE BELEEF JE DIT?</Text><View style={styles.chipRow}>{companyChoices.filter((item) => supportedCompanies.includes(item.id)).map((item) => <ChoiceChip key={item.id} label={item.label} selected={company === item.id} onPress={() => chooseCompany(item.id)} />)}</View>
       {company !== 'solo' && <View style={styles.sharedPlanCard}>
         <Text style={styles.expectationLabel}>SAMEN AFSTEMMEN</Text>
         <Text style={styles.sharedPlanTitle}>Hoe komen jullie samen bij het begin?</Text>
@@ -163,11 +173,12 @@ export function PrepareScreen() {
       {experience.routePlan && <View style={styles.routePlanCard}>
         <Text style={styles.liveEvidenceTitle}>ROUTE NAAR HET BEGIN</Text><Text style={styles.routePlanTitle}>{experience.routePlan.destinationName}</Text>
         <View style={styles.routeBudget}><MiniFact value={`${experience.routePlan.outboundMinutes} min`} label="heen" /><MiniFact value={`${experience.routePlan.experienceMinutes} min`} label="beleven" /><MiniFact value={`${experience.routePlan.returnMinutes} min`} label="terug" /><MiniFact value={`${experience.routePlan.bufferMinutes} min`} label="buffer" /></View>
-        <Text style={styles.routeEstimate}>{experience.routePlan.mode === 'cycling' ? 'Fiets' : 'Te voet'} · conservatieve voorinschatting{experience.routePlan.sourceLabel ? ` · ${experience.routePlan.sourceLabel}` : ''}</Text>
+        <Text style={styles.routeEstimate}>Je gaat: {transportLabels[transport].toLowerCase()} · conservatieve voorinschatting{experience.routePlan.sourceLabel ? ` · ${experience.routePlan.sourceLabel}` : ''}</Text>
+        {transport !== experience.routePlan.mode && <Text style={styles.routeWindow}>De tijdsinschatting is samengesteld voor {transportLabels[experience.routePlan.mode].toLowerCase()}; jouw keuze past het plan aan zonder die eerlijke marge te verkorten.</Text>}
         <Text style={styles.routeWindow}>{experience.routePlan.routeCapability?.detail ?? routingCapability().detail}</Text>
         {experience.routePlan.expiresAt && <Text style={styles.routeWindow}>Bronvenster geldig tot {new Date(experience.routePlan.expiresAt).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })}. Vlak voor vertrek volgt een nieuwe geldigheidscontrole.</Text>}
         <Text style={styles.routeGuard}>{experience.routePlan.natureGuard}</Text>
-        {experience.routePlan.arrivalPlan && <View style={styles.arrivalPlanCard}><Text style={styles.arrivalPlanLabel}>TER PLAATSE</Text><Text style={styles.arrivalPlanTitle}>{experience.routePlan.arrivalPlan.label}</Text><Text style={styles.arrivalPlanBody}>{experience.routePlan.arrivalPlan.instruction}</Text><Text style={styles.arrivalPlanMeta}>{experience.routePlan.arrivalPlan.durationMinutes} min{experience.routePlan.arrivalPlan.radiusMeters ? ` · tot circa ${experience.routePlan.arrivalPlan.radiusMeters} m rond het anker` : ''}</Text><Text style={styles.arrivalPlanReturn}>{experience.routePlan.arrivalPlan.returnTrigger}</Text></View>}
+        {experience.routePlan.arrivalPlan && <View style={styles.arrivalPlanCard}><Text style={styles.arrivalPlanLabel}>AANKOMSTMOMENT · TER PLAATSE</Text><Text style={styles.arrivalPlanTitle}>{experience.routePlan.arrivalPlan.label}</Text><Text style={styles.arrivalPlanBody}>{experience.routePlan.arrivalPlan.instruction}</Text><Text style={styles.arrivalPlanMeta}>{experience.routePlan.arrivalPlan.durationMinutes} min{experience.routePlan.arrivalPlan.radiusMeters ? ` · tot circa ${experience.routePlan.arrivalPlan.radiusMeters} m rond het anker` : ''}</Text><Text style={styles.arrivalPlanReturn}>{experience.routePlan.arrivalPlan.returnTrigger}</Text></View>}
         {experience.routePlan.recheckLabel && <Text style={styles.routeRecheck}>{experience.routePlan.recheckLabel}</Text>}
       </View>}
       {experience.placeKnowledge && <View style={styles.placeKnowledgeCard}>
@@ -179,7 +190,7 @@ export function PrepareScreen() {
       </>}
     </ScrollView>
     <View style={styles.stickyActionBar}>
-      <PrimaryButton label={company === 'solo' ? 'Ik ga nu' : 'Wij gaan beginnen'} onPress={() => onStart(company, guideDepth, shared ? { ...shared, coordination } : undefined)} />
+      <PrimaryButton label={company === 'solo' ? 'Ik ga nu' : 'Wij gaan beginnen'} onPress={() => onStart(company, guideDepth, shared ? { ...shared, coordination } : undefined, transport)} />
     </View>
     </View>
     </FlowFrame>

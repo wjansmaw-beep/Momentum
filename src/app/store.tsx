@@ -19,6 +19,7 @@ import {
   PrototypeContext,
   rankForMoment,
   TodayDecision,
+  TransportMode,
 } from '../product/localIntelligence';
 import {
   applyLearning,
@@ -76,7 +77,7 @@ import { GeneratorEvaluationSignal as GenerationEvaluationSignal, GeneratorEvalu
 
 export type FlowStage = 'invite' | 'prepare' | 'presence' | 'remember' | 'profile' | null;
 export type Memory = { id: string; title: string; date: string; image: string; note: string; sharedWith?: string[]; meaning?: string; experienceSnapshot?: Experience };
-export type ActiveSession = { experienceId: string; experienceSnapshot?: Experience; stage: 'prepare' | 'presence'; stepIndex: number; origin: Surface; company?: Company; guideDepth?: GuideDepth; shared?: SharedCapsuleState; updatedAt: string };
+export type ActiveSession = { experienceId: string; experienceSnapshot?: Experience; stage: 'prepare' | 'presence'; stepIndex: number; origin: Surface; company?: Company; transport?: TransportMode; guideDepth?: GuideDepth; shared?: SharedCapsuleState; updatedAt: string };
 export type GenerationKindEvidence = { shown: number; evaluated: number; personal: number; surprising: number; executable: number; contentUseful: number };
 export type PrototypeEvidence = {
   started: number;
@@ -92,7 +93,7 @@ export type PrototypeEvidence = {
   lastGenerationNote?: string;
   lastUpdated?: string;
 };
-export type ContextualSuggestionCache = { signature: string; expiresAt: string; experience: Experience };
+export type ContextualSuggestionCache = { signature: string; expiresAt: string; experiences: Experience[] };
 
 export const memoryKey = 'momentum.memories.v2';
 export const contextKey = 'momentum.prototype-context.v1';
@@ -156,8 +157,11 @@ function useAppStore() {
   const [calendarContext, setCalendarContext] = useState<CalendarContextSnapshot>(emptyCalendarContext);
   const [calendarLoading, setCalendarLoading] = useState(false);
   const [memories, setMemories] = useState<Memory[]>([]);
-  const [contextualGenerated, setContextualGenerated] = useState<Experience | null>(null);
-  const [pendingContextual, setPendingContextual] = useState<Experience | null>(null);
+  // ADR-059: bij openen kan een kleine kandidaat-set (2–3 concepten) arriveren
+  // i.p.v. één concept. De hele set concurreert via de bestaande poort en
+  // ranking; de hero-stabiliteit (pending-pill) werkt op setniveau.
+  const [contextualSet, setContextualSet] = useState<Experience[]>([]);
+  const [pendingContextualSet, setPendingContextualSet] = useState<Experience[] | null>(null);
   const [generatorStatus, setGeneratorStatus] = useState<GeneratorRuntimeStatus>({ state: 'checking', label: 'Generator controleren', detail: 'Momentum controleert welke synthese beschikbaar is.' });
   const [momentGenerationLoading, setMomentGenerationLoading] = useState(false);
   const [momentNotice, setMomentNotice] = useState('');
@@ -252,10 +256,10 @@ function useAppStore() {
   const meaningfulLiveExperiences = useMemo(() => liveExperiences.map((item) => attachMeaningThread(item, personalProfile)), [liveExperiences, personalProfile]);
   const baseCompositionAudit = useMemo(() => auditCandidatePool([...meaningfulLiveExperiences, ...contextualBlueprints]), [contextualBlueprints, meaningfulLiveExperiences]);
   const baseCandidatePool = baseCompositionAudit.accepted.length ? baseCompositionAudit.accepted : guidedCatalogExperiences;
-  const contextualPrepared = useMemo(() => contextualGenerated
-    ? attachMeaningThread(composeGuideMoments(attachNearestPlaceKnowledge(overlayVerifiedWorldContext(contextualGenerated, selectionLocationConfirmed ? liveWorld ?? undefined : undefined), selectionLocationConfirmed ? liveWorld ?? undefined : undefined)), personalProfile)
-    : null, [contextualGenerated, liveWorld, personalProfile, selectionLocationConfirmed]);
-  const compositionAudit = useMemo(() => auditCandidatePool([...(contextualPrepared ? [contextualPrepared] : []), ...baseCandidatePool]), [baseCandidatePool, contextualPrepared]);
+  const contextualPrepared = useMemo(() => contextualSet.map((candidate) =>
+    attachMeaningThread(composeGuideMoments(attachNearestPlaceKnowledge(overlayVerifiedWorldContext(candidate, selectionLocationConfirmed ? liveWorld ?? undefined : undefined), selectionLocationConfirmed ? liveWorld ?? undefined : undefined)), personalProfile)
+  ), [contextualSet, liveWorld, personalProfile, selectionLocationConfirmed]);
+  const compositionAudit = useMemo(() => auditCandidatePool([...contextualPrepared, ...baseCandidatePool]), [baseCandidatePool, contextualPrepared]);
   const candidatePool = compositionAudit.accepted.length ? compositionAudit.accepted : baseCandidatePool;
   const learningContext = useMemo<PersonalLearningContext>(() => ({
     kindAffinity: personalProfile.kindAffinity,
@@ -271,9 +275,12 @@ function useAppStore() {
   const primaryDecision = useMemo(() => rankForMoment(effectiveContext, '', [], candidatePool, learningContext), [candidatePool, effectiveContext, learningContext]);
   const primaryExperience = primaryDecision.selected?.experience ?? byId('work-reset');
   const nowSuggestions = useMemo(() => {
+    // ADR-059, punt 2: de eindige alternatief-set groeit naar maximaal 5 opties
+    // voor hetzelfde moment, via de ongewijzigde ranking. Nooit een feed: geen
+    // oneindig laden, geen "meer zoals dit" — alleen deze rustige vijf.
     const items: Array<{ experience: Experience; decision: ReturnType<typeof rankForMoment> }> = [];
     const excluded: string[] = [];
-    for (let index = 0; index < 3; index += 1) {
+    for (let index = 0; index < 5; index += 1) {
       const decision = rankForMoment(effectiveContext, '', excluded, candidatePool, learningContext);
       const experience = decision.selected?.experience;
       if (!experience) break;
@@ -283,7 +290,7 @@ function useAppStore() {
     return items.length ? items : [{ experience: primaryExperience, decision: primaryDecision }];
   }, [candidatePool, effectiveContext, learningContext, primaryDecision, primaryExperience]);
   const resumableExperience = activeSession ? activeSession.experienceSnapshot ?? candidatePool.find((experience) => experience.id === activeSession.experienceId) ?? experiences.find((experience) => experience.id === activeSession.experienceId) : undefined;
-  const dayDecisions = useMemo<TodayDecision[]>(() => buildToday(effectiveContext, meaningfulLiveExperiences, learningContext, calendarContext.state === 'live' ? calendarContext.freeWindows : undefined, [...(contextualPrepared ? [contextualPrepared] : []), ...contextualBlueprints]), [calendarContext.freeWindows, calendarContext.state, contextualBlueprints, contextualPrepared, effectiveContext, learningContext, meaningfulLiveExperiences]);
+  const dayDecisions = useMemo<TodayDecision[]>(() => buildToday(effectiveContext, meaningfulLiveExperiences, learningContext, calendarContext.state === 'live' ? calendarContext.freeWindows : undefined, [...contextualPrepared, ...contextualBlueprints]), [calendarContext.freeWindows, calendarContext.state, contextualBlueprints, contextualPrepared, effectiveContext, learningContext, meaningfulLiveExperiences]);
 
   const contextualDomain = useMemo(() => {
     const choices = personalProfile.preferredKinds.length ? personalProfile.preferredKinds : (['outside', 'restore', 'learn'] as ExperienceKind[]);
@@ -296,43 +303,46 @@ function useAppStore() {
   // Hero stability (review finding): an arriving generated candidate may never replace the
   // hero while the user is looking at it. Chosen variant: a calm, user-gated switch.
   // `heroAnchorRef` holds the signature of the hero currently established on screen;
-  // `contextualGeneratedRef` mirrors state so the async effect can compare without stale closures.
+  // `contextualSetRef` mirrors state so the async effect can compare without stale closures.
   const heroAnchorRef = useRef<string | null>(null);
-  const contextualGeneratedRef = useRef<Experience | null>(null);
-  useEffect(() => { contextualGeneratedRef.current = contextualGenerated; }, [contextualGenerated]);
+  const contextualSetRef = useRef<Experience[]>([]);
+  useEffect(() => { contextualSetRef.current = contextualSet; }, [contextualSet]);
   // A pending candidate belongs to the signature it was created for; drop it on any natural change.
-  useEffect(() => { setPendingContextual(null); }, [contextualSignature]);
+  useEffect(() => { setPendingContextualSet(null); }, [contextualSignature]);
 
   // Adoption policy (the 6-hour cache and signature logic below are unchanged):
-  // - The same capsule arriving again (an effect re-run) is adopted silently and never shows the pill.
+  // - The same capsule set arriving again (an effect re-run) is adopted silently and never shows the pill.
   // - First arrival after opening: a cache hit lands inside the opening frame and adopts directly;
   //   a fresh generation resolves seconds later, while the user is already reading the hero,
   //   so it is offered as a quiet "Nieuwe blik beschikbaar" pill instead of swapping the hero.
   // - A new day-part signature is a natural change and adopts directly again.
   // - An explicit refresh (createFreshMoment) already adopts by design, and pressing the pill
   //   is the user's conscious switch. Declining the hero leaves the pill available.
-  const settleContextualCandidate = (experience: Experience, fromCache: boolean, signature: string) => {
-    if (contextualGeneratedRef.current?.id === experience.id) { setPendingContextual(null); return; }
+  const settleContextualCandidate = (set: Experience[], fromCache: boolean, signature: string) => {
+    if (!set.length) return;
+    const currentIds = contextualSetRef.current.map((item) => item.id).join('|');
+    const incomingIds = set.map((item) => item.id).join('|');
+    if (currentIds && currentIds === incomingIds) { setPendingContextualSet(null); return; }
     const anchor = heroAnchorRef.current;
     if (anchor === null) {
       heroAnchorRef.current = signature;
-      if (fromCache) { setContextualGenerated(experience); setPendingContextual(null); }
-      else setPendingContextual(experience);
+      if (fromCache) { setContextualSet(set); setPendingContextualSet(null); }
+      else setPendingContextualSet(set);
       return;
     }
     if (anchor !== signature) {
       heroAnchorRef.current = signature;
-      setContextualGenerated(experience);
-      setPendingContextual(null);
+      setContextualSet(set);
+      setPendingContextualSet(null);
       return;
     }
-    setPendingContextual(experience);
+    setPendingContextualSet(set);
   };
   const showPendingContextual = () => {
-    if (!pendingContextual) return;
+    if (!pendingContextualSet?.length) return;
     heroAnchorRef.current = contextualSignature;
-    setContextualGenerated(pendingContextual);
-    setPendingContextual(null);
+    setContextualSet(pendingContextualSet);
+    setPendingContextualSet(null);
   };
 
   useEffect(() => {
@@ -342,19 +352,22 @@ function useAppStore() {
       if (!active) return;
       if (stored) {
         try {
-          const cached = JSON.parse(stored) as ContextualSuggestionCache;
-          if (cached.signature === contextualSignature && Date.parse(cached.expiresAt) > Date.now() && cached.experience) {
-            settleContextualCandidate(cached.experience, true, contextualSignature); return;
+          const cached = JSON.parse(stored) as ContextualSuggestionCache & { experience?: Experience };
+          const cachedSet = Array.isArray(cached.experiences) && cached.experiences.length ? cached.experiences : cached.experience ? [cached.experience] : [];
+          if (cached.signature === contextualSignature && Date.parse(cached.expiresAt) > Date.now() && cachedSet.length) {
+            settleContextualCandidate(cachedSet, true, contextualSignature); return;
           }
         } catch {
           AsyncStorage.removeItem(contextualSuggestionKey).catch(() => undefined);
         }
       }
-      const outcome = await generateContextualSuggestion(contextualDomain, effectiveContext, baseCandidatePool, contextualSignature);
-      const experience = outcome.experiences[0];
-      if (!active || !experience) return;
-      settleContextualCandidate(experience, false, contextualSignature);
-      const cache: ContextualSuggestionCache = { signature: contextualSignature, expiresAt: new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString(), experience };
+      // ADR-059: vraag bij openen een kleine kandidaat-set (2–3 concepten) aan
+      // binnen dezelfde begrensde payload, cache- en signature-discipline.
+      const outcome = await generateContextualSuggestion(contextualDomain, effectiveContext, baseCandidatePool, contextualSignature, 3);
+      const set = outcome.experiences.slice(0, 3);
+      if (!active || !set.length) return;
+      settleContextualCandidate(set, false, contextualSignature);
+      const cache: ContextualSuggestionCache = { signature: contextualSignature, expiresAt: new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString(), experiences: set };
       AsyncStorage.setItem(contextualSuggestionKey, JSON.stringify(cache)).catch(() => undefined);
     }).catch(() => undefined);
     return () => { active = false; };
@@ -409,9 +422,11 @@ function useAppStore() {
     setMomentNotice('');
     try {
       const choices = personalProfile.preferredKinds.length ? personalProfile.preferredKinds : (['outside', 'restore', 'learn'] as ExperienceKind[]);
-      const currentIndex = contextualGenerated ? choices.indexOf(contextualGenerated.kind) : -1;
+      const currentIndex = contextualSet[0] ? choices.indexOf(contextualSet[0].kind) : -1;
       const nextDomain = choices[(currentIndex + 1 + choices.length) % choices.length];
-      const outcome = await generateContextualSuggestion(nextDomain, effectiveContext, baseCandidatePool, `momentmaker-${Date.now()}`);
+      // De expliciete momentmaker blijft één gerichte blik (geen set): de
+      // aanroeper kiest bewust en de capsule adopteert direct als nieuwe hero.
+      const outcome = await generateContextualSuggestion(nextDomain, effectiveContext, baseCandidatePool, `momentmaker-${Date.now()}`, 1);
       const draft = outcome.experiences[0];
       setEvidence((current) => ({
         ...current,
@@ -426,10 +441,11 @@ function useAppStore() {
         composeGuideMoments(attachNearestPlaceKnowledge(overlayVerifiedWorldContext(draft, selectionLocationConfirmed ? liveWorld ?? undefined : undefined), selectionLocationConfirmed ? liveWorld ?? undefined : undefined)),
         personalProfile,
       );
-      setContextualGenerated(draft);
+      setContextualSet([draft]);
+      setPendingContextualSet(null);
       setSelected(prepared);
       setOrigin('now');
-      const cache: ContextualSuggestionCache = { signature: contextualSignature, expiresAt: new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString(), experience: draft };
+      const cache: ContextualSuggestionCache = { signature: contextualSignature, expiresAt: new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString(), experiences: [draft] };
       AsyncStorage.setItem(contextualSuggestionKey, JSON.stringify(cache)).catch(() => undefined);
       return true;
     } finally {
@@ -480,16 +496,16 @@ function useAppStore() {
     }
   };
 
-  const startPresence = (company: Company, guideDepth: GuideDepth, shared?: SharedCapsuleState) => {
+  const startPresence = (company: Company, guideDepth: GuideDepth, shared?: SharedCapsuleState, transport?: TransportMode) => {
     const isNew = activeSession?.experienceId !== selected.id;
-    setActiveSession({ experienceId: selected.id, experienceSnapshot: selected, stage: 'presence', stepIndex: isNew ? 0 : activeSession?.stepIndex ?? 0, origin, company, guideDepth, shared, updatedAt: new Date().toISOString() });
+    setActiveSession({ experienceId: selected.id, experienceSnapshot: selected, stage: 'presence', stepIndex: isNew ? 0 : activeSession?.stepIndex ?? 0, origin, company, transport, guideDepth, shared, updatedAt: new Date().toISOString() });
     if (isNew) setEvidence((current) => ({ ...current, started: current.started + 1, lastUpdated: new Date().toISOString() }));
   };
 
-  const savePreparation = (company: Company, guideDepth: GuideDepth, shared?: SharedCapsuleState) => {
+  const savePreparation = (company: Company, guideDepth: GuideDepth, shared?: SharedCapsuleState, transport?: TransportMode) => {
     setSharedDraft(shared ?? null);
     setActiveSession((current) => {
-      return { experienceId: selected.id, experienceSnapshot: selected, stage: 'prepare', stepIndex: current?.experienceId === selected.id ? current.stepIndex : 0, origin, company, guideDepth, shared, updatedAt: new Date().toISOString() };
+      return { experienceId: selected.id, experienceSnapshot: selected, stage: 'prepare', stepIndex: current?.experienceId === selected.id ? current.stepIndex : 0, origin, company, transport, guideDepth, shared, updatedAt: new Date().toISOString() };
     });
   };
 
@@ -629,7 +645,7 @@ function useAppStore() {
     calendarContext,
     calendarLoading,
     memories,
-    pendingContextual,
+    pendingContextual: pendingContextualSet,
     generatorStatus,
     momentGenerationLoading,
     momentNotice,

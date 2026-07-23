@@ -8,12 +8,26 @@ export type GuideEvidence = LiveEvidence & {
   freshnessLabel: string;
 };
 
+export type GuideMomentStage = 'begin' | 'onderweg' | 'afronding';
+export const guideMomentStageLabels: Record<GuideMomentStage, string> = {
+  begin: 'BIJ HET BEGIN', onderweg: 'ONDERWEG', afronding: 'BIJ DE AFRONDING',
+};
+// ADR-031/ADR-059: een gidsmoment als echt moment — met de stap waarbij het
+// hoort en het deel van de ervaring waarin het helpt, in plaats van platte tekst.
+export type GuideMoment = {
+  insight: GuidedInsight;
+  stepIndex: number;
+  stepTitle: string;
+  stage: GuideMomentStage;
+};
+
 export type ExperienceGuide = {
   title: string;
   promise: string;
   currentStep: CapsuleStep;
   currentInsight?: GuidedInsight;
   furtherInsights: GuidedInsight[];
+  moments: GuideMoment[];
   practical: string[];
   evidence: GuideEvidence[];
   coverage: 'live' | 'editorial' | 'hybrid' | 'evergreen';
@@ -79,12 +93,30 @@ export function buildExperienceGuide(experience: Experience, stepIndex: number, 
   const knowledgeMomentIndex = Math.min(1, Math.max(0, experience.steps.length - 1));
   const currentInsight = currentStep.insight ?? (stepIndex === knowledgeMomentIndex ? placeKnowledgeInsight : undefined);
 
+  // Gidsmomenten (ADR-031, verrijkt in ADR-059): elk inzicht behoudt de stap
+  // en het fasedeel waarin het helpt, zodat de gids ze als echte momenten kan
+  // tonen in plaats van als platte lijst. Maximaal drie, zoals het contract.
+  const stageFor = (index: number): GuideMomentStage =>
+    index >= experience.steps.length - 1 ? 'afronding' : index <= 0 ? 'begin' : 'onderweg';
+  const moments: GuideMoment[] = experience.steps.flatMap((step, index) => step.insight
+    ? [{ insight: step.insight, stepIndex: index, stepTitle: step.title, stage: stageFor(index) }]
+    : []);
+  if (placeKnowledgeInsight && insights.includes(placeKnowledgeInsight)) {
+    moments.splice(Math.min(knowledgeMomentIndex, moments.length), 0, {
+      insight: placeKnowledgeInsight,
+      stepIndex: knowledgeMomentIndex,
+      stepTitle: experience.steps[knowledgeMomentIndex]?.title ?? experience.presenceTitle,
+      stage: stageFor(knowledgeMomentIndex),
+    });
+  }
+
   return {
     title: experience.title,
     promise: experience.promise,
     currentStep,
     currentInsight,
     furtherInsights: insights.filter((item) => item !== currentInsight),
+    moments: moments.filter((moment) => moment.insight !== currentInsight).slice(0, 3),
     practical: experience.prepare,
     evidence,
     coverage,

@@ -34,6 +34,8 @@ type GenerationRequest = {
   variationSeed: string;
   context: Pick<PrototypeContext, 'dayPart' | 'company' | 'availableMinutes' | 'hasKettlebell'>;
   domains: BlueprintDomain[];
+  // ADR-059: optionele kandidaat-setgrootte (1–3). Afwezig = v1-standaard 1.
+  draftCount?: number;
   contractVersion: 'experience-draft-v1';
 };
 
@@ -255,20 +257,24 @@ export async function generateExperienceCandidates(intent: string, clarification
   };
 }
 
-export async function generateContextualSuggestion(domain: BlueprintDomain, context: PrototypeContext, candidates: Experience[], variationSeed = 'stable'): Promise<GenerationOutcome> {
+export async function generateContextualSuggestion(domain: BlueprintDomain, context: PrototypeContext, candidates: Experience[], variationSeed = 'stable', draftCount = 1): Promise<GenerationOutcome> {
+  // ADR-059: bij openen mag een kleine kandidaat-set (2–3 drafts) worden
+  // aangevraagd binnen dezelfde begrensde contextuele payload. Elke kandidaat
+  // doorloopt afzonderlijk de validatie en concurreert daarna via de ranking.
+  const boundedCount = Math.max(1, Math.min(3, Math.round(draftCount)));
   const request: GenerationRequest = {
-    requestMode: 'contextual-suggestion', intent: '', clarificationTerms: '', variationSeed, domains: [domain], contractVersion: GENERATOR_CONTRACT_VERSION,
+    requestMode: 'contextual-suggestion', intent: '', clarificationTerms: '', variationSeed, domains: [domain], draftCount: boundedCount, contractVersion: GENERATOR_CONTRACT_VERSION,
     context: { dayPart: context.dayPart, company: context.company, availableMinutes: context.availableMinutes, hasKettlebell: context.hasKettlebell },
   };
   if (generatorUrl) {
     try {
       const remote = await requestRemoteDrafts(request);
       const validated = validateGeneratedDrafts(remote.drafts.filter((draft) => draft.kind === domain), context);
-      if (validated.length) return { experiences: validated, mode: remote.mode === 'model' ? 'remote' : 'local-synthesis', message: 'Een frisse mogelijkheid voor dit moment is samengesteld en gecontroleerd.', rejected: remote.drafts.length - validated.length };
+      if (validated.length) return { experiences: validated.slice(0, boundedCount), mode: remote.mode === 'model' ? 'remote' : 'local-synthesis', message: 'Een frisse mogelijkheid voor dit moment is samengesteld en gecontroleerd.', rejected: remote.drafts.length - validated.length };
     } catch {
       // Contextual generation must remain optional and recover locally.
     }
   }
   const local = validateGeneratedDrafts(localSynthesis(request, candidates), context);
-  return { experiences: local, mode: 'local-synthesis', message: 'Een frisse mogelijkheid is lokaal samengesteld uit gecontroleerde bouwstenen.', rejected: 0 };
+  return { experiences: local.slice(0, boundedCount), mode: 'local-synthesis', message: 'Een frisse mogelijkheid is lokaal samengesteld uit gecontroleerde bouwstenen.', rejected: 0 };
 }
