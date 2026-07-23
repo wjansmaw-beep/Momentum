@@ -15,11 +15,17 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@expo-google-fonts/fraunces": "^0.4.1",
     "@expo/metro-runtime": "~56.0.16",
+    "@expo/vector-icons": "^15.0.2",
     "@react-native-async-storage/async-storage": "2.2.0",
     "expo": "~56.0.5",
     "expo-calendar": "~56.0.9",
     "expo-dev-client": "~56.0.22",
+    "expo-font": "~56.0.7",
+    "expo-haptics": "~56.0.3",
+    "expo-image": "~56.0.11",
+    "expo-linear-gradient": "~56.0.4",
     "expo-location": "~56.0.20",
     "expo-status-bar": "~56.0.4",
     "react": "19.2.3",

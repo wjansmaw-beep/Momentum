@@ -36,6 +36,10 @@ export const typography = {
     web: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
     default: 'sans-serif',
   }),
+  /** Redactionele display-serif (Fraunces, gebundeld via @expo-google-fonts) voor titels met verhaalkarakter. */
+  displayFamily: 'Fraunces_600SemiBold',
+  displayFamilyMedium: 'Fraunces_500Medium',
+  displayFamilyItalic: 'Fraunces_500Medium_Italic',
   minimumLabelSize: 11,
   minimumTouchTarget: 44,
 };
