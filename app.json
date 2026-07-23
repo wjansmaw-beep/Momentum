@@ -20,7 +20,9 @@
         {
           "calendarPermission": "Momentum gebruikt lokaal alleen de tijden van afspraken om vrije momenten te herkennen. Titels, deelnemers en notities worden niet gebruikt."
         }
-      ]
+      ],
+      "expo-font",
+      "expo-image"
     ],
     "ios": {
       "supportsTablet": false,
