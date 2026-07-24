@@ -72,23 +72,6 @@ export function ExperienceTile({ experience, large, onPress }: { experience: Exp
   return <Pressable onPress={onPress} style={styles.experienceTile}><CoverImage uri={experience.image} style={[styles.tileImage, large && styles.tileImageLarge]} imageStyle={styles.tileImageStyle}><ImageShade />{experience.generation && <View style={styles.generatedTileBadge}><Ionicons name="sparkles" size={11} color={colors.onImageAccent} /><Text style={[styles.generatedTileBadgeText, styles.onImageAccentText]}>VOOR DIT MOMENT GEMAAKT</Text></View>}<View style={styles.tileCopy}><Pill label={experience.kind.toUpperCase()} accent={experience.accent} /><Text style={[styles.tileTitle, styles.onImageText]}>{experience.title}</Text><Text style={[styles.tilePromise, styles.onImageMutedText]}>{experience.promise}</Text><View style={[styles.iconMetaRow, { marginTop: 14 }]}><Text style={[styles.tileMeta, styles.onImageText]}>{experience.duration} min · {experience.effort}</Text><Ionicons name="arrow-forward" size={12} color={colors.onImage} /></View></View></CoverImage></Pressable>;
 }
 
-export function CapsuleShapePreview({ experience }: { experience: Experience }) {
-  const shape = experience.kind === 'outside'
-    ? { label: 'JE REIS', title: experience.routePlan ? `Naar ${experience.routePlan.destinationName}` : 'Van vertrek naar ontdekking', note: 'Route, aankomst en verhalen van de plek blijven op het juiste moment beschikbaar.' }
-    : experience.kind === 'movement'
-      ? { label: 'JE TRAINING', title: `${experience.steps.length} heldere delen`, note: 'Je ziet telkens één beweging of interval; de rest wacht rustig op de achtergrond.' }
-      : experience.kind === 'food'
-        ? { label: 'JE BEREIDING', title: `${experience.steps.length} stappen van ingrediënt naar tafel`, note: 'Eerst wat je nodig hebt, daarna steeds één handeling en de reden waarom die telt.' }
-        : experience.kind === 'restore'
-          ? { label: 'JE RITME', title: `${experience.duration} minuten zonder haast`, note: 'Eén rustig ritme, minimale bediening en altijd de mogelijkheid om de telefoon weg te leggen.' }
-          : { label: 'JE BELEVING', title: `${experience.steps.length} momenten die logisch in elkaar overgaan`, note: 'Alleen de aanwijzing die nu helpt blijft zichtbaar.' };
-  return <View style={styles.capsuleShapeCard}>
-    <View style={styles.capsuleShapeHeader}><View style={styles.flex}><Text style={styles.capsuleShapeLabel}>{shape.label}</Text><Text style={styles.capsuleShapeTitle}>{shape.title}</Text></View><Ionicons name={experience.kind === 'outside' ? 'navigate-outline' : experience.kind === 'movement' ? 'barbell-outline' : experience.kind === 'food' ? 'restaurant-outline' : experience.kind === 'restore' ? 'leaf-outline' : 'sparkles-outline'} size={25} color={experience.accent} /></View>
-    <View style={styles.capsuleShapeRail}>{experience.steps.slice(0, 3).map((step, index) => <View key={`${step.title}-${index}`} style={styles.capsuleShapeStep}><View style={[styles.capsuleShapeNumber, { borderColor: experience.accent }]}><Text style={styles.capsuleShapeNumberText}>{index + 1}</Text></View><Text numberOfLines={2} style={styles.capsuleShapeStepText}>{step.title}</Text></View>)}</View>
-    <Text style={styles.capsuleShapeNote}>{shape.note}</Text>
-  </View>;
-}
-
 export function GeneratedCapsulePreview({ experience }: { experience: Experience }) {
   const guide = buildExperienceGuide(experience, 0);
   return <View style={styles.generatedJourneyCard}>
