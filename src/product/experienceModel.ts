@@ -130,7 +130,7 @@ export const experiences: Experience[] = [
     wonder: 'De wind neemt af en het laatste licht valt precies over het water.',
     image: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=88',
     accent: '#4E9B6A', duration: 45, effort: 'Rustig', distance: '35 min reizen', timeWindow: '19:30 – 20:30', cta: 'Ga dit beleven',
-    why: ['Je hebt vanavond ruimte', 'Het weer past bij buiten zijn', 'Natuur sluit aan bij je proefprofiel'],
+    why: ['Je hebt vanavond ruimte', 'Het weer past bij buiten zijn', 'Natuur past bij wat jou aanspreekt'],
     prepareTitle: 'Klaar om te gaan?', prepare: ['Lichte jas', 'Water', 'Camera of verrekijker', 'Vertrek zonder haast'],
     presenceMode: 'handoff', presenceTitle: 'Geniet van het licht', presenceCue: 'Open de route en laat Momentum daarna verdwijnen.',
     steps: [
@@ -142,7 +142,7 @@ export const experiences: Experience[] = [
     memoryPrompt: 'Wat wil je van dit licht onthouden?', keywords: ['wandelen', 'wandeling', 'buiten', 'natuur', 'zee', 'strand', 'vogels', 'licht', 'rust'], company: ['solo', 'together', 'family'],
   },
   {
-    id: 'morning-shake', kind: 'food', title: 'Jouw power-ochtendshake',
+    id: 'morning-shake', kind: 'food', title: 'Een heldere ochtendshake',
     promise: 'In zeven minuten staat er iets fris en voedends voor je klaar.',
     wonder: 'Mango, yoghurt en gember maken de ochtend helder zonder gedoe.',
     image: 'https://images.unsplash.com/photo-1623065422902-30a2d299bbe4?auto=format&fit=crop&w=1200&q=88',
@@ -181,7 +181,7 @@ export const experiences: Experience[] = [
     wonder: 'Vijf bewegingen, duidelijke rondes en een helder einde.',
     image: 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=1200&q=88',
     accent: '#4E7FB8', duration: 32, effort: 'Stevig', timeWindow: '16:00 – 18:00', cta: 'Zet de training klaar',
-    why: ['Je hebt voldoende tijd inclusief buffer', 'Kettlebell staat als beschikbaar', 'Uitdaging past bij je proefprofiel'],
+    why: ['Je hebt voldoende tijd inclusief buffer', 'Kettlebell staat als beschikbaar', 'Uitdaging die je zelf in de hand houdt'],
     prepareTitle: 'Alles wat je nodig hebt', prepare: ['Kettlebell', 'Water', 'Vrije ruimte', 'Stop wanneer techniek vervaagt'],
     presenceMode: 'guided', presenceTitle: 'Goblet squat', presenceCue: 'Rustig omlaag. Sterk omhoog.',
     steps: [
@@ -268,12 +268,12 @@ export const experiences: Experience[] = [
     memoryPrompt: 'Wat zou je volgende keer anders doen?', keywords: ['koken', 'recept', 'eten', 'avondeten', 'maaltijd', 'keuken', 'ingrediënten'], company: ['solo', 'together', 'family'],
   },
   {
-    id: 'small-reading', kind: 'learn', title: 'Eén inzicht, direct toegepast',
-    promise: 'Momentum geeft je een klein idee en laat je het meteen in de echte wereld herkennen.',
-    wonder: 'Leren blijft beter hangen wanneer het niet bij informatie alleen blijft.',
+    id: 'small-reading', kind: 'learn', title: 'Zien wat je eerst niet zag',
+    promise: 'Een klein idee dat je meteen in de wereld om je heen herkent.',
+    wonder: 'Wat je zelf ontdekt, blijft het beste hangen.',
     image: 'https://images.unsplash.com/photo-1507842217343-583bb7270b66?auto=format&fit=crop&w=1200&q=88',
-    accent: '#6E7FC4', duration: 15, effort: 'Rustig', cta: 'Ontdek dit inzicht',
-    why: ['Past in een kort tijdvenster', 'Momentum levert de inhoud', 'Eindigt met kijken en doen'],
+    accent: '#6E7FC4', duration: 15, effort: 'Rustig', cta: 'Probeer deze blik',
+    why: ['Past in een kort tijdvenster', 'Je hoeft niets klaar te leggen', 'Eindigt met kijken en doen'],
     prepareTitle: 'Alleen je aandacht is nodig', prepare: ['Geen boek of artikel nodig', 'Kijk straks bewust om je heen', 'Bewaar hooguit één inzicht'],
     presenceMode: 'guided', presenceTitle: 'Ontdek door te vergelijken', presenceCue: 'Eén idee, daarna de wereld weer in.',
     steps: [
