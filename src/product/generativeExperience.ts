@@ -106,7 +106,7 @@ function sanitizeRemoteDraft(value: unknown, index: number, intent: string, requ
     promise,
     wonder,
     image: safeImage(raw.image, kind),
-    accent: /^#[0-9a-f]{6}$/i.test(text(raw.accent)) ? text(raw.accent) : '#A4C55D',
+    accent: /^#[0-9a-f]{6}$/i.test(text(raw.accent)) ? text(raw.accent) : '#4E9B6A',
     duration,
     effort: text(raw.effort, 40) || 'Passend',
     distance: text(raw.distance, 60) || undefined,

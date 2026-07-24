@@ -23,7 +23,7 @@ export function QuietCanvas({ eyebrow, title, children }: QuietCanvasProps) {
     <View style={styles.frame}>
       <LinearGradient
         pointerEvents="none"
-        colors={['#FCFAF5', '#F2EBDF', '#E9DFD0']}
+        colors={['#FFFFFF', '#F7F6FA', '#EFEDF6']}
         locations={[0, 0.58, 1]}
         style={StyleSheet.absoluteFill}
       />
@@ -54,7 +54,7 @@ const styles = StyleSheet.create({
     borderRadius: 170,
     top: -120,
     right: -110,
-    backgroundColor: 'rgba(182,135,85,0.13)',
+    backgroundColor: 'rgba(32,128,73,0.10)',
   },
   copy: { padding: 26, gap: 13 },
   eyebrow: { color: colors.accent, fontSize: 11, letterSpacing: 1.45, fontWeight: '700' },

@@ -85,7 +85,7 @@ export function ExperienceGuidePanel({ guide, depth, accent, image, onClose }: {
     <Reanimated.View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.scrim, scrimStyle]} />
     <Pressable accessibilityLabel="Sluit de gids" onPress={close} style={styles.dismissArea} />
     <Reanimated.View style={[styles.sheetFrame, sheetStyle]}>
-      <Glass intensity={38} fallbackColor="rgba(252,250,245,0.94)" style={styles.sheet}>
+      <Glass intensity={38} fallbackColor="rgba(255,255,255,0.94)" style={styles.sheet}>
         <GestureDetector gesture={pan}>
           <View accessibilityLabel="Sleep de gids omlaag om te sluiten" style={styles.dragZone}>
             <View style={styles.handle} />
@@ -103,11 +103,11 @@ export function ExperienceGuidePanel({ guide, depth, accent, image, onClose }: {
           {depth !== 'quiet' && guide.currentInsight ? <View style={styles.card}>
             <Text style={styles.cardTitle}>{guide.currentInsight.title}</Text>
             <Text style={styles.body}>{guide.currentInsight.body}</Text>
-            {guide.currentInsight.sourceUrl ? <Pressable accessibilityRole="link" onPress={() => Linking.openURL(guide.currentInsight!.sourceUrl!).catch(() => setSourceStatus('De bron kon niet worden geopend.'))}><Text style={[styles.source, { color: accent }]}>{guide.currentInsight.sourceLabel} · Bekijk bron <Ionicons name="open-outline" size={11} color={accent} /></Text></Pressable> : <Text style={styles.source}>{guide.currentInsight.sourceKind === 'live' ? 'Actuele bron' : guide.currentInsight.sourceKind === 'curator' ? 'Plaatskennis' : 'Redactioneel'} · {guide.currentInsight.sourceLabel}</Text>}
+            {guide.currentInsight.sourceUrl ? <Pressable accessibilityRole="link" onPress={() => Linking.openURL(guide.currentInsight!.sourceUrl!).catch(() => setSourceStatus('De bron kon niet worden geopend.'))}><Text style={[styles.source, { color: colors.accentText }]}>{guide.currentInsight.sourceLabel} · Bekijk bron <Ionicons name="open-outline" size={11} color={accent} /></Text></Pressable> : <Text style={styles.source}>{guide.currentInsight.sourceKind === 'live' ? 'Actuele bron' : guide.currentInsight.sourceKind === 'curator' ? 'Plaatskennis' : 'Redactioneel'} · {guide.currentInsight.sourceLabel}</Text>}
           </View> : null}
           {depth !== 'quiet' && activeEvidence.length ? <View style={styles.card}>
             <Text style={styles.section}>WAT DE WERELD NU LAAT ZIEN</Text>
-            {activeEvidence.map((item) => <Pressable accessibilityRole="link" accessibilityLabel={`Open bron ${item.sourceName}`} onPress={async () => { setSourceStatus(''); try { await Linking.openURL(item.sourceUrl); } catch { setSourceStatus('De bron kon niet worden geopend. De ervaring blijft zonder deze bron bruikbaar.'); } }} key={`${item.sourceName}-${item.label}`} style={styles.item}><View style={[styles.dot, { backgroundColor: accent }]} /><View style={styles.flex}><Text style={styles.itemTitle}>{item.label}</Text><Text style={styles.source}>{item.sourceName} · {item.freshnessLabel} · {observedLabel(item.observedAt)}</Text><Text style={[styles.source, { color: accent }]}>Bekijk bron <Ionicons name="open-outline" size={11} color={accent} /></Text></View></Pressable>)}
+            {activeEvidence.map((item) => <Pressable accessibilityRole="link" accessibilityLabel={`Open bron ${item.sourceName}`} onPress={async () => { setSourceStatus(''); try { await Linking.openURL(item.sourceUrl); } catch { setSourceStatus('De bron kon niet worden geopend. De ervaring blijft zonder deze bron bruikbaar.'); } }} key={`${item.sourceName}-${item.label}`} style={styles.item}><View style={[styles.dot, { backgroundColor: accent }]} /><View style={styles.flex}><Text style={styles.itemTitle}>{item.label}</Text><Text style={styles.source}>{item.sourceName} · {item.freshnessLabel} · {observedLabel(item.observedAt)}</Text><Text style={[styles.source, { color: colors.accentText }]}>Bekijk bron <Ionicons name="open-outline" size={11} color={accent} /></Text></View></Pressable>)}
             {sourceStatus ? <Text accessibilityLiveRegion="polite" style={styles.caution}>{sourceStatus}</Text> : null}
             <Text style={styles.caution}>Een waarneming of verwachting is context, geen garantie. Volg ter plaatse altijd actuele aanwijzingen.</Text>
           </View> : null}
@@ -118,7 +118,7 @@ export function ExperienceGuidePanel({ guide, depth, accent, image, onClose }: {
               <Text style={styles.momentTitle}>{moment.insight.title}</Text>
               <Text style={styles.momentStep}>Hoort bij de stap “{moment.stepTitle}”.</Text>
               <Text style={styles.body}>{moment.insight.body}</Text>
-              {moment.insight.sourceUrl ? <Pressable accessibilityRole="link" onPress={() => Linking.openURL(moment.insight.sourceUrl!).catch(() => setSourceStatus('De bron kon niet worden geopend.'))}><Text style={[styles.source, { color: accent }]}>{moment.insight.sourceLabel} · Bekijk bron <Ionicons name="open-outline" size={11} color={accent} /></Text></Pressable> : <Text style={styles.source}>{moment.insight.sourceKind === 'live' ? 'Actuele bron' : moment.insight.sourceKind === 'curator' ? 'Plaatskennis' : 'Redactioneel'} · {moment.insight.sourceLabel}</Text>}
+              {moment.insight.sourceUrl ? <Pressable accessibilityRole="link" onPress={() => Linking.openURL(moment.insight.sourceUrl!).catch(() => setSourceStatus('De bron kon niet worden geopend.'))}><Text style={[styles.source, { color: colors.accentText }]}>{moment.insight.sourceLabel} · Bekijk bron <Ionicons name="open-outline" size={11} color={accent} /></Text></Pressable> : <Text style={styles.source}>{moment.insight.sourceKind === 'live' ? 'Actuele bron' : moment.insight.sourceKind === 'curator' ? 'Plaatskennis' : 'Redactioneel'} · {moment.insight.sourceLabel}</Text>}
             </View>)}
           </View> : null}
           {depth === 'deep' ? <View style={styles.card}>
@@ -134,7 +134,7 @@ export function ExperienceGuidePanel({ guide, depth, accent, image, onClose }: {
 
 const styles = StyleSheet.create({
   overlay: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, zIndex: 30, justifyContent: 'flex-end' },
-  scrim: { backgroundColor: 'rgba(5,8,7,0.52)' },
+  scrim: { backgroundColor: 'rgba(8,10,14,0.52)' },
   dismissArea: { flex: 1 },
   sheetFrame: { maxHeight: '72%', minHeight: 300, borderTopLeftRadius: 30, borderTopRightRadius: 30, shadowColor: colors.shadow, shadowOpacity: 0.24, shadowRadius: 28, shadowOffset: { width: 0, height: -10 } },
   sheet: { flexShrink: 1, borderTopLeftRadius: 30, borderTopRightRadius: 30, paddingHorizontal: 20, paddingBottom: 18 },

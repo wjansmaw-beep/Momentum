@@ -92,10 +92,12 @@ export function NowScreen() {
   const affirmationEntrance = useStaggeredEntrance(1, { duration: 560, distance: 10 });
   // Living Canvas (Horizon B): sub-perceptuele Ken Burns op de hero (≤4%, ≥8s, stil bij reduced-motion).
   const kenBurns = useKenBurns();
-  // Dagelijkse affirmatieregel (ADR-059, punt 1; ADR-060, punt 3): deterministisch
-  // samengesteld uit dagdeel, live wereldcontext (alleen wanneer gekoppeld),
-  // zelf gekozen richtingen, recente positieve feedback uit het leermodel en de
-  // optionele energie-check-in. Zonder al die ingangen blijft de neutrale regel.
+  // Dagelijkse affirmatieregel (ADR-059, punt 1; ADR-060, punt 3; ADR-061,
+  // punt 2): deterministisch samengesteld uit dagdeel, live wereldcontext
+  // (weer én plaats, alleen wanneer gekoppeld), zelf gekozen richtingen,
+  // recente positieve feedback uit het leermodel en de optionele
+  // energie-check-in. Elke persoonlijke regel draagt een concreet anker
+  // (tijd, plek of actie); zonder al die ingangen blijft de neutrale regel.
   const affirmationFeedback = useMemo(() => {
     // Alleen positieve bevestigingen (worth-it / repeat) van de laatste twee
     // weken bereiken de regel; 'not-for-me' komt hier nooit aan bod.
@@ -111,11 +113,12 @@ export function NowScreen() {
     dayPart: context.dayPart,
     firstName: personalProfile.firstName,
     weather: liveWorld?.weather ? { weatherCode: liveWorld.weather.weatherCode, temperature: liveWorld.weather.temperature, windSpeed: liveWorld.weather.windSpeed } : null,
+    place: liveWorld?.regionLabel ? liveWorld.regionLabel.split(' proefcontext')[0] : null,
     directions: [...personalProfile.directions.near, ...personalProfile.directions.growth, ...personalProfile.directions.meaning]
       .filter((value) => !personalProfile.pausedDirections.includes(value)),
     energy: energyLevel,
     feedback: affirmationFeedback,
-  }), [affirmationFeedback, context.dayPart, energyLevel, liveWorld?.weather, personalProfile]);
+  }), [affirmationFeedback, context.dayPart, energyLevel, liveWorld?.weather, liveWorld?.regionLabel, personalProfile]);
   const currentSuggestion = suggestions[Math.min(suggestionIndex, suggestions.length - 1)] ?? suggestions[0];
   const experience = currentSuggestion.experience;
   const decision = currentSuggestion.decision;
@@ -193,9 +196,7 @@ export function NowScreen() {
         </Reanimated.View>
         <Reanimated.View style={[styles.flex, pullContentStyle]}>
           <ScrollView contentContainerStyle={styles.screenScroll} showsVerticalScrollIndicator={false} onScroll={(event) => { scrollTop.value = event.nativeEvent.contentOffset.y; }} scrollEventThrottle={16}>
-      <Animated.View style={affirmationEntrance[0]}>
-      <ScreenHeader eyebrow={`${dayPartLabels[context.dayPart].toUpperCase()}${firstName ? ` · ${firstName.toUpperCase()}` : ''}`} title={affirmation.line} subtitle="Dit past waarschijnlijk bij je moment. Jij beslist." onProfile={onProfile} profileName={firstName} />
-      </Animated.View>
+      <ScreenHeader eyebrow={`${dayPartLabels[context.dayPart].toUpperCase()}${firstName ? ` · ${firstName.toUpperCase()}` : ''}`} title="Wat past er nu?" subtitle="Dit past waarschijnlijk bij je moment. Jij beslist." onProfile={onProfile} profileName={firstName} />
       <LiveWorldBar snapshot={liveWorld} loading={liveLoading} onRefresh={Platform.OS === 'web' ? onRefresh : undefined} />
       {/* Energie-check-in (ADR-060, punt 3b): licht en vrijwillig. Geen meting,
           geen verplichting; overslaan betekent neutraal. Opnieuw tikken wist. */}
@@ -217,6 +218,12 @@ export function NowScreen() {
       {pendingExperience?.length ? <Pressable accessibilityRole="button" accessibilityLabel={`Toon de nieuwe blik: ${pendingExperience[0].title}`} onPress={onShowPendingExperience} style={styles.pendingHeroPill}><Ionicons name="sparkles" size={14} color={colors.accent} /><View style={styles.flex}><Text style={styles.pendingHeroPillText}>{pendingExperience.length > 1 ? `${pendingExperience.length} nieuwe blikken beschikbaar` : 'Nieuwe blik beschikbaar'}</Text><Text style={styles.pendingHeroPillBody}>{pendingExperience[0].title}{pendingExperience.length > 1 ? ` en ${pendingExperience.length - 1} ${pendingExperience.length === 2 ? 'andere blik' : 'andere blikken'}` : ''} {pendingExperience.length > 1 ? 'wachten' : 'wacht'} rustig tot jij wilt wisselen.</Text></View><Text style={styles.pendingHeroPillAction}>Toon</Text></Pressable> : null}
       {resumableExperience && <View style={styles.resumeCard}><Pressable accessibilityLabel={`Hervat ${resumableExperience.title}`} onPress={onResume} style={styles.resumeMain}><View style={styles.resumeMark}><Ionicons name="play" size={14} color={colors.accent} /></View><View style={styles.flex}><Text style={styles.resumeLabel}>GA VERDER</Text><Text style={styles.resumeTitle}>{resumableExperience.title}</Text></View><Ionicons name="arrow-forward" size={21} color={colors.gold} /></Pressable><Pressable accessibilityLabel="Sluit open ervaring" onPress={onDiscardSession} style={styles.resumeDiscard}><Text style={styles.resumeDiscardText}>Sluit</Text></Pressable></View>}
       {calendar.state === 'live' && calendar.currentFreeMinutes ? <View style={styles.contextNotice}><Ionicons name="time-outline" size={20} color={colors.gold} /><View style={styles.flex}><Text style={styles.contextNoticeTitle}>{calendar.currentFreeMinutes} minuten ruimte herkend</Text><Text style={styles.contextNoticeBody}>Alleen begin- en eindtijden verwerkt · afspraakinhoud genegeerd</Text></View></View> : null}
+      {/* ADR-061, punt 2: de affirmatieregel als bescheiden kicker boven de
+          hero — serif-italic op kleine schaal, richtinggevend zonder met de
+          belofte te concurreren. */}
+      <Animated.View style={affirmationEntrance[0]}>
+        <Text style={styles.affirmationKicker}>{affirmation.line}</Text>
+      </Animated.View>
       {decision.confidence === 'low' && !declined ? <QuietCanvas eyebrow="NOG GEEN EERLIJK BESTE VOORSTEL" title="Wat zou dit moment voor jou de moeite waard maken?">
         <Text style={styles.screenSubtitle}>Momentum mist voldoende onderscheid. Geef één korte richting; je beschikbare tijd blijft behouden.</Text>
         <PrimaryButton label="Geef richting" onPress={onDiscover} /><SecondaryButton label="Laat dit moment open" onPress={() => setDeclined(true)} />
