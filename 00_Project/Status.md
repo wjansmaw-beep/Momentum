@@ -1,9 +1,9 @@
 # Momentum Project Status
 
 Status: Active  
-Version: 1.4
+Version: 1.5
 
-## Application-code boundary: approved through ADR-060
+## Application-code boundary: approved through ADR-061
 
 This file is the single source of truth for the current application-code boundary. Every AI coding agent must read it at the start of each session, before proposing or implementing any change. Only the Founder can extend the boundary, through an ADR.
 
@@ -17,7 +17,7 @@ ADR-051 additionally approves the unified visual foundation: one system type fam
 
 ADR-052 additionally approves the content-first premium journey and photographic continuity through Promise, Prepare, and Presence.
 
-ADR-053 additionally approves the warm daylight visual direction: light neutral application chrome, photography-led color, a restrained umber/bronze action accent, and no persistent green cast. The current application-code boundary therefore extends through ADR-053.
+ADR-053 additionally approves the warm daylight visual direction: light neutral application chrome, photography-led color, a restrained umber/bronze action accent, and no persistent green cast. Amended by ADR-061 (fresh color language).
 
 ADR-054 additionally approves the premium-coherence pass: consumer language instead of evaluation language, editorial Today hierarchy, memory-led Life Book, validated Meaning Threads, aligned timers, a consultable guide sheet, and one code-native navigation grammar. The current application-code boundary therefore extends through ADR-054.
 
@@ -32,3 +32,5 @@ ADR-058 additionally approves Horizon C in limited scope: the react-navigation n
 ADR-059 additionally approves the Living Now Surface: a deterministic daily affirmation line on Now (affirming, never pressuring; closes the ADR-055 open question), a richer finite option set of maximum 5 per moment with small contextual candidate sets on open, per-moment company/transport refinement in Prepare instead of Profile, and richer guide and supporting cards within the approved capsule-content model. The no-feed invariant is preserved through the explicit option ceiling. The current application-code boundary therefore extends through ADR-059.
 
 ADR-060 additionally approves: Discover as an editorial travel guide of the surroundings working on any location (finite curated sections, never a feed), Today as an editorial day timeline, and the affirmation extension with live user feedback and an optional self-reported energy check-in that may gently inform ranking. Sensor-inferred energy (HealthKit) remains out of scope. The current application-code boundary therefore extends through ADR-060.
+
+ADR-061 additionally approves: a fresh color language amending ADR-053 (cool light base, white cards, confident deep-green primary action, per-phase accent colors; WCAG AA preserved), purposeful affirmations requiring a concrete anchor with reduced header presentation, and phase function enrichment (in-app route map preview via react-native-maps with OpenStreetMap tiles, richer reflection, photos in memories via expo-image-picker on-device only, and soft visible learning phrased as observations). Pressure mechanics (scores, ratings, social proof) are permanently excluded; PRIMX stays excluded as architecture. The current application-code boundary therefore extends through ADR-061.
