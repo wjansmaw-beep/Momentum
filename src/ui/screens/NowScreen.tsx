@@ -10,7 +10,7 @@ import {
   ViewStyle,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { StackActions, useNavigation } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Reanimated, {
@@ -30,7 +30,7 @@ import { impactLight } from '../../design/haptics';
 import { useKenBurns, useStaggeredEntrance } from '../../design/motion';
 import { CoverImage, ImageShade } from '../CoverImage';
 import { QuietCanvas } from '../QuietCanvas';
-import { ChoiceChip, LiveWorldBar, MiniFact, Pill, PrimaryButton, ScreenHeader, SecondaryButton } from '../primitives';
+import { ChoiceChip, LiveWorldBar, MiniFact, Pill, ScreenHeader, SecondaryButton } from '../primitives';
 import { SurfaceFrame } from '../frames';
 import { styles } from '../styles/appStyles';
 import { useApp } from '../../app/store';
@@ -67,7 +67,6 @@ export function NowScreen() {
     navigation.navigate('Prepare');
   };
   const onProfile = () => navigation.navigate('Profile');
-  const onDiscover = () => navigation.dispatch(StackActions.replace('Discover'));
   const onRefresh = () => refreshLiveWorld();
   const onFeedback = (item: Experience, outcome: LearningOutcome) => applyFeedback(item, outcome);
   const onResume = () => {
@@ -123,7 +122,10 @@ export function NowScreen() {
   const suggestionIndexRef = useRef(suggestionIndex);
   useEffect(() => { suggestionIndexRef.current = suggestionIndex; }, [suggestionIndex]);
   const shiftSuggestion = (direction: number) => {
-    const nextIndex = Math.max(0, Math.min(suggestions.length - 1, suggestionIndexRef.current + direction));
+    // Carrousel: na de laatste match volgt weer de eerste (en andersom),
+    // zodat de suggesties rondgaan in plaats van dood te lopen.
+    const count = suggestions.length;
+    const nextIndex = ((suggestionIndexRef.current + direction) % count + count) % count;
     if (nextIndex === suggestionIndexRef.current) return;
     impactLight();
     showSuggestion(nextIndex);
@@ -217,10 +219,7 @@ export function NowScreen() {
       <Animated.View style={affirmationEntrance[0]}>
         <Text style={styles.affirmationKicker}>{affirmation.line}</Text>
       </Animated.View>
-      {decision.confidence === 'low' && !declined ? <QuietCanvas eyebrow="NOG GEEN EERLIJK BESTE VOORSTEL" title="Wat zou dit moment voor jou de moeite waard maken?">
-        <Text style={styles.screenSubtitle}>Momentum mist voldoende onderscheid. Geef één korte richting; je beschikbare tijd blijft behouden.</Text>
-        <PrimaryButton label="Geef richting" onPress={onDiscover} /><SecondaryButton label="Laat dit moment open" onPress={() => setDeclined(true)} />
-      </QuietCanvas> : !declined ? (
+      {!declined ? (
         <View style={styles.heroCard}>
           <GestureDetector gesture={swipeGesture}>
             <View collapsable={false}>
@@ -250,9 +249,9 @@ export function NowScreen() {
           </GestureDetector>
           <View style={styles.heroActionArea}>
             {suggestions.length > 1 && <View style={styles.suggestionSwitcher}>
-              <Pressable accessibilityLabel="Vorige suggestie" disabled={suggestionIndex === 0} onPress={() => { impactLight(); showSuggestion(Math.max(0, suggestionIndex - 1)); }} style={[styles.suggestionArrow, suggestionIndex === 0 && styles.suggestionArrowDisabled]}><Ionicons name="chevron-back" size={20} color={colors.bone} /></Pressable>
+              <Pressable accessibilityLabel="Vorige suggestie" onPress={() => shiftSuggestion(-1)} style={styles.suggestionArrow}><Ionicons name="chevron-back" size={20} color={colors.bone} /></Pressable>
               <View style={styles.suggestionPosition}><View style={styles.suggestionDots}>{suggestions.map((_, index) => <View key={index} style={[styles.suggestionDot, index === suggestionIndex && styles.suggestionDotActive]} />)}</View><Text style={styles.suggestionPositionBody}>{suggestionIndex === 0 ? 'Beste match voor nu' : 'Een andere richting'}</Text></View>
-              <Pressable accessibilityLabel="Volgende suggestie" disabled={suggestionIndex >= suggestions.length - 1} onPress={() => { impactLight(); showSuggestion(Math.min(suggestions.length - 1, suggestionIndex + 1)); }} style={[styles.suggestionArrow, suggestionIndex >= suggestions.length - 1 && styles.suggestionArrowDisabled]}><Ionicons name="chevron-forward" size={20} color={colors.bone} /></Pressable>
+              <Pressable accessibilityLabel="Volgende suggestie" onPress={() => shiftSuggestion(1)} style={styles.suggestionArrow}><Ionicons name="chevron-forward" size={20} color={colors.bone} /></Pressable>
             </View>}
             <Pressable onPress={() => setWhyOpen((value) => !value)} style={styles.whyButton}>
               <Text style={styles.whyButtonText}>Waarom dit nu past</Text><Ionicons name={whyOpen ? 'chevron-up' : 'chevron-down'} size={18} color={colors.gold} />
@@ -267,10 +266,12 @@ export function NowScreen() {
           <SecondaryButton label="Toon het voorstel opnieuw" onPress={() => setDeclined(false)} />
         </QuietCanvas>
       )}
-      {/* Wijziging NU (Founder): de momentmaker-ingang én de kaart
-          "Er is ruimte ontstaan" zijn hier verwijderd. Eigen invulling hoort
-          op één plek: de intent-sectie "Eigen richting" in Ontdekken; de
-          gebruiker navigeert daar zelf heen. Geen andere wijziging aan Nu. */}
+      {/* Wijziging NU (Founder): de momentmaker-ingang, de kaart
+          "Er is ruimte ontstaan" én de lage-confidence-kaart "Geef richting"
+          achter de laatste match zijn hier verwijderd. De suggesties gaan
+          rond: na de laatste match volgt weer de eerste. Eigen invulling
+          hoort op één plek: de intent-sectie "Eigen richting" in Ontdekken;
+          de gebruiker navigeert daar zelf heen. Geen andere wijziging aan Nu. */}
           </ScrollView>
         </Reanimated.View>
       </View>
