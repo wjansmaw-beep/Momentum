@@ -64,7 +64,7 @@ import {
 import { GuideDepth } from '../guidance/experienceGuide';
 import { composeGuideMoments } from '../guidance/guideComposer';
 import { auditCandidatePool, CompositionSummary } from '../guidance/compositionAudit';
-import { colors } from '../design/theme';
+import { colors, useAppearance } from '../design/theme';
 import { appFont } from '../ui/styles/appStyles';
 import { notificationSuccess } from '../design/haptics';
 import { attachMeaningThread } from '../product/meaningThread';
@@ -173,12 +173,18 @@ function useAppStore() {
   const [momentNotice, setMomentNotice] = useState('');
   const [energyCheckin, setEnergyCheckinState] = useState<EnergyCheckin | null>(null);
 
+  // ADR-064: the web page chrome (html/body background) follows the device
+  // appearance; the token read resolves through the scheme-aware proxy.
+  const appearanceScheme = useAppearance();
   useEffect(() => {
     if (typeof document !== 'undefined') {
       document.documentElement.style.backgroundColor = colors.ink;
       document.body.style.backgroundColor = colors.ink;
       if (appFont) document.body.style.fontFamily = appFont;
     }
+  }, [appearanceScheme]);
+
+  useEffect(() => {
     AsyncStorage.getItem(memoryKey).then((value) => {
       if (value) setMemories(JSON.parse(value));
     }).catch(() => undefined);

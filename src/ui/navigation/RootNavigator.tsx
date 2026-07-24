@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View } from 'react-native';
 import { DefaultTheme, NavigationContainer, Theme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { colors } from '../../design/theme';
+import { colors, useAppearance } from '../../design/theme';
 import { styles } from '../styles/appStyles';
 import { useApp } from '../../app/store';
 import { linking } from './linking';
@@ -30,20 +30,23 @@ import { ProfileScreen } from '../screens/ProfileScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-const navigationTheme: Theme = {
-  ...DefaultTheme,
-  colors: {
-    ...DefaultTheme.colors,
-    primary: colors.accent,
-    background: colors.backdrop,
-    card: colors.backdrop,
-    text: colors.bone,
-    border: 'transparent',
-  },
-};
-
 export function RootNavigator() {
   const { personalHydrated, displayFontsLoaded, personalProfile, incomingInvite, inviteIssue, inviteGuestMode } = useApp();
+  // ADR-064: the navigator chrome follows the device appearance; the token
+  // reads inside the memo resolve through the scheme-aware proxy.
+  const scheme = useAppearance();
+  const navigationTheme = useMemo<Theme>(() => ({
+    ...DefaultTheme,
+    dark: scheme === 'dark',
+    colors: {
+      ...DefaultTheme.colors,
+      primary: colors.accent,
+      background: colors.backdrop,
+      card: colors.backdrop,
+      text: colors.bone,
+      border: 'transparent',
+    },
+  }), [scheme]);
 
   // Laadpoort ongewijzigd: wacht op profiel-hydratatie en de display-serif
   // voordat er een scherm verschijnt.

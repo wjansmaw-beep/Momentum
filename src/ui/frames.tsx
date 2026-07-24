@@ -1,6 +1,7 @@
 import React from 'react';
 import { Platform, SafeAreaView, useWindowDimensions, View } from 'react-native';
 import { StatusBar, StatusBarStyle } from 'expo-status-bar';
+import { useAppearance } from '../design/theme';
 import { styles } from './styles/appStyles';
 import { AmbientBlobs, BottomNav } from './primitives';
 
@@ -8,6 +9,8 @@ import { AmbientBlobs, BottomNav } from './primitives';
 // SafeArea, gecentreerd appFrame met web-rand) is ongewijzigd overgenomen en nu
 // per scherm beschikbaar. SurfaceFrame voegt de bestaande bottomNav toe;
 // FlowFrame is dezelfde omlijsting zonder bottomNav voor flow- en modalschermen.
+// ADR-064: de statusbalk volgt het toesteluiterlijk — lichte iconen op de
+// avondtoon, donkere op de dagtoon; een expliciete prop (Presence) wint.
 
 function Frame({ statusBar, withNav, children }: { statusBar: StatusBarStyle; withNav: boolean; children: React.ReactNode }) {
   const { height } = useWindowDimensions();
@@ -25,10 +28,14 @@ function Frame({ statusBar, withNav, children }: { statusBar: StatusBarStyle; wi
   );
 }
 
-export function SurfaceFrame({ children }: { children: React.ReactNode }) {
-  return <Frame statusBar="dark" withNav>{children}</Frame>;
+function useDefaultBarStyle(): StatusBarStyle {
+  return useAppearance() === 'dark' ? 'light' : 'dark';
 }
 
-export function FlowFrame({ statusBar = 'dark', children }: { statusBar?: StatusBarStyle; children: React.ReactNode }) {
-  return <Frame statusBar={statusBar} withNav={false}>{children}</Frame>;
+export function SurfaceFrame({ children }: { children: React.ReactNode }) {
+  return <Frame statusBar={useDefaultBarStyle()} withNav>{children}</Frame>;
+}
+
+export function FlowFrame({ statusBar, children }: { statusBar?: StatusBarStyle; children: React.ReactNode }) {
+  return <Frame statusBar={statusBar ?? useDefaultBarStyle()} withNav={false}>{children}</Frame>;
 }
