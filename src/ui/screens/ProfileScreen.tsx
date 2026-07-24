@@ -29,15 +29,17 @@ import {
 } from '../../product/generatorEvaluation';
 import { colors } from '../../design/theme';
 import { impactLight } from '../../design/haptics';
-import { BackButton, ChoiceChip, DirectionEditor, PrimaryButton, ProfileRow, SecondaryButton } from '../primitives';
-import { FlowFrame } from '../frames';
+import { ChoiceChip, DirectionEditor, PrimaryButton, ProfileRow, SecondaryButton } from '../primitives';
+import { SurfaceFrame } from '../frames';
 import { styles } from '../styles/appStyles';
 import { defaultRegion, MOMENTUM_DEBUG, timeOptions, useApp } from '../../app/store';
 import { RootStackParamList } from '../navigation/types';
 
-// Profiel-scherm (ADR-058): verhuisd uit App.tsx. 'Sluiten' is nu de
-// platform-pop; een lab-proef vervangt Profiel door Prepare zodat 'Terug' op
-// de surface uitkomt — zoals de vroegere flowStage-wissel.
+// Profiel-scherm (ADR-058): verhuisd uit App.tsx. ADR-067 (fase R1): JIJ is een
+// tab in het vijf-tab skelet — het scherm draagt daarom de SurfaceFrame met
+// tabbalk; 'Klaar' keert via replace terug naar Nu. Een lab-proef vervangt
+// Profiel door Prepare zodat 'Terug' op de surface uitkomt — zoals de vroegere
+// flowStage-wissel. De inhoud van Jij wordt in R5 herbouwd.
 
 export function ProfileScreen() {
   const {
@@ -77,7 +79,9 @@ export function ProfileScreen() {
     navigation.dispatch(CommonActions.reset({ index: 0, routes: [{ name: 'Onboarding' }] }));
   };
   const onRefresh = () => { refreshLiveWorld().catch(() => undefined); };
-  const onClose = () => navigation.goBack();
+  // JIJ is een tab in het vijf-tab skelet (ADR-067, R1): "Klaar" keert terug
+  // naar Nu via dezelfde rustige replace als de tabwissels.
+  const onClose = () => navigation.dispatch(StackActions.replace('Now'));
   const [labOpen, setLabOpen] = useState(false);
   const [evaluationKind, setEvaluationKind] = useState<ExperienceKind>('outside');
   const [evaluationMinutes, setEvaluationMinutes] = useState(30);
@@ -90,8 +94,7 @@ export function ProfileScreen() {
   const evaluationProgress = generatorEvaluationProgress(evidence.generationTrials);
   const nextEvaluation = nextGeneratorEvaluationScenario(evidence.generationTrials);
   const nextCompany = companies.find((item) => item.id === nextEvaluation.company)?.label ?? nextEvaluation.company;
-  return <FlowFrame><ScrollView contentContainerStyle={styles.flowScroll}>
-    <BackButton label="Sluiten" onPress={onClose} />
+  return <SurfaceFrame><ScrollView contentContainerStyle={styles.screenScroll}>
     <Text style={styles.eyebrow}>JOUW MOMENTUM</Text><Text style={styles.flowTitle}>Jij houdt de regie.</Text>
     <Text style={styles.screenSubtitle}>Bekijk wat Momentum gebruikt, pas het aan of wis wat het heeft geleerd. Alles hieronder blijft lokaal op dit apparaat.</Text>
     <View style={styles.personalCard}>
@@ -206,5 +209,5 @@ export function ProfileScreen() {
     </>}
     <View style={styles.learningCard}><Text style={styles.learningTitle}>Transparante lokale selectie</Text><Text style={styles.learningBody}>Momentum filtert eerst op tijd, gezelschap en materiaal. Daarna wegen moment, jouw eigen woorden, bevestigde voorkeuren, actuele bronnen en voldoende afwisseling mee.</Text></View>
     <PrimaryButton label={MOMENTUM_DEBUG ? 'Gebruik deze proefcontext' : 'Klaar'} onPress={onClose} />
-  </ScrollView></FlowFrame>;
+  </ScrollView></SurfaceFrame>;
 }

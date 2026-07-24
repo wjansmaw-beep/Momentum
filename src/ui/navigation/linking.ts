@@ -16,15 +16,16 @@ const config = {
   screens: {
     Now: '',
     Today: 'today',
-    Discover: 'discover',
+    Guide: 'guide',
     LifeBook: 'lifebook',
+    Profile: 'profile',
+    Discover: 'discover',
     Onboarding: 'welcome',
     IncomingInvite: 'invite',
     InvalidInvite: 'invite-invalid',
     Prepare: 'prepare',
     Presence: 'presence',
     Remember: 'remember',
-    Profile: 'profile',
   },
 };
 
