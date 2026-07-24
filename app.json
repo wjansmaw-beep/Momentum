@@ -27,7 +27,7 @@
     ],
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.momentum.prototype",
+      "bundleIdentifier": "com.wjansmaw.momentum",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
