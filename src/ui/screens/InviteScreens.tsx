@@ -68,7 +68,7 @@ export function IncomingInviteScreen() {
         <Text style={styles.eyebrow}>UITNODIGING VAN {invite.hostName.toUpperCase()}</Text>
         <Text style={styles.inviteHeadline}>Dit moment kunnen jullie samen beleven.</Text>
         <View style={styles.invitePromiseCard}>
-          <Text style={styles.expectationLabel}>GEDEELDE EXPERIENCE CAPSULE</Text>
+          <Text style={styles.expectationLabel}>SAMEN BELEVEN</Text>
           <Text style={styles.inviteTitle}>{invite.title}</Text>
           <Text style={styles.invitePromise}>{invite.promise}</Text>
           <View style={styles.factStrip}><MiniFact value={`${invite.duration} min`} label="totaal" /><MiniFact value={invite.company === 'family' ? 'Gezin' : 'Samen'} label="gezelschap" /><MiniFact value={invite.coordination === 'meet-there' ? 'Startpunt' : 'Samen'} label="afspraak" /></View>
@@ -76,9 +76,9 @@ export function IncomingInviteScreen() {
         <View style={styles.inviteTrustCard}><Text style={styles.inviteTrustTitle}>Jouw gegevens blijven van jou</Text><Text style={styles.inviteTrustBody}>Deze uitnodiging bevat alleen de ervaring en gezamenlijke afspraak. Jouw profiel, agenda, locatiegeschiedenis en voorkeuren worden niet met {invite.hostName} gedeeld.</Text></View>
         <Text style={styles.fieldLabel}>HOE MOGEN WE JE IN DEZE ERVARING NOEMEN?</Text>
         <TextInput value={guestName} onChangeText={setGuestName} placeholder="Je voornaam" placeholderTextColor={colors.placeholder} style={styles.inviteNameInput} />
-        {expired ? <View style={styles.unavailableInvite}><Text style={styles.unavailableInviteTitle}>Deze uitnodiging is verlopen</Text><Text style={styles.unavailableInviteBody}>Een uitnodiging blijft 72 uur bruikbaar. Vraag {invite.hostName} om de actuele kaart opnieuw te delen.</Text></View> : available ? <PrimaryButton label="Ik ga mee" onPress={() => onAccept(guestName)} /> : <View style={styles.unavailableInvite}><Text style={styles.unavailableInviteTitle}>Deze kaart is hier nog niet beschikbaar</Text><Text style={styles.unavailableInviteBody}>Open de uitnodiging op een apparaat met dezelfde Momentum-versie. Live informatie wordt altijd opnieuw gecontroleerd.</Text></View>}
+        {expired ? <View style={styles.unavailableInvite}><Text style={styles.unavailableInviteTitle}>Deze uitnodiging is verlopen</Text><Text style={styles.unavailableInviteBody}>Een uitnodiging blijft 72 uur bruikbaar. Vraag {invite.hostName} om de actuele kaart opnieuw te delen.</Text></View> : available ? <PrimaryButton label="Ik ga mee" onPress={() => onAccept(guestName)} /> : <View style={styles.unavailableInvite}><Text style={styles.unavailableInviteTitle}>Deze kaart is hier nog niet beschikbaar</Text><Text style={styles.unavailableInviteBody}>Open de uitnodiging op een apparaat met Momentum. Actuele omstandigheden worden altijd opnieuw bekeken.</Text></View>}
         <SecondaryButton label="Niet nu" onPress={exit} />
-        <Text style={styles.invitePrototypeNote}>In deze prototypefase wordt deelname alleen op dit apparaat bijgehouden. Veilige synchronisatie volgt pas met een expliciet account- en privacyontwerp.</Text>
+        <Text style={styles.invitePrototypeNote}>Je deelname blijft op dit apparaat. Er wordt niets gedeeld zonder jouw keuze.</Text>
       </ScrollView>
     </SafeAreaView>
   </View>;

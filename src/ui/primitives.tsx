@@ -51,13 +51,29 @@ export function ScreenHeader({ eyebrow, title, subtitle, onProfile, profileName,
 
 export function LiveWorldBar({ snapshot, loading, onRefresh }: { snapshot: LiveWorldSnapshot | null; loading: boolean; onRefresh?: () => Promise<boolean> }) {
   const weather = snapshot?.weather;
-  const air = snapshot?.airQuality;
   const liveCount = snapshot?.sources.filter((source) => source.state === 'live').length ?? 0;
   const staleCount = snapshot?.sources.filter((source) => source.state === 'stale').length ?? 0;
   const region = (snapshot?.regionLabel ?? defaultRegion.label).split(' proefcontext')[0];
+  // Eén levende zin in plaats van een meetlijst (ADR-065, fase 1): dagdeel,
+  // lucht en wind samengevoegd. De exacte bronwaarden blijven beschikbaar in
+  // de waarom/bron-lagen van de schermen.
+  const hour = new Date().getHours();
+  const dayWord = hour < 6 ? 'nacht' : hour < 12 ? 'ochtend' : hour < 18 ? 'middag' : 'avond';
+  const skyWord = weather
+    ? [0, 1].includes(weather.weatherCode) ? 'heldere'
+      : [2, 3].includes(weather.weatherCode) ? 'bewolkte'
+        : [45, 48].includes(weather.weatherCode) ? 'mistige'
+          : [51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82].includes(weather.weatherCode) ? 'natte'
+            : [71, 73, 75, 77, 85, 86].includes(weather.weatherCode) ? 'witte'
+              : [95, 96, 99].includes(weather.weatherCode) ? 'onstuimige' : 'zachte'
+    : '';
+  const windWord = weather ? (weather.windSpeed < 12 ? 'een zachte wind' : weather.windSpeed < 25 ? 'een stevige wind' : 'veel wind') : '';
+  const detail = weather
+    ? `Een ${skyWord} ${dayWord} rond ${region} — ${Math.round(weather.temperature)}° met ${windWord}${weather.visibilityMeters >= 8000 && [0, 1].includes(weather.weatherCode) ? ' en ver zicht' : ''}.`
+    : 'Momentum kiest rustig mee, ook zonder live bronnen';
   return <View style={styles.liveWorldBar}>
     <View style={[styles.sourceState, liveCount ? styles.sourceLive : styles.sourceWaiting]} />
-    <View style={styles.flex}><Text style={styles.liveWorldBarTitle}>{loading && !snapshot ? 'Je omgeving wordt bijgewerkt' : liveCount ? `Actuele omstandigheden rond ${region}` : staleCount ? `Laatste bekende omstandigheden rond ${region}` : `Ervaringen rond ${region}`}</Text><Text style={styles.liveWorldBarDetail}>{weather ? `${Math.round(weather.temperature)}°C · wind ${Math.round(weather.windSpeed)} km/u · zicht ${Math.round(weather.visibilityMeters / 1000)} km${air ? ` · luchtkwaliteit ${Math.round(air.europeanAqi)}` : ''}` : 'Ook zonder live bronnen blijft Momentum bruikbaar'}</Text></View>
+    <View style={styles.flex}><Text style={styles.liveWorldBarTitle}>{loading && !snapshot ? 'Je omgeving wordt bijgewerkt' : liveCount ? `Nu rond ${region}` : staleCount ? `Eerder rond ${region}` : `Ervaringen rond ${region}`}</Text><Text style={styles.liveWorldBarDetail}>{detail}</Text></View>
     {onRefresh ? <Pressable accessibilityRole="button" accessibilityLabel="Vernieuw de live wereld" disabled={loading} onPress={() => { onRefresh().catch(() => undefined); }} style={styles.liveWorldRefresh}><Ionicons name="refresh" size={16} color={colors.accent} /></Pressable> : null}
   </View>;
 }
@@ -75,11 +91,11 @@ export function ExperienceTile({ experience, large, onPress }: { experience: Exp
 export function GeneratedCapsulePreview({ experience }: { experience: Experience }) {
   const guide = buildExperienceGuide(experience, 0);
   return <View style={styles.generatedJourneyCard}>
-    <View style={styles.generatedJourneyHeader}><View><Text style={styles.generatedJourneyEyebrow}>COMPLETE ERVARINGSCAPSULE</Text><Text style={styles.generatedJourneyTitle}>Van beginnen tot herinneren</Text></View><Text style={styles.generatedJourneyCount}>{experience.steps.length} stappen</Text></View>
+    <View style={styles.generatedJourneyHeader}><View><Text style={styles.generatedJourneyEyebrow}>DE HELE BOOG</Text><Text style={styles.generatedJourneyTitle}>Van beginnen tot herinneren</Text></View><Text style={styles.generatedJourneyCount}>{experience.steps.length} stappen</Text></View>
     <View style={styles.generatedJourneyStages}>
       {experience.steps.slice(0, 3).map((step, index) => <View key={`${step.title}-${index}`} style={styles.generatedJourneyStage}><View style={[styles.generatedJourneyNumber, { borderColor: experience.accent }]}><Text style={styles.generatedJourneyNumberText}>{index + 1}</Text></View><View style={styles.flex}><Text style={styles.generatedJourneyStageTitle}>{step.title}</Text><Text numberOfLines={2} style={styles.generatedJourneyStageBody}>{step.instruction}</Text></View></View>)}
     </View>
-    <Text style={styles.generatedJourneyCoverage}>{guide.coverageLabel} · {guide.compositionLabel ?? 'Gecontroleerd ervaringscontract'} · daarna optionele herinnering</Text>
+    <Text style={styles.generatedJourneyCoverage}>{guide.coverageLabel} · daarna een rustige herinnering</Text>
   </View>;
 }
 

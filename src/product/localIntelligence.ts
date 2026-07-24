@@ -123,7 +123,7 @@ export function rankForMoment(context: PrototypeContext, intentText = '', exclud
 
     const affinity = profileAffinity[context.profile][experience.kind] ?? 0;
     score += affinity;
-    if (affinity >= 10) reasons.push({ certainty: 'chosen', text: `sluit aan bij proefprofiel ${profileLabels[context.profile].title}` });
+    if (affinity >= 10) reasons.push({ certainty: 'chosen', text: 'sluit aan bij jouw voorkeuren' });
 
     const target = context.availableMinutes * 0.65 + (learning?.durationBiasMinutes ?? 0);
     const timeScore = Math.max(0, 18 - Math.abs(target - experience.duration) * 0.45);
@@ -133,7 +133,7 @@ export function rankForMoment(context: PrototypeContext, intentText = '', exclud
     if (context.company !== 'solo') reasons.push({ certainty: 'chosen', text: `geschikt voor ${context.company === 'family' ? 'gezin' : 'samen'}` });
     if (experience.liveEvidence?.length) {
       score += 24;
-      reasons.unshift({ certainty: 'calculated', text: 'actuele brongegevens maken dit moment onderscheidend' });
+      reasons.unshift({ certainty: 'calculated', text: 'de wereld van nu maakt dit moment onderscheidend' });
     }
     if (experience.prepare.length <= 4) score += 5;
 
