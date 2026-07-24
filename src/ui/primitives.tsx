@@ -49,7 +49,7 @@ export function ScreenHeader({ eyebrow, title, subtitle, onProfile, profileName,
   );
 }
 
-export function LiveWorldBar({ snapshot, loading, onRefresh }: { snapshot: LiveWorldSnapshot | null; loading: boolean; onRefresh?: () => Promise<boolean> }) {
+export function LiveWorldBar({ snapshot, loading, onRefresh, onImage = false }: { snapshot: LiveWorldSnapshot | null; loading: boolean; onRefresh?: () => Promise<boolean>; onImage?: boolean }) {
   const weather = snapshot?.weather;
   const liveCount = snapshot?.sources.filter((source) => source.state === 'live').length ?? 0;
   const staleCount = snapshot?.sources.filter((source) => source.state === 'stale').length ?? 0;
@@ -71,10 +71,13 @@ export function LiveWorldBar({ snapshot, loading, onRefresh }: { snapshot: LiveW
   const detail = weather
     ? `Een ${skyWord} ${dayWord} rond ${region} — ${Math.round(weather.temperature)}° met ${windWord}${weather.visibilityMeters >= 8000 && [0, 1].includes(weather.weatherCode) ? ' en ver zicht' : ''}.`
     : 'Momentum kiest rustig mee, ook zonder live bronnen';
+  // onImage (ADR-066): op de Nu-scene ligt de wereldzin direct op het beeld;
+  // tekst en bediening wisselen dan naar de onImage-/glas-tokens van de
+  // bestaande scrimlaag. Op andere vlakken blijft alles ongewijzigd.
   return <View style={styles.liveWorldBar}>
     <View style={[styles.sourceState, liveCount ? styles.sourceLive : styles.sourceWaiting]} />
-    <View style={styles.flex}><Text style={styles.liveWorldBarTitle}>{loading && !snapshot ? 'Je omgeving wordt bijgewerkt' : liveCount ? `Nu rond ${region}` : staleCount ? `Eerder rond ${region}` : `Ervaringen rond ${region}`}</Text><Text style={styles.liveWorldBarDetail}>{detail}</Text></View>
-    {onRefresh ? <Pressable accessibilityRole="button" accessibilityLabel="Vernieuw de live wereld" disabled={loading} onPress={() => { onRefresh().catch(() => undefined); }} style={styles.liveWorldRefresh}><Ionicons name="refresh" size={16} color={colors.accent} /></Pressable> : null}
+    <View style={styles.flex}><Text style={[styles.liveWorldBarTitle, onImage && styles.onImageText]}>{loading && !snapshot ? 'Je omgeving wordt bijgewerkt' : liveCount ? `Nu rond ${region}` : staleCount ? `Eerder rond ${region}` : `Ervaringen rond ${region}`}</Text><Text style={[styles.liveWorldBarDetail, onImage && styles.onImageMutedText]}>{detail}</Text></View>
+    {onRefresh ? <Pressable accessibilityRole="button" accessibilityLabel="Vernieuw de live wereld" disabled={loading} onPress={() => { onRefresh().catch(() => undefined); }} style={[styles.liveWorldRefresh, onImage && styles.liveWorldRefreshOnImage]}><Ionicons name="refresh" size={16} color={onImage ? colors.onImageAccent : colors.accent} /></Pressable> : null}
   </View>;
 }
 
