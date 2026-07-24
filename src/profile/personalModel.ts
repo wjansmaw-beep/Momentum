@@ -5,6 +5,12 @@ export type Initiative = 'on-open' | 'day-rhythm' | 'proactive-later';
 export type LearningOutcome = 'not-now' | 'neutral' | 'worth-it' | 'repeat' | 'not-for-me';
 export type DirectionHorizon = 'near' | 'growth' | 'meaning';
 export type ReflectionAspect = 'less-guidance' | 'more-guidance' | 'too-intense' | 'too-light' | 'too-long' | 'too-much-travel' | 'not-relevant' | 'content-not-useful' | 'topic-not-useful';
+// ADR-061, punt 3 (rijkere reflectie): gevoelschips en "zou je dit opnieuw
+// doen?" verrijken de herinnering. Alleen `doAgain` heeft een klein, omkeerbaar
+// leereffect (het blijft onderdeel van de ReflectionMemory en wordt dus exact
+// teruggedraaid door forgetReflection/rebuildLearning); gevoelens zijn puur
+// betekenis voor de gebruiker, nooit een score.
+export type DoAgain = 'maybe' | 'likely' | 'certain';
 
 export type LearningEvent = {
   id: string;
@@ -26,6 +32,8 @@ export type ReflectionMemory = {
   mutedInsightTopics: InsightTopic[];
   mutedInsightExperienceIds: string[];
   note?: string;
+  feelings?: string[];
+  doAgain?: DoAgain;
   explanation: string;
   createdAt: string;
 };
@@ -34,6 +42,8 @@ export type ReflectionInput = {
   outcome: LearningOutcome;
   aspects: ReflectionAspect[];
   note?: string;
+  feelings?: string[];
+  doAgain?: DoAgain;
 };
 
 export type PersonalProfile = {
@@ -76,6 +86,15 @@ export const reflectionAspectLabels: Record<ReflectionAspect, string> = {
   'too-long': 'Te lang', 'too-much-travel': 'Te veel reistijd', 'not-relevant': 'Paste niet bij mij',
   'content-not-useful': 'Geen uitleg bij deze ervaring', 'topic-not-useful': 'Minder over dit onderwerp',
 };
+
+export const doAgainLabels: Record<DoAgain, string> = {
+  maybe: 'Misschien', likely: 'Waarschijnlijk', certain: 'Zeker',
+};
+
+// Vaste, rustige gevoelschips (ADR-061, punt 3): bewust eindig en zacht
+// geformuleerd, zodat reflectie betekenisvol blijft zonder in een
+// stemming-dagboek met scores te veranderen.
+export const feelingOptions = ['Dankbaar', 'Rustig', 'Trots', 'Vrij', 'Verbonden', 'Energiek', 'Ontroerd', 'Voldaan'];
 
 export const directionLabels: Record<DirectionHorizon, { title: string; body: string }> = {
   near: { title: 'Voor de komende tijd', body: 'Concrete ruimte voor de komende dagen of weken.' },
@@ -142,6 +161,11 @@ export function applyLearning(profile: PersonalProfile, experience: Experience, 
   };
 }
 
+// Klein, bewust begrensd leereffect van "zou je dit opnieuw doen?" — het is
+// onderdeel van de ReflectionMemory en dus volledig omkeerbaar via
+// forgetReflection/rebuildLearning (ADR-061, punt 3: geen scores).
+const doAgainDelta = (doAgain?: DoAgain) => doAgain === 'certain' ? 0.04 : doAgain === 'maybe' ? -0.04 : 0;
+
 function rebuildLearning(profile: PersonalProfile, learningEvents: LearningEvent[], reflectionMemories: ReflectionMemory[]): PersonalProfile {
   const affinity = emptyAffinity();
   profile.preferredKinds.forEach((kind) => { affinity[kind] = 0.18; });
@@ -165,6 +189,7 @@ function rebuildLearning(profile: PersonalProfile, learningEvents: LearningEvent
   const mutedInsightExperienceIds: string[] = [];
   [...reflectionMemories].reverse().forEach((memory) => {
     if (memory.aspects.includes('not-relevant')) affinity[memory.kind] = clamp(affinity[memory.kind] - 0.08);
+    affinity[memory.kind] = clamp(affinity[memory.kind] + doAgainDelta(memory.doAgain));
     guidanceBalance = clamp(guidanceBalance + (memory.aspects.includes('more-guidance') ? 0.25 : 0) - (memory.aspects.includes('less-guidance') ? 0.25 : 0), -1, 1);
     durationBiasMinutes = clamp(durationBiasMinutes - (memory.aspects.includes('too-long') ? 5 : 0), -30, 15);
     intensityBalance = clamp(intensityBalance + (memory.aspects.includes('too-light') ? 0.25 : 0) - (memory.aspects.includes('too-intense') ? 0.25 : 0), -1, 1);
@@ -190,11 +215,12 @@ export function applyReflection(profile: PersonalProfile, experience: Experience
     : input.outcome === 'neutral' ? `Je bewaarde ${experience.title} zonder je profiel te veranderen.` : `Je reflecteerde op ${experience.title}.`;
   const memory: ReflectionMemory = {
     id: `reflection-${experience.id}-${Date.now()}`, experienceId: experience.id, experienceTitle: experience.title, kind: experience.kind,
-    outcome: input.outcome, learningEventId, aspects: input.aspects, mutedInsightTopics: muteTopics, mutedInsightExperienceIds: muteExperiences, note: input.note?.trim() || undefined, explanation, createdAt: new Date().toISOString(),
+    outcome: input.outcome, learningEventId, aspects: input.aspects, mutedInsightTopics: muteTopics, mutedInsightExperienceIds: muteExperiences, note: input.note?.trim() || undefined,
+    feelings: input.feelings?.length ? [...input.feelings] : undefined, doAgain: input.doAgain, explanation, createdAt: new Date().toISOString(),
   };
   next = {
     ...next,
-    kindAffinity: { ...next.kindAffinity, [experience.kind]: clamp(next.kindAffinity[experience.kind] + kindPenalty) },
+    kindAffinity: { ...next.kindAffinity, [experience.kind]: clamp(next.kindAffinity[experience.kind] + kindPenalty + doAgainDelta(input.doAgain)) },
     guidanceBalance: clamp(next.guidanceBalance + (input.aspects.includes('more-guidance') ? 0.25 : 0) - (input.aspects.includes('less-guidance') ? 0.25 : 0), -1, 1),
     durationBiasMinutes: clamp(next.durationBiasMinutes - (input.aspects.includes('too-long') ? 5 : 0), -30, 15),
     intensityBalance: clamp(next.intensityBalance + (input.aspects.includes('too-light') ? 0.25 : 0) - (input.aspects.includes('too-intense') ? 0.25 : 0), -1, 1),
@@ -228,4 +254,32 @@ export function resetLearning(profile: PersonalProfile): PersonalProfile {
   const seeded = emptyAffinity();
   profile.preferredKinds.forEach((kind) => { seeded[kind] = 0.18; });
   return { ...profile, kindAffinity: seeded, guidanceBalance: 0, durationBiasMinutes: 0, intensityBalance: 0, travelBiasMinutes: 0, mutedInsightTopics: [], mutedInsightExperienceIds: [], blockedExperienceIds: [], favoriteExperienceIds: [], recentExperienceIds: [], learningEvents: [], reflectionMemories: [] };
+}
+
+// Zacht zichtbaar leren (ADR-061, punt 3): het Leefboek mag voorzichtige
+// observaties tonen die rechtstreeks uit het lokale leermodel volgen. Harde
+// regels: alleen bij echte evidence (minimaal twee onafhankelijke signalen),
+// geformuleerd als observatie — nooit percentages, scores of streaks.
+export function deriveGentleObservations(profile: PersonalProfile): string[] {
+  const observations: string[] = [];
+  const kinds = Object.keys(experienceKindLabels) as ExperienceKind[];
+  // Patroon 1: een soort moment die herhaaldelijk de moeite waard was, zonder
+  // tegenbewijs ('not-for-me') in dezelfde soort.
+  const valued = kinds.filter((kind) => {
+    const events = profile.learningEvents.filter((event) => event.kind === kind);
+    const positive = events.filter((event) => event.outcome === 'worth-it' || event.outcome === 'repeat').length;
+    const negative = events.some((event) => event.outcome === 'not-for-me');
+    const certainAgain = profile.reflectionMemories.filter((memory) => memory.kind === kind && memory.doAgain === 'certain').length;
+    return !negative && (positive >= 2 || certainAgain >= 2);
+  });
+  if (valued.length) {
+    const kind = valued.sort((a, b) => (profile.kindAffinity[b] ?? 0) - (profile.kindAffinity[a] ?? 0))[0];
+    observations.push(`Momentum merkt: ${experienceKindLabels[kind].toLowerCase()} blijft de moeite waard voor je.`);
+  }
+  // Patroon 2: terugkerende praktische wensen uit reflecties.
+  const tooLong = profile.reflectionMemories.filter((memory) => memory.aspects.includes('too-long')).length;
+  if (tooLong >= 2) observations.push('Momentum merkt: kortere momenten passen merkbaar beter bij je.');
+  const tooMuchTravel = profile.reflectionMemories.filter((memory) => memory.aspects.includes('too-much-travel')).length;
+  if (tooMuchTravel >= 2 && observations.length < 2) observations.push('Momentum merkt: dichtbij werkt voor je beter dan ver reizen.');
+  return observations.slice(0, 2);
 }

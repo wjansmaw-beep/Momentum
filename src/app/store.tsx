@@ -77,7 +77,7 @@ import { GeneratorEvaluationSignal as GenerationEvaluationSignal, GeneratorEvalu
 // surface/flowStage-stringstatemachine is als navigatiemechanisme vervallen.
 
 export type FlowStage = 'invite' | 'prepare' | 'presence' | 'remember' | 'profile' | null;
-export type Memory = { id: string; title: string; date: string; image: string; note: string; sharedWith?: string[]; meaning?: string; experienceSnapshot?: Experience };
+export type Memory = { id: string; title: string; date: string; image: string; note: string; sharedWith?: string[]; meaning?: string; experienceSnapshot?: Experience; photos?: string[] };
 export type ActiveSession = { experienceId: string; experienceSnapshot?: Experience; stage: 'prepare' | 'presence'; stepIndex: number; origin: Surface; company?: Company; transport?: TransportMode; guideDepth?: GuideDepth; shared?: SharedCapsuleState; updatedAt: string };
 export type GenerationKindEvidence = { shown: number; evaluated: number; personal: number; surprising: number; executable: number; contentUseful: number };
 export type PrototypeEvidence = {
@@ -563,7 +563,7 @@ function useAppStore() {
     clearInviteFromCurrentUrl();
   };
 
-  const finishExperience = (input: ReflectionInput, generationEvaluation: GenerationEvaluationSignal[] = []) => {
+  const finishExperience = (input: ReflectionInput, generationEvaluation: GenerationEvaluationSignal[] = [], photos: string[] = []) => {
     notificationSuccess();
     const memory: Memory = {
       id: `${selected.id}-${Date.now()}`,
@@ -574,6 +574,9 @@ function useAppStore() {
       sharedWith: completedSession?.shared?.participants.filter((participant) => participant.status === 'ready' && participant.role !== completedSession.shared?.role).map((participant) => participant.name),
       meaning: selected.meaningThread?.label,
       experienceSnapshot: selected,
+      // ADR-061, punt 3: foto's zijn lokale verwijzingen (expo-image-picker,
+      // expliciete gebruikersactie) en verlaten het apparaat nooit.
+      photos: photos.length ? photos.slice(0, 8) : undefined,
     };
     setMemories((current) => [memory, ...current.filter((item) => item.id !== selected.id)].slice(0, 12));
     setPersonalProfile((current) => applyReflection(current, selected, input));
@@ -641,6 +644,14 @@ function useAppStore() {
 
   const discardSession = () => setActiveSession(null);
   const dismissMomentNotice = () => setMomentNotice('');
+  // ADR-061, punt 3: foto's toevoegen aan een bestaande herinnering in het
+  // Leefboek. Alleen lokale verwijzingen; nooit upload, nooit analyse.
+  const addMemoryPhotos = (memoryId: string, uris: string[]) => {
+    if (!uris.length) return;
+    setMemories((current) => current.map((memory) => memory.id === memoryId
+      ? { ...memory, photos: [...(memory.photos ?? []), ...uris].slice(0, 8) }
+      : memory));
+  };
   const forgetReflectionById = (id: string) => setPersonalProfile((current) => forgetReflection(current, id));
   const forgetLearningEventById = (id: string) => setPersonalProfile((current) => forgetLearningEvent(current, id));
   const resetEvidence = () => setEvidence(emptyPrototypeEvidence());
@@ -707,6 +718,7 @@ function useAppStore() {
     applyFeedback,
     setEnergyCheckin,
     discardSession,
+    addMemoryPhotos,
     showPendingContextual,
     dismissMomentNotice,
     forgetReflectionById,
