@@ -11,7 +11,20 @@ declare const process: { env: { EXPO_PUBLIC_MOMENTUM_GENERATOR_URL?: string } };
 // services/generator/test/contractVersion.test.mjs.
 const GENERATOR_CONTRACT_VERSION = 'experience-draft-v1';
 const developmentGeneratorUrl = Platform.OS === 'web' ? 'http://127.0.0.1:8787/v1/experience-drafts' : undefined;
+// EXPO_PUBLIC_MOMENTUM_GENERATOR_URL wordt ook op native gerespecteerd; Expo
+// inline EXPO_PUBLIC_* in de bundle bij het starten van de dev server. Zonder
+// geconfigureerde URL is er op native bewust geen default en draait alles op
+// lokale synthese (Device Testing Runbook).
 const generatorUrl = process.env.EXPO_PUBLIC_MOMENTUM_GENERATOR_URL || developmentGeneratorUrl;
+
+// ADR-063: de generator staat requests zonder Origin-header alleen toe met
+// deze vaste client-header. React Native fetch stuurt nooit een Origin; de
+// browser regelt toegang via CORS en stuurt deze header daarom niet mee.
+const NATIVE_CLIENT_HEADER = 'X-Momentum-Client';
+const NATIVE_CLIENT_VALUE = 'native';
+const generatorHeaders: Record<string, string> = Platform.OS === 'web'
+  ? { 'content-type': 'application/json' }
+  : { 'content-type': 'application/json', [NATIVE_CLIENT_HEADER]: NATIVE_CLIENT_VALUE };
 
 export type GenerationMode = 'remote' | 'local-synthesis';
 export type GeneratorRuntimeStatus = {
@@ -136,7 +149,7 @@ async function requestRemoteDrafts(request: GenerationRequest): Promise<{ drafts
   try {
     const response = await fetch(url, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: generatorHeaders,
       body: JSON.stringify(request),
       signal: controller.signal,
     });
