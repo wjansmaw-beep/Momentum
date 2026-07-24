@@ -2,9 +2,10 @@
   "expo": {
     "name": "Momentum",
     "slug": "momentum",
+    "scheme": "momentum",
     "version": "0.1.0",
     "orientation": "portrait",
-    "userInterfaceStyle": "dark",
+    "userInterfaceStyle": "light",
     "plugins": [
       [
         "expo-location",

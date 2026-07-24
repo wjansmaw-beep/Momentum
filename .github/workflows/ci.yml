@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      # Must pass without --legacy-peer-deps; dependency versions are
+      # aligned with Expo SDK 56 (see bundledNativeModules.json).
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Generator contract tests
+        run: node --test "services/generator/test/*.test.mjs"
+
+      - name: Affirmation tests
+        run: node --test tests/affirmation.test.mjs
+
+      - name: Scenario checks
+        run: npm run test:scenarios
+
+      # Web export is kept in CI: it is the only step that exercises the
+      # Metro/Babel pipeline (babel-preset-expo, react-native-worklets
+      # plugin), which the dependency alignment above directly affects.
+      - name: Export web bundle
+        run: npx expo export --platform web

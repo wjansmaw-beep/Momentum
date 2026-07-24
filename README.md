@@ -52,6 +52,25 @@ Real Calendar access requires a fresh development build after installing `expo-c
 npx eas build --profile development --platform ios
 ```
 
+## Tests
+
+Install dependencies with a clean `npm ci` (no extra flags required), then run the entire app test layer in one command:
+
+```text
+npm run test:app
+```
+
+This runs the TypeScript typecheck, the Generator Service contract tests, the affirmation unit tests, and the content/personal-memory scenario checks. Each layer can also run individually:
+
+```text
+npm run typecheck         # tsc --noEmit
+npm run test:generator    # node --test services/generator/test/*.test.mjs
+npm run test:affirmation  # node --test tests/affirmation.test.mjs
+npm run test:scenarios    # content catalog + personal memory scenario checks (via tsx)
+```
+
+The scenario runners in `tests/` are TypeScript and execute through the `tsx` devDependency; they print a JSON summary and exit non-zero when any expectation fails.
+
 ## Optional eBird source
 
 Create an uncommitted `.env.local` file:
