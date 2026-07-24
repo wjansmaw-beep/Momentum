@@ -1,7 +1,7 @@
 # Generator Service Runbook
 
 Status: Operational  
-Version: 1.1
+Version: 1.2
 
 ## Local proof without an API key
 
@@ -83,6 +83,12 @@ Each provider call has an outbound AbortController timeout (`MOMENTUM_GENERATOR_
 3. Register the factory in the `factories` map in `provider.mjs` and add its indicative price to `modelPricesUsdPerMillion`.
 4. Translate the provider response into raw `draftSchema` objects; never leak provider-specific shapes past the adapter. `contract.mjs` validateDrafts remains the only acceptance gate.
 5. Add contract tests under `services/generator/test/` with a fully mocked fetch (valid payload, malformed output, blocked claims, domain violation, timeout path), then run `npm run test:generator`.
+
+## Native client access (ADR-063)
+
+Browser calls to `POST /v1/experience-drafts` are governed by the `MOMENTUM_ALLOWED_ORIGINS` allowlist. React Native clients send no `Origin` header; since ADR-063 the native app identifies itself with the fixed header `X-Momentum-Client: native`, and requests without an Origin are admitted only when that header matches exactly. Everything else is unchanged: wrong or missing header without an Origin still receives `403 origin_not_allowed`, and a non-allowlisted Origin is rejected even when the header is present.
+
+This enables live generation from the Founder's iPhone on his own home network (procedure in `00_Project/Device_Testing_Runbook.md`). The header is explicit client identification, not a secret and not authentication — anyone on the same network could send it. It is therefore not a production mechanism.
 
 ## Production prerequisites
 

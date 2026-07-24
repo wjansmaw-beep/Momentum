@@ -1,9 +1,9 @@
 # Momentum Project Status
 
 Status: Active  
-Version: 1.6
+Version: 1.7
 
-## Application-code boundary: approved through ADR-062
+## Application-code boundary: approved through ADR-063
 
 This file is the single source of truth for the current application-code boundary. Every AI coding agent must read it at the start of each session, before proposing or implementing any change. Only the Founder can extend the boundary, through an ADR.
 
@@ -36,3 +36,5 @@ ADR-060 additionally approves: Discover as an editorial travel guide of the surr
 ADR-061 additionally approves: a fresh color language amending ADR-053 (cool light base, white cards, confident deep-green primary action, per-phase accent colors; WCAG AA preserved), purposeful affirmations requiring a concrete anchor with reduced header presentation, and phase function enrichment (in-app route map preview via react-native-maps with OpenStreetMap tiles, richer reflection, photos in memories via expo-image-picker on-device only, and soft visible learning phrased as observations). Pressure mechanics (scores, ratings, social proof) are permanently excluded; PRIMX stays excluded as architecture. The current application-code boundary therefore extends through ADR-061.
 
 ADR-062 additionally approves real-device testing through EAS Build development builds: the iOS identity `com.wjansmaw.momentum`, internal-distribution dev-client builds on the Founder's registered iPhone, and the Device Testing Runbook procedure. Live model generation from the phone remains a documented follow-up code change; the offline local synthesis path is the approved default. No product scope changes. The current application-code boundary therefore extends through ADR-062.
+
+ADR-063 additionally approves explicit native-client access to the Generator Service: the native app identifies itself with the fixed header `X-Momentum-Client: native`, and the server admits requests without an Origin header only when that header matches exactly. The browser path (Origin allowlist) is unchanged, and the header is explicit client identification — not authentication — scoped to the Founder's own home network. Public generator deployment with real authentication remains a separate release blocker. The current application-code boundary therefore extends through ADR-063.

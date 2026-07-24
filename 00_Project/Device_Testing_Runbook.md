@@ -1,7 +1,7 @@
 # Device Testing Runbook
 
-Status: Approved procedure (ADR-062)  
-Version: 1.0  
+Status: Approved procedure (ADR-062; generator section amended by ADR-063)  
+Version: 1.1  
 Date: 2026-07-24
 
 This runbook describes the first real-device test session of Momentum on the Founder's iPhone, and the daily workflow afterwards. Development happens on Windows, so iOS builds run in the cloud through EAS Build. This procedure records configuration and steps only; it does not change application code.
@@ -78,11 +78,48 @@ How the app picks the generator URL (from `src/product/generativeExperience.ts`)
 
 1. The generator server must bind to the LAN instead of loopback: `MOMENTUM_GENERATOR_HOST=0.0.0.0` (default is `127.0.0.1`, which is unreachable from the phone), with `MOMENTUM_GENERATOR_PROVIDER=moonshot` and `MOONSHOT_API_KEY` in the server-only environment (never in the app, never committed). Windows Firewall must allow inbound TCP on `MOMENTUM_GENERATOR_PORT` (default 8787).
 2. The app must know the PC's LAN address: set `EXPO_PUBLIC_MOMENTUM_GENERATOR_URL=http://<PC-LAN-IP>:8787/v1/experience-drafts` in the environment when starting `npx expo start --dev-client`. Expo inlines `EXPO_PUBLIC_*` variables into the JavaScript bundle at start time, so the variable must be present before the dev server starts; changing it requires a dev-server restart, not a new cloud build.
-3. **Current code blocks this path.** The server enforces an Origin check on `POST /v1/experience-drafts`: a request without an `Origin` header, or with an origin not listed in `MOMENTUM_ALLOWED_ORIGINS` (default `http://127.0.0.1:8081,http://localhost:8081`), receives `403 origin_not_allowed` (`services/generator/server.mjs`). React Native `fetch` on a device sends no `Origin` header, so live calls from the iPhone are rejected even when the server is reachable. The web default works because the browser always sends an allowed origin.
+3. The native app identifies itself explicitly. Since ADR-063 the app sends the fixed header `X-Momentum-Client: native` on every generator call from a native build. The server admits requests without an `Origin` header only when that header matches exactly; requests without Origin and without (or with a wrong) header still receive `403 origin_not_allowed`. The browser path is unchanged: browser calls carry an Origin and are governed by `MOMENTUM_ALLOWED_ORIGINS` only.
 
-**Next step (code change, deliberately not part of this change set):** allow native clients explicitly in `server.mjs`, for example by treating an absent `Origin` header as app traffic when the server is LAN-bound, or by having the app send a fixed allowed origin header on native. Either change should be proposed as its own ADR-bounded commit with contract tests, including a note that the server then accepts non-browser callers on the LAN. Rate limiting (20 requests per minute per address) and the budget guard rails already apply regardless of origin.
+**Working procedure (ADR-063, home network only):**
 
-Do not work around this by disabling the check silently, and never place an API key or shared secret in the app (Generator Service Runbook).
+1. Find the PC's LAN address (`ipconfig`, look for the IPv4 address of the wifi adapter, for example `192.168.1.50`).
+2. Start the generator on the PC, bound to the LAN. Windows PowerShell:
+
+   ```powershell
+   $env:MOMENTUM_GENERATOR_HOST = "0.0.0.0"
+   $env:MOMENTUM_GENERATOR_PROVIDER = "moonshot"
+   # MOONSHOT_API_KEY comes from your own uncommitted env file, never typed into git-tracked files
+   npm run generator
+   ```
+
+   git-bash:
+
+   ```bash
+   MOMENTUM_GENERATOR_HOST=0.0.0.0 MOMENTUM_GENERATOR_PROVIDER=moonshot npm run generator
+   ```
+
+3. Allow inbound TCP on port 8787 in Windows Firewall (approve the prompt on first run, or: Windows Security → Firewall & network protection → Advanced settings → Inbound Rules → New Rule → Port → TCP 8787, Private networks only).
+4. Start the dev server with the generator URL pointing at the PC's LAN address. PowerShell:
+
+   ```powershell
+   $env:EXPO_PUBLIC_MOMENTUM_GENERATOR_URL = "http://192.168.1.50:8787/v1/experience-drafts"
+   npx expo start --dev-client
+   ```
+
+   git-bash:
+
+   ```bash
+   EXPO_PUBLIC_MOMENTUM_GENERATOR_URL=http://192.168.1.50:8787/v1/experience-drafts npx expo start --dev-client
+   ```
+
+   Expo inlines `EXPO_PUBLIC_*` variables into the JavaScript bundle at start time, so the variable must be present before the dev server starts; changing it requires a dev-server restart, not a new cloud build.
+5. On the iPhone the generator status should read "AI-synthese actief". If the server is unreachable the app falls back silently to "Lokale synthese", so a failed connection never breaks the session.
+
+For a key-free rehearsal of the whole chain, replace step 2 with `MOMENTUM_GENERATOR_HOST=0.0.0.0 npm run generator:fixture`; the status then reads "Demonstratiesynthese" and no API key is involved.
+
+**Boundary:** this procedure is for the Founder's own home network only. The header is explicit client identification, not authentication — anyone on the same network could send it. The service therefore never belongs on the public internet in this form; public deployment with real authentication remains a separate release blocker on the roadmap and requires its own ADR (Generator Service Runbook, production prerequisites).
+
+Never place an API key or shared secret in the app (Generator Service Runbook).
 
 ## Costs
 
