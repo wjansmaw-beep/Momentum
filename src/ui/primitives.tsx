@@ -2,9 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Animated, Pressable, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Reanimated from 'react-native-reanimated';
-import { StackActions, useNavigation, useNavigationState } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Experience, Surface } from '../product/experienceModel';
+import { Experience } from '../product/experienceModel';
 import { LiveWorldSnapshot } from '../liveworld/liveWorld';
 import { directionLabels } from '../profile/personalModel';
 import { meaningThreadFitsExperience } from '../product/meaningThread';
@@ -12,16 +10,13 @@ import { buildExperienceGuide } from '../guidance/experienceGuide';
 import { colors } from '../design/theme';
 import { impactLight, impactMedium } from '../design/haptics';
 import { useBreathing, usePressSpring } from '../design/motion';
-import { Glass } from './Glass';
 import { CoverImage, ImageShade } from './CoverImage';
 import { styles } from './styles/appStyles';
 import { defaultRegion } from '../app/store';
-import { RootStackParamList, routeSurfaces, surfaceRoutes } from './navigation/types';
 
 // Gedeelde UI-primitives (ADR-058): kleine bouwstenen die meerdere schermen
-// delen, ongewijzigd verhuisd uit App.tsx. Alleen BottomNav kreeg een
-// navigatie-aansluiting (replace op de native-stack in plaats van setSurface);
-// uiterlijk en bediening zijn identiek.
+// delen, ongewijzigd verhuisd uit App.tsx. De vroegere BottomNav is in fase R1
+// (ADR-067) vervangen door het vijf-tab skelet in ui/NowTabBar.tsx.
 
 // Living Canvas (ADR-057, Horizon B): de twee ambient-lagen ademen heel traag
 // (sub-perceptueel, ≥12s per cyclus). Bij reduced-motion staan ze volledig stil;
@@ -78,12 +73,6 @@ export function LiveWorldBar({ snapshot, loading, onRefresh }: { snapshot: LiveW
   </View>;
 }
 
-export function NavGlyph({ kind, active }: { kind: Surface; active: boolean }) {
-  const color = active ? colors.accent : colors.muted;
-  const name = kind === 'now' ? 'disc-outline' : kind === 'today' ? 'sunny-outline' : kind === 'discover' ? 'compass-outline' : 'book-outline';
-  return <Ionicons name={name} size={21} color={color} />;
-}
-
 export function ExperienceTile({ experience, large, onPress }: { experience: Experience; large?: boolean; onPress: () => void }) {
   return <Pressable onPress={onPress} style={styles.experienceTile}><CoverImage uri={experience.image} style={[styles.tileImage, large && styles.tileImageLarge]} imageStyle={styles.tileImageStyle}><ImageShade />{experience.generation && <View style={styles.generatedTileBadge}><Ionicons name="sparkles" size={11} color={colors.onImageAccent} /><Text style={[styles.generatedTileBadgeText, styles.onImageAccentText]}>VOOR DIT MOMENT GEMAAKT</Text></View>}<View style={styles.tileCopy}><Pill label={experience.kind.toUpperCase()} accent={experience.accent} /><Text style={[styles.tileTitle, styles.onImageText]}>{experience.title}</Text><Text style={[styles.tilePromise, styles.onImageMutedText]}>{experience.promise}</Text><View style={[styles.iconMetaRow, { marginTop: 14 }]}><Text style={[styles.tileMeta, styles.onImageText]}>{experience.duration} min · {experience.effort}</Text><Ionicons name="arrow-forward" size={12} color={colors.onImage} /></View></View></CoverImage></Pressable>;
 }
@@ -131,21 +120,3 @@ export function SecondaryButton({ label, onPress }: { label: string; onPress: ()
 export function BackButton({ label, onPress }: { label: string; onPress: () => void }) { return <Pressable onPress={onPress} style={styles.backButton}><Ionicons name="chevron-back" size={15} color={colors.bone} /><Text style={styles.backButtonText}>{label}</Text></Pressable>; }
 export function ProfileRow({ label, value }: { label: string; value: string }) { return <View style={styles.profileRow}><Text style={styles.profileLabel}>{label}</Text><Text style={styles.profileValue}>{value}</Text></View>; }
 
-// Tab-achtige wissel (ADR-058): de bestaande bottomNav stuurt nu de navigator
-// aan. De actieve tab volgt uit de huidige route; een tabdruk vervangt het
-// surfacescherm via StackActions.replace — zelfde gedrag als de vroegere
-// directe wissel (geen push-historie, Android-back verlaat de app), zelfde
-// uiterlijk (echt glas via expo-blur met rustige web-fallback).
-export function BottomNav() {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const activeRoute = useNavigationState((state) => state.routes[state.index]?.name);
-  const surface = routeSurfaces[activeRoute as keyof RootStackParamList] ?? 'now';
-  const items: Array<{ id: Surface; label: string }> = [
-    { id: 'now', label: 'Nu' }, { id: 'today', label: 'Vandaag' },
-    { id: 'discover', label: 'Ontdekken' }, { id: 'lifebook', label: 'Leefboek' },
-  ];
-  return <Glass intensity={48} fallbackColor={colors.glassNav} style={styles.bottomNav}>{items.map((item) => {
-    const active = surface === item.id;
-    return <Pressable key={item.id} accessibilityRole="tab" accessibilityLabel={item.label} accessibilityState={{ selected: active }} onPress={() => { impactLight(); if (!active) navigation.dispatch(StackActions.replace(surfaceRoutes[item.id])); }} style={styles.navItem}><View style={[styles.navIconShell, active && styles.navIconShellActive]}><NavGlyph kind={item.id} active={active} /></View><Text style={[styles.navLabel, active && styles.navActive]}>{item.label}</Text></Pressable>;
-  })}</Glass>;
-}

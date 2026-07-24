@@ -3,12 +3,14 @@ import { Platform, SafeAreaView, useWindowDimensions, View } from 'react-native'
 import { StatusBar, StatusBarStyle } from 'expo-status-bar';
 import { useAppearance } from '../design/theme';
 import { styles } from './styles/appStyles';
-import { AmbientBlobs, BottomNav } from './primitives';
+import { AmbientBlobs } from './primitives';
+import { NowTabBar } from './NowTabBar';
 
 // Schermkaders (ADR-058): de vroegere buitenste App-layout (root, ambient-lagen,
 // SafeArea, gecentreerd appFrame met web-rand) is ongewijzigd overgenomen en nu
-// per scherm beschikbaar. SurfaceFrame voegt de bestaande bottomNav toe;
-// FlowFrame is dezelfde omlijsting zonder bottomNav voor flow- en modalschermen.
+// per scherm beschikbaar. SurfaceFrame voegt de vijf-tab skeletbalk toe
+// (ADR-067, fase R1: NU · DAG · GIDS · BOEK · JIJ); FlowFrame is dezelfde
+// omlijsting zonder tabbalk voor flow- en modalschermen.
 // ADR-064: de statusbalk volgt het toesteluiterlijk — lichte iconen op de
 // avondtoon, donkere op de dagtoon; een expliciete prop (Presence) wint.
 
@@ -21,7 +23,7 @@ function Frame({ statusBar, withNav, children }: { statusBar: StatusBarStyle; wi
       <SafeAreaView style={styles.safe}>
         <View style={[styles.appFrame, Platform.OS === 'web' && styles.webAppFrame]}>
           {children}
-          {withNav ? <BottomNav /> : null}
+          {withNav ? <NowTabBar /> : null}
         </View>
       </SafeAreaView>
     </View>
