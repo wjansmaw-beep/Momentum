@@ -55,7 +55,7 @@ export function ImageShade() {
   return (
     <LinearGradient
       pointerEvents="none"
-      colors={['rgba(6,9,8,0.34)', 'rgba(6,9,8,0.06)', 'rgba(6,9,8,0.30)', 'rgba(6,9,8,0.68)']}
+      colors={['rgba(8,10,14,0.34)', 'rgba(8,10,14,0.06)', 'rgba(8,10,14,0.30)', 'rgba(8,10,14,0.68)']}
       locations={[0, 0.32, 0.58, 1]}
       style={StyleSheet.absoluteFill}
     />
@@ -64,7 +64,7 @@ export function ImageShade() {
 
 /** Zachte kap zonder leesbare tekst, voor sfeerlagen zoals de Presence-achtergrond. */
 export function DimShade({ opacity = 0.74 }: { opacity?: number }) {
-  return <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: `rgba(5,8,7,${opacity})` }]} />;
+  return <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: `rgba(8,10,14,${opacity})` }]} />;
 }
 
 const styles = StyleSheet.create({

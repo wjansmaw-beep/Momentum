@@ -10,7 +10,7 @@ import {
   ReflectionInput,
 } from '../../profile/personalModel';
 import { GeneratorEvaluationSignal as GenerationEvaluationSignal } from '../../product/generatorEvaluation';
-import { colors } from '../../design/theme';
+import { colors, phase } from '../../design/theme';
 import { CoverImage, ImageShade } from '../CoverImage';
 import { ChoiceChip, MeaningThreadCard, PrimaryButton, SecondaryButton } from '../primitives';
 import { FlowFrame } from '../frames';
@@ -58,7 +58,7 @@ export function RememberScreen() {
   return (
     <FlowFrame>
     <ScrollView contentContainerStyle={styles.flowScroll} keyboardShouldPersistTaps="handled">
-      <Text style={styles.eyebrow}>HERINNERING</Text><Text style={styles.flowTitle}>Wat blijft er over?</Text><Text style={styles.screenSubtitle}>{experience.memoryPrompt}</Text>
+      <Text style={[styles.eyebrow, { color: phase.remember.text }]}>HERINNERING</Text><Text style={styles.flowTitle}>Wat blijft er over?</Text><Text style={styles.screenSubtitle}>{experience.memoryPrompt}</Text>
       <CoverImage uri={experience.image} style={styles.memoryPreview} imageStyle={styles.memoryImageStyle}><ImageShade /><Text style={styles.memoryPreviewTitle}>{experience.title}</Text></CoverImage>
       {shared && <View style={styles.sharedMemoryCard}><Text style={styles.expectationLabel}>SAMEN BELEEFD</Text><Text style={styles.sharedMemoryTitle}>{shared.participants.filter((participant) => participant.status === 'ready').map((participant) => participant.name).join(' + ')}</Text><Text style={styles.sharedMemoryBody}>Je bewaart alleen jouw eigen herinnering. De andere deelnemer krijgt geen kopie van jouw reflectie.</Text></View>}
       {experience.meaningThread && <MeaningThreadCard experience={experience} reflective />}

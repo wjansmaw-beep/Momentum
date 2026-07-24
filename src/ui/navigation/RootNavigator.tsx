@@ -35,8 +35,8 @@ const navigationTheme: Theme = {
   colors: {
     ...DefaultTheme.colors,
     primary: colors.accent,
-    background: '#E9E3D8',
-    card: '#E9E3D8',
+    background: colors.backdrop,
+    card: colors.backdrop,
     text: colors.bone,
     border: 'transparent',
   },
@@ -63,7 +63,7 @@ export function RootNavigator() {
         initialRouteName={initialRouteName}
         screenOptions={{
           headerShown: false,
-          contentStyle: { backgroundColor: '#E9E3D8' },
+          contentStyle: { backgroundColor: colors.backdrop },
         }}
       >
         <Stack.Screen name="Now" component={NowScreen} options={{ animation: 'none' }} />

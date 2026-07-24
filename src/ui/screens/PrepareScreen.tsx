@@ -24,7 +24,7 @@ import {
 } from '../../sharing/sharedCapsule';
 import { buildExperienceGuide, GuideDepth } from '../../guidance/experienceGuide';
 import { routingCapability } from '../../routing/routeIntelligence';
-import { colors } from '../../design/theme';
+import { colors, phase } from '../../design/theme';
 import { impactLight } from '../../design/haptics';
 import { useImageContinuity } from '../../design/motion';
 import { CoverImage, ImageShade } from '../CoverImage';
@@ -115,7 +115,7 @@ export function PrepareScreen() {
     <View style={styles.flowScreen}>
     <ScrollView contentContainerStyle={[styles.flowScroll, styles.flowScrollStickyAction]} showsVerticalScrollIndicator={false}>
       <BackButton label="Terug" onPress={onBack} />
-      <Text style={styles.eyebrow}>{experienceKindLabels[experience.kind].toUpperCase()} · UITNODIGING</Text><Text style={styles.flowTitle}>{experience.title}</Text><Text style={styles.screenSubtitle}>{experience.promise}</Text>
+      <Text style={[styles.eyebrow, { color: phase.prepare.text }]}>{experienceKindLabels[experience.kind].toUpperCase()} · UITNODIGING</Text><Text style={styles.flowTitle}>{experience.title}</Text><Text style={styles.screenSubtitle}>{experience.promise}</Text>
       <CoverImage uri={experience.image} style={styles.prepareExpectationCard} imageStyle={styles.prepareExpectationImage} imageContainerStyle={imageContinuity as StyleProp<ViewStyle>}>
         <ImageShade />
         <View style={styles.prepareExpectationCopy}>
@@ -185,7 +185,7 @@ export function PrepareScreen() {
         <Text style={styles.placeKnowledgeLabel}>VERHAAL VAN DE PLEK</Text>
         <Text style={styles.placeKnowledgeTitle}>{experience.placeKnowledge.title}</Text>
         <Text style={styles.placeKnowledgeBody}>{experience.placeKnowledge.summary}</Text>
-        <Pressable accessibilityRole="link" accessibilityLabel={`Open bron over ${experience.placeKnowledge.title}`} onPress={() => Linking.openURL(experience.placeKnowledge!.sourceUrl).catch(() => undefined)}><Text style={[styles.placeKnowledgeSource, { color: experience.accent }]}>{experience.placeKnowledge.sourceLabel} · Bekijk bron <Ionicons name="open-outline" size={11} color={experience.accent} /></Text></Pressable>
+        <Pressable accessibilityRole="link" accessibilityLabel={`Open bron over ${experience.placeKnowledge.title}`} onPress={() => Linking.openURL(experience.placeKnowledge!.sourceUrl).catch(() => undefined)}><Text style={[styles.placeKnowledgeSource, { color: phase.prepare.text }]}>{experience.placeKnowledge.sourceLabel} · Bekijk bron <Ionicons name="open-outline" size={11} color={phase.prepare.text} /></Text></Pressable>
       </View>}
       </>}
     </ScrollView>

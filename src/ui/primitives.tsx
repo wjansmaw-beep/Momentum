@@ -35,12 +35,12 @@ export function AmbientBlobs({ goldOnly = false }: { goldOnly?: boolean }) {
   </>;
 }
 
-export function ScreenHeader({ eyebrow, title, subtitle, onProfile, profileName }: { eyebrow?: string; title: string; subtitle?: string; onProfile?: () => void; profileName?: string }) {
+export function ScreenHeader({ eyebrow, title, subtitle, onProfile, profileName, accent }: { eyebrow?: string; title: string; subtitle?: string; onProfile?: () => void; profileName?: string; accent?: string }) {
   const profileInitial = (profileName ?? '').trim().slice(0, 1).toUpperCase() || 'M';
   return (
     <View style={styles.header}>
       <View style={styles.headerCopy}>
-        {eyebrow && <Text style={styles.eyebrow}>{eyebrow}</Text>}
+        {eyebrow && <Text style={[styles.eyebrow, accent ? { color: accent } : null]}>{eyebrow}</Text>}
         <Text style={styles.screenTitle}>{title}</Text>
         {subtitle && <Text style={styles.screenSubtitle}>{subtitle}</Text>}
       </View>
@@ -145,7 +145,7 @@ export function BottomNav() {
     { id: 'now', label: 'Nu' }, { id: 'today', label: 'Vandaag' },
     { id: 'discover', label: 'Ontdekken' }, { id: 'lifebook', label: 'Leefboek' },
   ];
-  return <Glass intensity={48} fallbackColor="rgba(252,250,245,0.92)" style={styles.bottomNav}>{items.map((item) => {
+  return <Glass intensity={48} fallbackColor="rgba(255,255,255,0.92)" style={styles.bottomNav}>{items.map((item) => {
     const active = surface === item.id;
     return <Pressable key={item.id} accessibilityRole="tab" accessibilityLabel={item.label} accessibilityState={{ selected: active }} onPress={() => { impactLight(); if (!active) navigation.dispatch(StackActions.replace(surfaceRoutes[item.id])); }} style={styles.navItem}><View style={[styles.navIconShell, active && styles.navIconShellActive]}><NavGlyph kind={item.id} active={active} /></View><Text style={[styles.navLabel, active && styles.navActive]}>{item.label}</Text></Pressable>;
   })}</Glass>;

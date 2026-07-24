@@ -26,6 +26,14 @@ const feedbackVariants = [
 ];
 const names = ['', 'Wido', 'Anna'];
 const dates = [new Date('2026-07-23T08:00:00'), new Date('2026-07-24T19:00:00'), new Date('2026-12-31T12:00:00')];
+// ADR-061, punt 2: plek-ankers uit de gekoppelde live omgeving.
+const placeVariants = [null, 'de Waddenkust', 'Ameland', 'het centrum van Groningen'];
+
+// Anker-patronen (ADR-061, punt 2): een persoonlijke regel moet minstens één
+// concreet anker bevatten — een benoemd tijdsvenster, een plek of een actie.
+const timeAnchor = /ochtend|middag|namiddag|middaguur|avond/i;
+const placeAnchor = /buiten|binnen|thuis|natuur|water|\bwad\b|bos|park|stad|buurt|omgeving|rond|dichtbij|waddenkust|ameland|groningen/i;
+const actionAnchor = /wandelen|koken|bewegen|leren|lezen|luisteren|ademen|pauze|beginnen|stap|handeling|te doen|samen zijn|cultuur|rust/i;
 
 // Woorden en vormen die nooit in een affirmatie mogen voorkomen: schuld,
 // druk, verplichting, te-laat-gevoel, streaks en kwantificering van de persoon.
@@ -66,6 +74,18 @@ for (const dayPart of dayParts) {
   for (const directions of directionSets) {
     for (const firstName of names) {
       scenarioInputs.push({ dayPart, firstName, directions, date: dates[0], weather: null });
+    }
+  }
+}
+// ADR-061: plek-ankers uit de gekoppelde live omgeving, over alle dagdelen,
+// namen en datums — met en zonder weer, met en zonder richting.
+for (const dayPart of dayParts) {
+  for (const place of placeVariants) {
+    for (const firstName of names) {
+      for (const date of dates) {
+        scenarioInputs.push({ dayPart, firstName, place, directions: ['meer tijd in de natuur'], date, weather: { weatherCode: 0, temperature: 16, windSpeed: 10 } });
+        scenarioInputs.push({ dayPart, firstName, place, directions: [], date, weather: null });
+      }
     }
   }
 }
@@ -192,5 +212,49 @@ test('energie en feedback samen blijven binnen de toonregels en lengtegrens', ()
       assert.ok(line.length > 0 && line.length <= 220, `regel binnen redelijke lengte: “${line}” (${line.length})`);
       assert.ok(line.endsWith('.'), `regel eindigt rustig: “${line}”`);
     }
+  }
+});
+
+// --- ADR-061, punt 2: verplicht concreet anker ------------------------------
+
+test('elke persoonlijke affirmatie bevat een concreet anker (tijd, plek of actie)', () => {
+  for (const input of scenarioInputs) {
+    const result = composeDailyAffirmation(input);
+    if (!result.personalized) {
+      assert.equal(result.line, neutralAffirmationLine, `niet-persoonlijke regel is de neutrale fallback: “${result.line}”`);
+      continue;
+    }
+    const anchored = timeAnchor.test(result.line) || placeAnchor.test(result.line) || actionAnchor.test(result.line);
+    assert.ok(anchored, `persoonlijke regel zonder concreet anker: “${result.line}” (input ${JSON.stringify(input)})`);
+  }
+});
+
+test('alleen sfeer (weer zonder persoonlijke ingang of plek) is geen anker en blijft neutraal', () => {
+  for (const dayPart of dayParts) {
+    for (const weatherCode of weatherCodes) {
+      const result = composeDailyAffirmation({
+        dayPart, firstName: '', directions: [], date: dates[0],
+        weather: { weatherCode, temperature: 12, windSpeed: 14 },
+      });
+      assert.equal(result.personalized, false, `weer alleen personaliseert niet: “${result.line}”`);
+      assert.equal(result.line, neutralAffirmationLine);
+    }
+  }
+});
+
+test('de gekoppelde omgeving wordt als plek-anker overgenomen, onveilige plaats niet', () => {
+  const anchored = composeDailyAffirmation({
+    dayPart: 'morning', firstName: 'Anna', directions: [], place: 'de Waddenkust', date: dates[0], weather: null,
+  });
+  assert.equal(anchored.personalized, true);
+  assert.ok(/Waddenkust/.test(anchored.line), `plek herkenbaar in regel: “${anchored.line}”`);
+  assert.ok(placeAnchor.test(anchored.line) || timeAnchor.test(anchored.line));
+  // Een plaats met cijfers of drukverwoording wordt nooit letterlijk overgenomen.
+  for (const risky of ['het wad om 15:00', 'nog niet bezochte stad', '10 kilometer verderop']) {
+    const { line } = composeDailyAffirmation({
+      dayPart: 'afternoon', firstName: 'Anna', directions: [], place: risky, date: dates[1], weather: null,
+    });
+    assert.ok(!line.includes(risky), `ruwe plaatstekst niet overgenomen: “${line}”`);
+    for (const pattern of forbidden) assert.ok(!pattern.test(line), `verboden patroon via plaats: “${line}”`);
   }
 });
