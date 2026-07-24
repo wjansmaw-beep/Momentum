@@ -139,7 +139,7 @@ export function DiscoverScreen() {
       <ScreenHeader
         eyebrow={`REISGIDS · ${guide.regionLabel.split(' proefcontext')[0].toUpperCase()}`}
         title={guide.locationLinked ? `De wereld rond ${guide.regionLabel.split(' proefcontext')[0]}` : 'Een gids voor waar je ook bent'}
-        subtitle="Blader rustig door wat deze plek vandaag te bieden heeft. Eindig gekozen, nooit een eindeloze stroom."
+        subtitle="Blader rustig door wat deze plek vandaag te bieden heeft."
       />
 
       {guide.liveNote && (
@@ -210,11 +210,10 @@ export function DiscoverScreen() {
               <Text style={styles.interpretationLabel}>ZO HEB IK JE MOMENT BEGREPEN</Text>
               {input.trim() && <Text style={styles.intentQuote}>“{input.trim()}”</Text>}
               <Text style={styles.interpretationText}>{blueprintComposition.interpretation} · {minutes} minuten · {explicitCompany === 'solo' ? 'alleen' : explicitCompany === 'family' ? 'met gezin' : 'samen'}{clarificationChoice ? ` · ${clarificationChoice.label.toLowerCase()}` : ''}</Text>
-              {!generating && primary?.blueprint && <Text style={styles.blueprintTrust}>Samengesteld met {primary.blueprint.validationLabel.toLowerCase()}.</Text>}
             </View>
-            {generating ? <View style={styles.generationCard}><Ionicons name="sparkles" size={18} color={colors.accent} style={styles.generationMarkIcon} /><View style={styles.flex}><Text style={styles.generationTitle}>Momentum maakt een nieuwe combinatie</Text><Text style={styles.generationBody}>Je huidige vraag wordt vertaald naar een complete capsule en daarna gecontroleerd.</Text></View></View> : generation ? <View style={styles.generationCard}>{generation.mode === 'remote' ? <Text style={styles.generationMark}>AI</Text> : <Ionicons name="construct-outline" size={17} color={colors.accent} style={styles.generationMarkIcon} />}<View style={styles.flex}><Text style={styles.generationTitle}>{generation.mode === 'remote' ? 'Nieuw voor dit moment gemaakt' : 'Lokaal nieuw gecombineerd'}</Text><Text style={styles.generationBody}>{generation.message} Alleen complete kandidaten gaan door.</Text></View></View> : null}
+            {generating ? <View style={styles.generationCard}><Ionicons name="sparkles" size={18} color={colors.accent} style={styles.generationMarkIcon} /><View style={styles.flex}><Text style={styles.generationTitle}>Momentum maakt een nieuwe combinatie</Text><Text style={styles.generationBody}>Je woorden worden een compleet voorstel voor dit moment.</Text></View></View> : generation ? <View style={styles.generationCard}>{generation.mode === 'remote' ? <Text style={styles.generationMark}>AI</Text> : <Ionicons name="construct-outline" size={17} color={colors.accent} style={styles.generationMarkIcon} />}<View style={styles.flex}><Text style={styles.generationTitle}>{generation.mode === 'remote' ? 'Nieuw voor dit moment gemaakt' : 'Nieuw voor dit moment samengesteld'}</Text><Text style={styles.generationBody}>{generation.message}</Text></View></View> : null}
             {!generating && (primary ? <>
-              <Text style={styles.sectionLabel}>MIJN BESTE VOORSTEL · VERTROUWEN {result.confidence.toUpperCase()}</Text>
+              <Text style={styles.sectionLabel}>BESTE VOORSTEL VOOR JOU</Text>
               <ExperienceTile experience={primary} large onPress={() => onOpen(primary)} />
               {primary.generation && <GeneratedCapsulePreview experience={primary} />}
               <View style={styles.selectionReasons}>{result.selected?.reasons.map((reason) => <Text key={reason.text} style={styles.selectionReason}>• {reason.text}</Text>)}</View>

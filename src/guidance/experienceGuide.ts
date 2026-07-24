@@ -53,11 +53,10 @@ export function currentEvidence(experience: Experience, now = Date.now()) {
 export function evidenceSummary(experience: Experience, now = Date.now()) {
   const evidence = (experience.liveEvidence ?? []).map((item) => evidenceFreshness(item, now));
   const current = evidence.filter((item) => item.freshness === 'current');
-  const expiry = current.map((item) => Date.parse(item.expiresAt)).filter(Number.isFinite).sort((a, b) => a - b)[0];
   return {
     currentCount: current.length,
     expiredCount: evidence.filter((item) => item.freshness === 'expired').length,
-    label: current.length ? `${current.length} actuele ${current.length === 1 ? 'bron' : 'bronnen'}${expiry ? ` · tot ${new Date(expiry).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })}` : ''}` : evidence.length ? 'Bronvenster verlopen' : 'Wereldwijd bruikbaar',
+    label: current.length ? 'met de wereld van nu' : evidence.length ? 'zonder actuele bronnen' : 'wereldwijd bruikbaar',
   };
 }
 

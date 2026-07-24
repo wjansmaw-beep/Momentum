@@ -51,13 +51,29 @@ export function ScreenHeader({ eyebrow, title, subtitle, onProfile, profileName,
 
 export function LiveWorldBar({ snapshot, loading, onRefresh }: { snapshot: LiveWorldSnapshot | null; loading: boolean; onRefresh?: () => Promise<boolean> }) {
   const weather = snapshot?.weather;
-  const air = snapshot?.airQuality;
   const liveCount = snapshot?.sources.filter((source) => source.state === 'live').length ?? 0;
   const staleCount = snapshot?.sources.filter((source) => source.state === 'stale').length ?? 0;
   const region = (snapshot?.regionLabel ?? defaultRegion.label).split(' proefcontext')[0];
+  // Eén levende zin in plaats van een meetlijst (ADR-065, fase 1): dagdeel,
+  // lucht en wind samengevoegd. De exacte bronwaarden blijven beschikbaar in
+  // de waarom/bron-lagen van de schermen.
+  const hour = new Date().getHours();
+  const dayWord = hour < 6 ? 'nacht' : hour < 12 ? 'ochtend' : hour < 18 ? 'middag' : 'avond';
+  const skyWord = weather
+    ? [0, 1].includes(weather.weatherCode) ? 'heldere'
+      : [2, 3].includes(weather.weatherCode) ? 'bewolkte'
+        : [45, 48].includes(weather.weatherCode) ? 'mistige'
+          : [51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82].includes(weather.weatherCode) ? 'natte'
+            : [71, 73, 75, 77, 85, 86].includes(weather.weatherCode) ? 'witte'
+              : [95, 96, 99].includes(weather.weatherCode) ? 'onstuimige' : 'zachte'
+    : '';
+  const windWord = weather ? (weather.windSpeed < 12 ? 'een zachte wind' : weather.windSpeed < 25 ? 'een stevige wind' : 'veel wind') : '';
+  const detail = weather
+    ? `Een ${skyWord} ${dayWord} rond ${region} — ${Math.round(weather.temperature)}° met ${windWord}${weather.visibilityMeters >= 8000 && [0, 1].includes(weather.weatherCode) ? ' en ver zicht' : ''}.`
+    : 'Momentum kiest rustig mee, ook zonder live bronnen';
   return <View style={styles.liveWorldBar}>
     <View style={[styles.sourceState, liveCount ? styles.sourceLive : styles.sourceWaiting]} />
-    <View style={styles.flex}><Text style={styles.liveWorldBarTitle}>{loading && !snapshot ? 'Je omgeving wordt bijgewerkt' : liveCount ? `Actuele omstandigheden rond ${region}` : staleCount ? `Laatste bekende omstandigheden rond ${region}` : `Ervaringen rond ${region}`}</Text><Text style={styles.liveWorldBarDetail}>{weather ? `${Math.round(weather.temperature)}°C · wind ${Math.round(weather.windSpeed)} km/u · zicht ${Math.round(weather.visibilityMeters / 1000)} km${air ? ` · luchtkwaliteit ${Math.round(air.europeanAqi)}` : ''}` : 'Ook zonder live bronnen blijft Momentum bruikbaar'}</Text></View>
+    <View style={styles.flex}><Text style={styles.liveWorldBarTitle}>{loading && !snapshot ? 'Je omgeving wordt bijgewerkt' : liveCount ? `Nu rond ${region}` : staleCount ? `Eerder rond ${region}` : `Ervaringen rond ${region}`}</Text><Text style={styles.liveWorldBarDetail}>{detail}</Text></View>
     {onRefresh ? <Pressable accessibilityRole="button" accessibilityLabel="Vernieuw de live wereld" disabled={loading} onPress={() => { onRefresh().catch(() => undefined); }} style={styles.liveWorldRefresh}><Ionicons name="refresh" size={16} color={colors.accent} /></Pressable> : null}
   </View>;
 }
@@ -72,31 +88,14 @@ export function ExperienceTile({ experience, large, onPress }: { experience: Exp
   return <Pressable onPress={onPress} style={styles.experienceTile}><CoverImage uri={experience.image} style={[styles.tileImage, large && styles.tileImageLarge]} imageStyle={styles.tileImageStyle}><ImageShade />{experience.generation && <View style={styles.generatedTileBadge}><Ionicons name="sparkles" size={11} color={colors.onImageAccent} /><Text style={[styles.generatedTileBadgeText, styles.onImageAccentText]}>VOOR DIT MOMENT GEMAAKT</Text></View>}<View style={styles.tileCopy}><Pill label={experience.kind.toUpperCase()} accent={experience.accent} /><Text style={[styles.tileTitle, styles.onImageText]}>{experience.title}</Text><Text style={[styles.tilePromise, styles.onImageMutedText]}>{experience.promise}</Text><View style={[styles.iconMetaRow, { marginTop: 14 }]}><Text style={[styles.tileMeta, styles.onImageText]}>{experience.duration} min · {experience.effort}</Text><Ionicons name="arrow-forward" size={12} color={colors.onImage} /></View></View></CoverImage></Pressable>;
 }
 
-export function CapsuleShapePreview({ experience }: { experience: Experience }) {
-  const shape = experience.kind === 'outside'
-    ? { label: 'JE REIS', title: experience.routePlan ? `Naar ${experience.routePlan.destinationName}` : 'Van vertrek naar ontdekking', note: 'Route, aankomst en verhalen van de plek blijven op het juiste moment beschikbaar.' }
-    : experience.kind === 'movement'
-      ? { label: 'JE TRAINING', title: `${experience.steps.length} heldere delen`, note: 'Je ziet telkens één beweging of interval; de rest wacht rustig op de achtergrond.' }
-      : experience.kind === 'food'
-        ? { label: 'JE BEREIDING', title: `${experience.steps.length} stappen van ingrediënt naar tafel`, note: 'Eerst wat je nodig hebt, daarna steeds één handeling en de reden waarom die telt.' }
-        : experience.kind === 'restore'
-          ? { label: 'JE RITME', title: `${experience.duration} minuten zonder haast`, note: 'Eén rustig ritme, minimale bediening en altijd de mogelijkheid om de telefoon weg te leggen.' }
-          : { label: 'JE BELEVING', title: `${experience.steps.length} momenten die logisch in elkaar overgaan`, note: 'Alleen de aanwijzing die nu helpt blijft zichtbaar.' };
-  return <View style={styles.capsuleShapeCard}>
-    <View style={styles.capsuleShapeHeader}><View style={styles.flex}><Text style={styles.capsuleShapeLabel}>{shape.label}</Text><Text style={styles.capsuleShapeTitle}>{shape.title}</Text></View><Ionicons name={experience.kind === 'outside' ? 'navigate-outline' : experience.kind === 'movement' ? 'barbell-outline' : experience.kind === 'food' ? 'restaurant-outline' : experience.kind === 'restore' ? 'leaf-outline' : 'sparkles-outline'} size={25} color={experience.accent} /></View>
-    <View style={styles.capsuleShapeRail}>{experience.steps.slice(0, 3).map((step, index) => <View key={`${step.title}-${index}`} style={styles.capsuleShapeStep}><View style={[styles.capsuleShapeNumber, { borderColor: experience.accent }]}><Text style={styles.capsuleShapeNumberText}>{index + 1}</Text></View><Text numberOfLines={2} style={styles.capsuleShapeStepText}>{step.title}</Text></View>)}</View>
-    <Text style={styles.capsuleShapeNote}>{shape.note}</Text>
-  </View>;
-}
-
 export function GeneratedCapsulePreview({ experience }: { experience: Experience }) {
   const guide = buildExperienceGuide(experience, 0);
   return <View style={styles.generatedJourneyCard}>
-    <View style={styles.generatedJourneyHeader}><View><Text style={styles.generatedJourneyEyebrow}>COMPLETE ERVARINGSCAPSULE</Text><Text style={styles.generatedJourneyTitle}>Van beginnen tot herinneren</Text></View><Text style={styles.generatedJourneyCount}>{experience.steps.length} stappen</Text></View>
+    <View style={styles.generatedJourneyHeader}><View><Text style={styles.generatedJourneyEyebrow}>DE HELE BOOG</Text><Text style={styles.generatedJourneyTitle}>Van beginnen tot herinneren</Text></View><Text style={styles.generatedJourneyCount}>{experience.steps.length} stappen</Text></View>
     <View style={styles.generatedJourneyStages}>
       {experience.steps.slice(0, 3).map((step, index) => <View key={`${step.title}-${index}`} style={styles.generatedJourneyStage}><View style={[styles.generatedJourneyNumber, { borderColor: experience.accent }]}><Text style={styles.generatedJourneyNumberText}>{index + 1}</Text></View><View style={styles.flex}><Text style={styles.generatedJourneyStageTitle}>{step.title}</Text><Text numberOfLines={2} style={styles.generatedJourneyStageBody}>{step.instruction}</Text></View></View>)}
     </View>
-    <Text style={styles.generatedJourneyCoverage}>{guide.coverageLabel} · {guide.compositionLabel ?? 'Gecontroleerd ervaringscontract'} · daarna optionele herinnering</Text>
+    <Text style={styles.generatedJourneyCoverage}>{guide.coverageLabel} · daarna een rustige herinnering</Text>
   </View>;
 }
 

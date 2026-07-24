@@ -191,13 +191,13 @@ export function NowScreen() {
         </Reanimated.View>
         <Reanimated.View style={[styles.flex, pullContentStyle]}>
           <ScrollView contentContainerStyle={styles.screenScroll} showsVerticalScrollIndicator={false} onScroll={(event) => { scrollTop.value = event.nativeEvent.contentOffset.y; }} scrollEventThrottle={16}>
-      <ScreenHeader eyebrow={`${dayPartLabels[context.dayPart].toUpperCase()}${firstName ? ` · ${firstName.toUpperCase()}` : ''}`} title="Wat past er nu?" subtitle="Dit past waarschijnlijk bij je moment. Jij beslist." onProfile={onProfile} profileName={firstName} />
+      <ScreenHeader eyebrow={`${dayPartLabels[context.dayPart].toUpperCase()}${firstName ? ` · ${firstName.toUpperCase()}` : ''}`} title="Wat past er nu?" subtitle="Dit past bij je moment — jij beslist." onProfile={onProfile} profileName={firstName} />
       <LiveWorldBar snapshot={liveWorld} loading={liveLoading} onRefresh={Platform.OS === 'web' ? onRefresh : undefined} />
       {/* Energie-check-in (ADR-060, punt 3b): licht en vrijwillig. Geen meting,
           geen verplichting; overslaan betekent neutraal. Opnieuw tikken wist. */}
       <View style={styles.energyCard}>
         <Text style={styles.energyTitle}>Hoe voelt je energie nu?</Text>
-        <Text style={styles.energyBody}>Geen meting — alleen een zachte richting voor de voorstellen van nu. Overslaan kan altijd.</Text>
+        <Text style={styles.energyBody}>Een zachte richting voor de voorstellen van nu — sla gerust over.</Text>
         <View style={styles.chipRow}>
           {(['low', 'steady', 'full'] as EnergyLevel[]).map((level) => (
             <ChoiceChip
@@ -210,7 +210,7 @@ export function NowScreen() {
         </View>
         {energyLevel && <Text style={styles.energyNote}>Alleen voor vandaag · tik opnieuw om te wissen · blijft op dit apparaat</Text>}
       </View>
-      {pendingExperience?.length ? <Pressable accessibilityRole="button" accessibilityLabel={`Toon de nieuwe blik: ${pendingExperience[0].title}`} onPress={onShowPendingExperience} style={styles.pendingHeroPill}><Ionicons name="sparkles" size={14} color={colors.accent} /><View style={styles.flex}><Text style={styles.pendingHeroPillText}>{pendingExperience.length > 1 ? `${pendingExperience.length} nieuwe blikken beschikbaar` : 'Nieuwe blik beschikbaar'}</Text><Text style={styles.pendingHeroPillBody}>{pendingExperience[0].title}{pendingExperience.length > 1 ? ` en ${pendingExperience.length - 1} ${pendingExperience.length === 2 ? 'andere blik' : 'andere blikken'}` : ''} {pendingExperience.length > 1 ? 'wachten' : 'wacht'} rustig tot jij wilt wisselen.</Text></View><Text style={styles.pendingHeroPillAction}>Toon</Text></Pressable> : null}
+      {pendingExperience?.length ? <Pressable accessibilityRole="button" accessibilityLabel={`Toon de nieuwe blik: ${pendingExperience[0].title}`} onPress={onShowPendingExperience} style={styles.pendingHeroPill}><Ionicons name="sparkles" size={14} color={colors.accent} /><View style={styles.flex}><Text style={styles.pendingHeroPillText}>{pendingExperience.length > 1 ? `${pendingExperience.length} nieuwe blikken liggen klaar` : 'Een nieuwe blik ligt klaar'}</Text><Text style={styles.pendingHeroPillBody}>{pendingExperience[0].title}{pendingExperience.length > 1 ? ` en ${pendingExperience.length - 1} ${pendingExperience.length === 2 ? 'andere blik' : 'andere blikken'}` : ''} {pendingExperience.length > 1 ? 'wachten' : 'wacht'} tot jij wilt kijken.</Text></View><Text style={styles.pendingHeroPillAction}>Toon</Text></Pressable> : null}
       {resumableExperience && <View style={styles.resumeCard}><Pressable accessibilityLabel={`Hervat ${resumableExperience.title}`} onPress={onResume} style={styles.resumeMain}><View style={styles.resumeMark}><Ionicons name="play" size={14} color={colors.accent} /></View><View style={styles.flex}><Text style={styles.resumeLabel}>GA VERDER</Text><Text style={styles.resumeTitle}>{resumableExperience.title}</Text></View><Ionicons name="arrow-forward" size={21} color={colors.gold} /></Pressable><Pressable accessibilityLabel="Sluit open ervaring" onPress={onDiscardSession} style={styles.resumeDiscard}><Text style={styles.resumeDiscardText}>Sluit</Text></Pressable></View>}
       {calendar.state === 'live' && calendar.currentFreeMinutes ? <View style={styles.contextNotice}><Ionicons name="time-outline" size={20} color={colors.gold} /><View style={styles.flex}><Text style={styles.contextNoticeTitle}>{calendar.currentFreeMinutes} minuten ruimte herkend</Text><Text style={styles.contextNoticeBody}>Alleen begin- en eindtijden verwerkt · afspraakinhoud genegeerd</Text></View></View> : null}
       {/* ADR-061, punt 2: de affirmatieregel als bescheiden kicker boven de
@@ -225,7 +225,7 @@ export function NowScreen() {
             <View collapsable={false}>
               <CoverImage uri={experience.image} style={styles.heroImage} imageStyle={styles.heroImageStyle} imageContainerStyle={kenBurns as StyleProp<ViewStyle>}>
             <ImageShade />
-            <Animated.View style={[styles.heroTop, heroEntrance[0]]}><Pill label={`${experienceKindLabels[experience.kind].toUpperCase()} MOMENT`} accent={experience.accent} /><Text style={styles.heroTime}>{grounding.currentCount ? `LIVE VERRIJKT · ${grounding.currentCount}` : experience.generation ? 'VOOR DIT MOMENT GEMAAKT' : suggestionIndex === 0 ? 'BESTE MATCH' : 'ANDERE BLIK'}</Text></Animated.View>
+            <Animated.View style={[styles.heroTop, heroEntrance[0]]}><Pill label={`${experienceKindLabels[experience.kind].toUpperCase()} MOMENT`} accent={experience.accent} /><Text style={styles.heroTime}>{grounding.currentCount ? 'DE WERELD KIJKT MEE' : experience.generation ? 'VOOR DIT MOMENT GEMAAKT' : suggestionIndex === 0 ? 'BESTE MATCH' : 'ANDERE BLIK'}</Text></Animated.View>
             <View style={styles.heroBottom}>
               <Animated.View style={heroEntrance[1]}><Text style={styles.heroTitle}>{experience.title}</Text></Animated.View>
               <Animated.View style={heroEntrance[2]}>
