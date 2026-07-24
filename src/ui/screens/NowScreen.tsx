@@ -50,10 +50,6 @@ export function NowScreen() {
     liveWorld,
     liveLoading,
     generatorStatus,
-    momentGenerationLoading: generatingMoment,
-    momentNotice,
-    dismissMomentNotice: onDismissMomentNotice,
-    createFreshMoment,
     pendingContextual: pendingExperience,
     showPendingContextual: onShowPendingExperience,
     resumeSession,
@@ -74,9 +70,6 @@ export function NowScreen() {
   const onDiscover = () => navigation.dispatch(StackActions.replace('Discover'));
   const onRefresh = () => refreshLiveWorld();
   const onFeedback = (item: Experience, outcome: LearningOutcome) => applyFeedback(item, outcome);
-  const onGenerateMoment = async () => {
-    if (await createFreshMoment()) navigation.navigate('Prepare');
-  };
   const onResume = () => {
     const stage = resumeSession();
     if (stage === 'presence') navigation.navigate('Presence');
@@ -274,18 +267,10 @@ export function NowScreen() {
           <SecondaryButton label="Toon het voorstel opnieuw" onPress={() => setDeclined(false)} />
         </QuietCanvas>
       )}
-      <View style={styles.momentMakerCard}>
-        <Text style={styles.momentMakerEyebrow}>NOG NIETS GERAAKT?</Text>
-        <Text style={styles.momentMakerTitle}>Laat Momentum een nieuwe blik samenstellen.</Text>
-        <Text style={styles.momentMakerBody}>Gebaseerd op je beschikbare tijd en praktische voorkeuren.</Text>
-        <SecondaryButton label={generatingMoment ? 'Nieuwe blik wordt voorbereid…' : 'Maak een nieuwe blik'} onPress={onGenerateMoment} />
-      </View>
-      {momentNotice ? <Pressable accessibilityLabel="Sluit melding" onPress={onDismissMomentNotice} style={styles.contextNotice}><Ionicons name="sparkles-outline" size={20} color={colors.gold} /><View style={styles.flex}><Text style={styles.contextNoticeTitle}>Geen nieuwe blik dit keer</Text><Text style={styles.contextNoticeBody}>{momentNotice}</Text></View></Pressable> : null}
-      <Pressable onPress={onDiscover} style={styles.spaceCard}>
-        <View style={styles.spaceIcon}><Ionicons name="sparkles-outline" size={20} color={colors.gold} /></View>
-        <View style={styles.flex}><Text style={styles.spaceTitle}>Er is ruimte ontstaan</Text><Text style={styles.spaceBody}>Vertel wat er veranderde of waar je zin in hebt</Text></View>
-        <Ionicons name="arrow-forward" size={21} color={colors.gold} />
-      </Pressable>
+      {/* Wijziging NU (Founder): de momentmaker-ingang én de kaart
+          "Er is ruimte ontstaan" zijn hier verwijderd. Eigen invulling hoort
+          op één plek: de intent-sectie "Eigen richting" in Ontdekken; de
+          gebruiker navigeert daar zelf heen. Geen andere wijziging aan Nu. */}
           </ScrollView>
         </Reanimated.View>
       </View>

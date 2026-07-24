@@ -28,6 +28,7 @@ import { colors, phase } from '../../design/theme';
 import { impactLight } from '../../design/haptics';
 import { useImageContinuity } from '../../design/motion';
 import { CoverImage, ImageShade } from '../CoverImage';
+import { RouteMapPreview } from '../RouteMapPreview';
 import { BackButton, CapsuleShapePreview, ChoiceChip, MeaningThreadCard, MiniFact, PrimaryButton, SecondaryButton } from '../primitives';
 import { FlowFrame } from '../frames';
 import { styles } from '../styles/appStyles';
@@ -172,6 +173,10 @@ export function PrepareScreen() {
       {freshEvidence.length ? <View style={styles.prepareLiveCard}><Text style={styles.liveEvidenceTitle}>WAT DE WERELD NU LAAT ZIEN</Text>{freshEvidence.slice(0, 3).map((evidence) => <View key={`${evidence.sourceName}-${evidence.label}`} style={styles.prepareLiveRow}><View style={styles.liveEvidenceDot} /><View style={styles.flex}><Text style={styles.liveEvidenceLabel}>{evidence.label}</Text><Text style={styles.liveEvidenceMeta}>{evidence.sourceName} · {evidence.certainty === 'observation' ? 'recente waarneming' : 'actuele verwachting'} · {evidence.freshnessLabel.toLowerCase()}</Text></View></View>)}</View> : <View style={styles.editorialDepthCard}><Text style={styles.expectationLabel}>TIJDENS JE ERVARING</Text><Text style={styles.editorialDepthText}>{experience.steps.find((step) => step.insight)?.insight?.title ?? experience.wonder}</Text><Text style={styles.editorialDepthSource}>Een verdiepend gidsmoment is beschikbaar wanneer het helpt.</Text>{guide.evidence.some((item) => item.freshness === 'expired') ? <Text style={styles.expiredEvidenceText}>Eerdere broncontext is verlopen en wordt niet meer als actuele aanwijzing gebruikt.</Text> : null}</View>}
       {experience.routePlan && <View style={styles.routePlanCard}>
         <Text style={styles.liveEvidenceTitle}>ROUTE NAAR HET BEGIN</Text><Text style={styles.routePlanTitle}>{experience.routePlan.destinationName}</Text>
+        {/* ADR-061, punt 3: in-kaart oriëntatie op de bestemming (OSM-tegels
+            op native, stijlvolle fallback op web). Alleen oriëntatie; de
+            routeapp blijft de route-eigenaar. */}
+        {experience.routePlan.destination && <RouteMapPreview latitude={experience.routePlan.destination.latitude} longitude={experience.routePlan.destination.longitude} label={experience.routePlan.destinationName} radiusMeters={experience.routePlan.arrivalPlan?.radiusMeters} />}
         <View style={styles.routeBudget}><MiniFact value={`${experience.routePlan.outboundMinutes} min`} label="heen" /><MiniFact value={`${experience.routePlan.experienceMinutes} min`} label="beleven" /><MiniFact value={`${experience.routePlan.returnMinutes} min`} label="terug" /><MiniFact value={`${experience.routePlan.bufferMinutes} min`} label="buffer" /></View>
         <Text style={styles.routeEstimate}>Je gaat: {transportLabels[transport].toLowerCase()} · conservatieve voorinschatting{experience.routePlan.sourceLabel ? ` · ${experience.routePlan.sourceLabel}` : ''}</Text>
         {transport !== experience.routePlan.mode && <Text style={styles.routeWindow}>De tijdsinschatting is samengesteld voor {transportLabels[experience.routePlan.mode].toLowerCase()}; jouw keuze past het plan aan zonder die eerlijke marge te verkorten.</Text>}

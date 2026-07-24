@@ -210,4 +210,18 @@ export const styles = StyleSheet.create({
   // de hero — geen titel-schaal meer, zodat de regel richting geeft zonder met
   // de belofte te concurreren. Serif-italic, rustige muted-tint, kleine maat.
   affirmationKicker: { color: colors.muted, fontSize: 14, lineHeight: 21, fontFamily: editorialItalicFont, marginTop: 2, marginBottom: 14, maxWidth: 430 },
+
+  // ADR-061, punt 3: foto's bij herinneringen (reflectie én Leefboek-fotostrip).
+  photoStrip: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 20 },
+  photoThumbWrap: { width: 68, height: 68, borderRadius: 14, overflow: 'hidden', borderWidth: 1, borderColor: colors.softLine, backgroundColor: colors.panelRaised },
+  photoThumb: { width: '100%', height: '100%' },
+  photoRemove: { position: 'absolute', top: 3, right: 3, width: 22, height: 22, borderRadius: 11, backgroundColor: colors.scrim, alignItems: 'center', justifyContent: 'center' },
+  photoAdd: { width: 68, height: 68, borderRadius: 14, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.panelRaised, gap: 2 },
+  photoAddText: { color: colors.muted, fontSize: 9, fontWeight: '700', letterSpacing: 0.6 },
+  photoHint: { color: colors.muted, fontSize: 11, lineHeight: 16, marginTop: -12, marginBottom: 18 },
+  lifePhotoStrip: { paddingHorizontal: 2, paddingTop: 10, gap: 8 },
+  lifePhotoThumbWrap: { width: 86, height: 86, borderRadius: 13, overflow: 'hidden', borderWidth: 1, borderColor: colors.softLine, backgroundColor: colors.panelRaised },
+  lifePhotoAdd: { width: 86, height: 86, borderRadius: 13, borderWidth: 1, borderColor: phase.lifebook.line, backgroundColor: phase.lifebook.soft, alignItems: 'center', justifyContent: 'center', gap: 3 },
+  lifePhotoAddText: { color: phase.lifebook.text, fontSize: 9, fontWeight: '700', letterSpacing: 0.6 },
+  reflectionCard: { borderRadius: radii.card, borderWidth: 1, borderColor: phase.remember.line, backgroundColor: phase.remember.soft, padding: 16, marginBottom: 18 },
 });
