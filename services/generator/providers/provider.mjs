@@ -62,15 +62,20 @@ export function selectProvider(env, argv = []) {
 }
 
 // Outbound request timeout per provider call (ADR-056: conservative default).
-export const requestTimeoutMs = (env) => {
+// Providers may pass a higher fallback; MOMENTUM_GENERATOR_TIMEOUT_MS always
+// overrides.
+export const requestTimeoutMs = (env, fallback = 20_000) => {
   const value = Number(env.MOMENTUM_GENERATOR_TIMEOUT_MS);
-  return Number.isFinite(value) && value > 0 ? Math.round(value) : 20_000;
+  return Number.isFinite(value) && value > 0 ? Math.round(value) : fallback;
 };
 
-// Replaces the previously hardcoded 3200 max_output_tokens.
-export const maxOutputTokens = (env) => {
+// Replaces the previously hardcoded 3200 max_output_tokens. Providers may pass
+// a higher fallback: reasoning models (kimi-k2.6) spend part of the token
+// budget on reasoning_content before any visible content, so they need more
+// headroom. MOMENTUM_GENERATOR_MAX_OUTPUT_TOKENS always overrides.
+export const maxOutputTokens = (env, fallback = 3200) => {
   const value = Number(env.MOMENTUM_GENERATOR_MAX_OUTPUT_TOKENS);
-  return Number.isFinite(value) && value > 0 ? Math.round(value) : 3200;
+  return Number.isFinite(value) && value > 0 ? Math.round(value) : fallback;
 };
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
