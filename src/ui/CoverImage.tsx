@@ -3,7 +3,7 @@ import { ImageStyle, StyleProp, StyleSheet, View, ViewStyle } from 'react-native
 import Reanimated from 'react-native-reanimated';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { colors } from '../design/theme';
+import { schemeStyles } from '../design/theme';
 
 // Echte beeldlaag (ADR-057, Horizon A): expo-image met cover-fit, fade-transition
 // en schijfcache. De placeholder is een zacht theme-kleurveld; bij een mislukte
@@ -67,6 +67,6 @@ export function DimShade({ opacity = 0.74 }: { opacity?: number }) {
   return <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: `rgba(8,10,14,${opacity})` }]} />;
 }
 
-const styles = StyleSheet.create({
+const styles = schemeStyles(({ colors }) => StyleSheet.create({
   placeholder: { backgroundColor: colors.panelRaised },
-});
+}));

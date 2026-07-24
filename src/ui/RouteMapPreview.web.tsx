@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, phase } from '../design/theme';
+import { colors, phase, schemeStyles } from '../design/theme';
 
 // Web-fallback voor de routekaart-preview (ADR-061, punt 3): op web laden we
 // bewust géén kaart-framework. In plaats daarvan een stijlvolle, statische
@@ -31,7 +31,7 @@ export function RouteMapPreview({ label }: RouteMapPreviewProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = schemeStyles(({ colors, phase }) => StyleSheet.create({
   frame: {
     borderRadius: 18,
     overflow: 'hidden',
@@ -57,7 +57,7 @@ const styles = StyleSheet.create({
     borderRadius: 31,
     borderWidth: 1,
     borderColor: phase.prepare.line,
-    backgroundColor: 'rgba(47,93,168,0.14)',
+    backgroundColor: phase.prepare.halo,
   },
   captionBar: {
     alignSelf: 'stretch',
@@ -69,4 +69,4 @@ const styles = StyleSheet.create({
   },
   captionTitle: { color: colors.bone, fontSize: 13, fontWeight: '700' },
   captionBody: { color: phase.prepare.text, fontSize: 10, lineHeight: 14, marginTop: 3 },
-});
+}));

@@ -11,7 +11,7 @@ import Reanimated, {
   withTiming,
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, radii, typography } from '../design/theme';
+import { colors, radii, schemeStyles, typography } from '../design/theme';
 import { useReducedMotion } from '../design/motion';
 import { Glass } from '../ui/Glass';
 import { CoverImage, ImageShade } from '../ui/CoverImage';
@@ -85,7 +85,7 @@ export function ExperienceGuidePanel({ guide, depth, accent, image, onClose }: {
     <Reanimated.View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.scrim, scrimStyle]} />
     <Pressable accessibilityLabel="Sluit de gids" onPress={close} style={styles.dismissArea} />
     <Reanimated.View style={[styles.sheetFrame, sheetStyle]}>
-      <Glass intensity={38} fallbackColor="rgba(255,255,255,0.94)" style={styles.sheet}>
+      <Glass intensity={38} fallbackColor={colors.glassSheet} style={styles.sheet}>
         <GestureDetector gesture={pan}>
           <View accessibilityLabel="Sleep de gids omlaag om te sluiten" style={styles.dragZone}>
             <View style={styles.handle} />
@@ -132,9 +132,9 @@ export function ExperienceGuidePanel({ guide, depth, accent, image, onClose }: {
   </View>;
 }
 
-const styles = StyleSheet.create({
+const styles = schemeStyles(({ colors }) => StyleSheet.create({
   overlay: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, zIndex: 30, justifyContent: 'flex-end' },
-  scrim: { backgroundColor: 'rgba(8,10,14,0.52)' },
+  scrim: { backgroundColor: colors.scrimStrong },
   dismissArea: { flex: 1 },
   sheetFrame: { maxHeight: '72%', minHeight: 300, borderTopLeftRadius: 30, borderTopRightRadius: 30, shadowColor: colors.shadow, shadowOpacity: 0.24, shadowRadius: 28, shadowOffset: { width: 0, height: -10 } },
   sheet: { flexShrink: 1, borderTopLeftRadius: 30, borderTopRightRadius: 30, paddingHorizontal: 20, paddingBottom: 18 },
@@ -154,4 +154,4 @@ const styles = StyleSheet.create({
   momentEyebrow: { color: colors.accent, fontSize: 10, letterSpacing: 1.15, fontWeight: '700', fontFamily: typography.family },
   momentTitle: { color: colors.bone, fontSize: 19, lineHeight: 24, fontWeight: '700', fontFamily: typography.displayFamilyMedium },
   momentStep: { color: colors.muted, fontSize: 12, lineHeight: 17, fontFamily: typography.family, fontStyle: 'italic' },
-});
+}));
