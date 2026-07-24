@@ -2,7 +2,7 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Reanimated from 'react-native-reanimated';
-import { colors, typography } from '../design/theme';
+import { colors, schemeStyles, typography } from '../design/theme';
 import { useBreathing } from '../design/motion';
 
 // Lege en rustige states als redactionele momenten (ADR-057, Horizon B):
@@ -23,7 +23,7 @@ export function QuietCanvas({ eyebrow, title, children }: QuietCanvasProps) {
     <View style={styles.frame}>
       <LinearGradient
         pointerEvents="none"
-        colors={['#FFFFFF', '#F7F6FA', '#EFEDF6']}
+        colors={[...colors.quietGradient]}
         locations={[0, 0.58, 1]}
         style={StyleSheet.absoluteFill}
       />
@@ -37,7 +37,8 @@ export function QuietCanvas({ eyebrow, title, children }: QuietCanvasProps) {
   );
 }
 
-const styles = StyleSheet.create({
+// ADR-064: the local sheet is built per scheme so the canvas follows the device.
+const styles = schemeStyles(({ colors }) => StyleSheet.create({
   frame: {
     minHeight: 520,
     borderRadius: 30,
@@ -54,7 +55,7 @@ const styles = StyleSheet.create({
     borderRadius: 170,
     top: -120,
     right: -110,
-    backgroundColor: 'rgba(32,128,73,0.10)',
+    backgroundColor: colors.accentSoft,
   },
   copy: { padding: 26, gap: 13 },
   eyebrow: { color: colors.accent, fontSize: 11, letterSpacing: 1.45, fontWeight: '700' },
@@ -66,4 +67,4 @@ const styles = StyleSheet.create({
     letterSpacing: -0.6,
     maxWidth: 400,
   },
-});
+}));

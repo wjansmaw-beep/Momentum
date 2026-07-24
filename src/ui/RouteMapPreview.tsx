@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import MapView, { Marker, PROVIDER_DEFAULT, UrlTile } from 'react-native-maps';
-import { phase } from '../design/theme';
+import { phase, schemeStyles } from '../design/theme';
 
 // Routekaart-preview (ADR-061, punt 3): een rustige in-kaart oriëntatie op de
 // bestemming met OpenStreetMap-tegels. Alleen oriëntatie — Apple Maps blijft
@@ -50,7 +50,7 @@ export function RouteMapPreview({ latitude, longitude, label, radiusMeters }: Ro
   );
 }
 
-const styles = StyleSheet.create({
+const styles = schemeStyles(({ phase }) => StyleSheet.create({
   frame: {
     borderRadius: 18,
     overflow: 'hidden',
@@ -67,4 +67,4 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     backgroundColor: phase.prepare.soft,
   },
-});
+}));

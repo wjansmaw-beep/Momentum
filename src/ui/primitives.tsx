@@ -123,7 +123,7 @@ export function DirectionEditor({ horizon, values, paused, onTogglePause, onSave
 }
 export function PrimaryButton({ label, onPress, disabled = false }: { label: string; onPress: () => void; disabled?: boolean }) {
   const press = usePressSpring();
-  return <Animated.View style={press.animatedStyle}><Pressable disabled={disabled} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled }} onPress={() => { impactMedium(); onPress(); }} onPressIn={press.onPressIn} onPressOut={press.onPressOut} style={[styles.primaryButton, disabled && styles.primaryButtonDisabled]}><Text style={[styles.primaryButtonText, disabled && styles.primaryButtonTextDisabled]}>{label}</Text>{!disabled && <Ionicons name="arrow-forward" size={20} color={colors.onImage} />}</Pressable></Animated.View>;
+  return <Animated.View style={press.animatedStyle}><Pressable disabled={disabled} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled }} onPress={() => { impactMedium(); onPress(); }} onPressIn={press.onPressIn} onPressOut={press.onPressOut} style={[styles.primaryButton, disabled && styles.primaryButtonDisabled]}><Text style={[styles.primaryButtonText, disabled && styles.primaryButtonTextDisabled]}>{label}</Text>{!disabled && <Ionicons name="arrow-forward" size={20} color={colors.onAccent} />}</Pressable></Animated.View>;
 }
 export function SecondaryButton({ label, onPress }: { label: string; onPress: () => void }) {
   const press = usePressSpring({ pressedScale: 0.975 });
@@ -145,7 +145,7 @@ export function BottomNav() {
     { id: 'now', label: 'Nu' }, { id: 'today', label: 'Vandaag' },
     { id: 'discover', label: 'Ontdekken' }, { id: 'lifebook', label: 'Leefboek' },
   ];
-  return <Glass intensity={48} fallbackColor="rgba(255,255,255,0.92)" style={styles.bottomNav}>{items.map((item) => {
+  return <Glass intensity={48} fallbackColor={colors.glassNav} style={styles.bottomNav}>{items.map((item) => {
     const active = surface === item.id;
     return <Pressable key={item.id} accessibilityRole="tab" accessibilityLabel={item.label} accessibilityState={{ selected: active }} onPress={() => { impactLight(); if (!active) navigation.dispatch(StackActions.replace(surfaceRoutes[item.id])); }} style={styles.navItem}><View style={[styles.navIconShell, active && styles.navIconShellActive]}><NavGlyph kind={item.id} active={active} /></View><Text style={[styles.navLabel, active && styles.navActive]}>{item.label}</Text></Pressable>;
   })}</Glass>;
