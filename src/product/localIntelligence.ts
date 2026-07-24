@@ -9,6 +9,12 @@ export type Company = 'solo' | 'together' | 'family';
 export type TransportMode = 'walking' | 'cycling';
 export const transportLabels: Record<TransportMode, string> = { walking: 'Te voet', cycling: 'Fiets' };
 
+// Zelfgerapporteerde energie (ADR-060, punt 3): optionele, lichte check-in op
+// Nu. Nooit verplicht, nooit een meting; alleen een zachte richting die de
+// transparante ranking zachtjes mag bijstellen. On-device en omkeerbaar.
+export type EnergyLevel = 'low' | 'steady' | 'full';
+export const energyLabels: Record<EnergyLevel, string> = { low: 'Laag', steady: 'Rustig', full: 'Vol energie' };
+
 export type PrototypeContext = {
   dayPart: DayPart;
   profile: PrototypeProfile;
@@ -37,6 +43,9 @@ export type PersonalLearningContext = {
   intensityBalance: number;
   maxTravelMinutes: number;
   travelBiasMinutes: number;
+  // Optionele zelfgerapporteerde energie van vandaag (ADR-060). Alleen 'low'
+  // stuurt zachtjes bij (dichterbij, rustiger); 'steady' en 'full' zijn neutraal.
+  energy?: EnergyLevel;
 };
 
 export const dayPartLabels: Record<DayPart, string> = {
@@ -82,11 +91,15 @@ const companyAllowed = (experience: Experience, context: PrototypeContext) =>
 
 export function rankForMoment(context: PrototypeContext, intentText = '', excludedIds: string[] = [], candidatePool: Experience[] = experiences, learning?: PersonalLearningContext): LocalDecision {
   const intent = intentText.toLocaleLowerCase('nl-NL').trim();
+  // ADR-060: bij zelfgerapporteerd lage energie blijft de wereld dichterbij —
+  // de reisgrens krimpt zachtjes (omkeerbaar, zichtbaar in de redenen).
+  const travelCap = Math.max(5, (learning?.maxTravelMinutes ?? 120) + (learning?.travelBiasMinutes ?? 0));
+  const effectiveTravelCap = learning?.energy === 'low' ? Math.max(5, Math.round(travelCap * 0.6)) : travelCap;
   const feasible = candidatePool.filter((experience) =>
     !excludedIds.includes(experience.id)
     && !learning?.blockedExperienceIds.includes(experience.id)
     && experience.duration + 5 <= context.availableMinutes
-    && (!experience.routePlan || experience.routePlan.outboundMinutes <= Math.max(5, (learning?.maxTravelMinutes ?? 120) + (learning?.travelBiasMinutes ?? 0)))
+    && (!experience.routePlan || experience.routePlan.outboundMinutes <= effectiveTravelCap)
     && equipmentAllowed(experience, context)
     && companyAllowed(experience, context));
 
@@ -130,6 +143,20 @@ export function rankForMoment(context: PrototypeContext, intentText = '', exclud
 
     const intensityScore = effortLevel(experience.effort) * (learning?.intensityBalance ?? 0) * 10;
     score += intensityScore;
+
+    // ADR-060: lage energie stuurt zachtjes naar rustiger en dichterbij. Een
+    // rustige ervaring krijgt een kleine bonus met een eerlijke, zichtbare reden;
+    // een stevige inspanning krijgt een kleine afstraffing. Volle energie duwt
+    // bewust níet omhoog — Momentum jakkert nooit.
+    if (learning?.energy === 'low') {
+      const effort = effortLevel(experience.effort);
+      if (effort === -1) {
+        score += 9;
+        reasons.push({ certainty: 'chosen', text: 'rustig genoeg voor een dag met minder energie' });
+      } else if (effort === 1) {
+        score -= 7;
+      }
+    }
 
     const learnedAffinity = learning?.kindAffinity[experience.kind] ?? 0;
     score += learnedAffinity * 45;

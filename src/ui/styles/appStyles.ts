@@ -155,4 +155,49 @@ export const styles = StyleSheet.create({
   iconMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   calendarWindowRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   generationMarkIcon: { width: 34, textAlign: 'center' },
+
+  // ADR-060 · Energie-check-in op Nu: een licht, vrijwillig kaartje — geen
+  // meting, geen verplichting. Rustige panel-stijl in lijn met intentPanel.
+  energyCard: { borderRadius: radii.card, borderWidth: 1, borderColor: colors.softLine, backgroundColor: colors.panel, padding: 16, marginTop: 12, marginBottom: 6 },
+  energyTitle: { color: colors.bone, fontSize: 14, fontWeight: '700', marginBottom: 4 },
+  energyBody: { color: colors.muted, fontSize: 12, lineHeight: 17, marginBottom: 12 },
+  energyNote: { color: colors.mutedSoft, fontSize: 11, lineHeight: 15, marginTop: 10 },
+
+  // ADR-060 · Reisgids (Ontdekken): magazine-vakwerk. Sectietitels in de
+  // display-serif met karakter, rustige intro's, eerlijke voetnoten en
+  // horizontale kaarten naast één grote leadkaart per sectie.
+  guideSection: { marginTop: 30 },
+  guideSectionTitle: { color: colors.bone, fontSize: 27, lineHeight: 32, letterSpacing: -0.5, fontWeight: '700', fontFamily: editorialFont, marginBottom: 6 },
+  guideSectionIntro: { color: colors.muted, fontSize: 13, lineHeight: 19, marginBottom: 16, maxWidth: 380 },
+  guideFootnote: { color: colors.mutedSoft, fontSize: 11, lineHeight: 16, marginTop: 12, fontStyle: 'italic' },
+  guideLeadKicker: { color: colors.accent, fontSize: 11, letterSpacing: 1.15, fontWeight: '700', marginBottom: 8 },
+  guideLeadNote: { color: colors.mutedSoft, fontSize: 11, lineHeight: 15, marginTop: 8 },
+  guideRowCard: { flexDirection: 'row', gap: 14, borderRadius: radii.card, borderWidth: 1, borderColor: colors.softLine, backgroundColor: colors.panel, padding: 12, marginTop: 12, alignItems: 'center' },
+  guideRowImage: { width: 92, height: 92, borderRadius: radii.control, overflow: 'hidden' },
+  guideRowImageStyle: { borderRadius: radii.control },
+  guideRowBody: { flex: 1 },
+  guideRowKicker: { color: colors.accent, fontSize: 10, letterSpacing: 1.1, fontWeight: '700', marginBottom: 3 },
+  guideRowTitle: { color: colors.bone, fontSize: 17, lineHeight: 21, fontWeight: '700', fontFamily: editorialFont, letterSpacing: -0.2 },
+  guideRowPromise: { color: colors.muted, fontSize: 12, lineHeight: 17, marginTop: 3 },
+  guideRowMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 7 },
+  guideRowMeta: { color: colors.bone, fontSize: 11, fontWeight: '600' },
+  guideRowNote: { color: colors.mutedSoft, fontSize: 10, lineHeight: 14, marginTop: 5 },
+  guideNoteCard: { flexDirection: 'row', gap: 12, borderRadius: radii.card, borderWidth: 1, borderColor: colors.accentLine, backgroundColor: colors.accentSoft, padding: 16, marginTop: 14 },
+  guideNoteText: { color: colors.bone, fontSize: 12.5, lineHeight: 18 },
+  guideNoteAction: { marginTop: 12 },
+
+  // ADR-060 · Vandaag-tijdlijn: één doorlopende lijn met knopen, serif-tijden
+  // en de eerstvolgende blok als redactionele lead.
+  tlWrap: { marginTop: 18, position: 'relative' },
+  tlLine: { position: 'absolute', left: 8, top: 10, bottom: 10, width: 2, borderRadius: 1, backgroundColor: colors.line },
+  tlItem: { flexDirection: 'row', alignItems: 'flex-start' },
+  tlRail: { width: 18, alignItems: 'center', paddingTop: 4 },
+  tlNode: { width: 10, height: 10, borderRadius: 5, borderWidth: 2, backgroundColor: colors.panel },
+  tlNodeLead: { width: 14, height: 14, borderRadius: 7, borderWidth: 2 },
+  tlBody: { flex: 1, paddingLeft: 14, paddingBottom: 26 },
+  tlKicker: { color: colors.muted, fontSize: 10, letterSpacing: 1.2, fontWeight: '700', marginBottom: 3 },
+  tlKickerLead: { color: colors.accent },
+  tlTime: { color: colors.bone, fontSize: 21, lineHeight: 25, fontWeight: '700', fontFamily: editorialFont, letterSpacing: -0.3 },
+  tlTimeLead: { fontSize: 25, lineHeight: 29 },
+  tlMomentLabel: { color: colors.muted, fontSize: 11, letterSpacing: 1.05, fontWeight: '700', marginTop: 2, marginBottom: 10 },
 });
