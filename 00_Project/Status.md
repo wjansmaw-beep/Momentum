@@ -1,9 +1,9 @@
 # Momentum Project Status
 
 Status: Active  
-Version: 1.8
+Version: 1.9
 
-## Application-code boundary: approved through ADR-064
+## Application-code boundary: approved through ADR-065
 
 This file is the single source of truth for the current application-code boundary. Every AI coding agent must read it at the start of each session, before proposing or implementing any change. Only the Founder can extend the boundary, through an ADR.
 
@@ -40,3 +40,5 @@ ADR-062 additionally approves real-device testing through EAS Build development 
 ADR-063 additionally approves explicit native-client access to the Generator Service: the native app identifies itself with the fixed header `X-Momentum-Client: native`, and the server admits requests without an Origin header only when that header matches exactly. The browser path (Origin allowlist) is unchanged, and the header is explicit client identification — not authentication — scoped to the Founder's own home network. Public generator deployment with real authentication remains a separate release blocker. The current application-code boundary therefore extends through ADR-063.
 
 ADR-064 additionally approves the Evening Tone and Expansion Program: an evening (dark) sibling of the ADR-061 color language with `userInterfaceStyle: automatic`, ambient Skia atmosphere layers under the ADR-057 no-attention-capture rule, muted looping video/cinemagraph content with a mandatory still fallback and licensed-or-owned assets only, honest multi-modal transport advice without live external transport integrations, and internationalisation infrastructure with Dutch as the primary language. Implementation follows the recorded sequence (evening tone → Skia → transport → video → multilingual), each through its own pull request. Pressure mechanics remain permanently excluded. The current application-code boundary therefore extends through ADR-064.
+
+ADR-065 additionally approves the Experience Renewal program: Prepare becomes Voorpret (anticipation as narrative scenes, smart defaults, at most one question, soft countdown; numbered step rails, readiness checkboxes and intake forms removed), the hidden persona model is removed from ranking in favour of a broad progressively growing profile, every suggestion carries visible "why now" reasons from live data, consumer copy speaks the affirmation register with machine language moved to a why/source layer, the together flow is made real on native via the momentum:// scheme within a closed circle, dead modules and fabricated day structure are removed (including the Dokkum fallback, replaced by an explicit location flow), and season plus hobby signals are switched on to steer content and live sources. A UI form hierarchy is fixed: living canvas (Now) > editorial chapters (Discover) > story scenes (Voorpret) > cards only for genuine choice > chips; map-first, chat UI and feeds are excluded. Implementation follows four phases, starting with copy renewal + Voorpret. Health data, accounts, and new external sources remain open Founder decisions requiring their own ADRs. Pressure mechanics remain permanently excluded. The current application-code boundary therefore extends through ADR-065.
