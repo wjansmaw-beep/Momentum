@@ -1,9 +1,9 @@
 # Momentum Project Status
 
 Status: Active  
-Version: 1.7
+Version: 1.8
 
-## Application-code boundary: approved through ADR-063
+## Application-code boundary: approved through ADR-064
 
 This file is the single source of truth for the current application-code boundary. Every AI coding agent must read it at the start of each session, before proposing or implementing any change. Only the Founder can extend the boundary, through an ADR.
 
@@ -38,3 +38,5 @@ ADR-061 additionally approves: a fresh color language amending ADR-053 (cool lig
 ADR-062 additionally approves real-device testing through EAS Build development builds: the iOS identity `com.wjansmaw.momentum`, internal-distribution dev-client builds on the Founder's registered iPhone, and the Device Testing Runbook procedure. Live model generation from the phone remains a documented follow-up code change; the offline local synthesis path is the approved default. No product scope changes. The current application-code boundary therefore extends through ADR-062.
 
 ADR-063 additionally approves explicit native-client access to the Generator Service: the native app identifies itself with the fixed header `X-Momentum-Client: native`, and the server admits requests without an Origin header only when that header matches exactly. The browser path (Origin allowlist) is unchanged, and the header is explicit client identification — not authentication — scoped to the Founder's own home network. Public generator deployment with real authentication remains a separate release blocker. The current application-code boundary therefore extends through ADR-063.
+
+ADR-064 additionally approves the Evening Tone and Expansion Program: an evening (dark) sibling of the ADR-061 color language with `userInterfaceStyle: automatic`, ambient Skia atmosphere layers under the ADR-057 no-attention-capture rule, muted looping video/cinemagraph content with a mandatory still fallback and licensed-or-owned assets only, honest multi-modal transport advice without live external transport integrations, and internationalisation infrastructure with Dutch as the primary language. Implementation follows the recorded sequence (evening tone → Skia → transport → video → multilingual), each through its own pull request. Pressure mechanics remain permanently excluded. The current application-code boundary therefore extends through ADR-064.
