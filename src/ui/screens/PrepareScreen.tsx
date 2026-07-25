@@ -1,20 +1,20 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Linking,
   Platform,
   Pressable,
   ScrollView,
   Share,
-  StyleProp,
   Text,
+  TextStyle,
   View,
   ViewStyle,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Feather, Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Company, TransportMode, transportLabels } from '../../product/localIntelligence';
-import { experienceKindLabels } from '../../profile/personalModel';
 import {
   buildInviteUrl,
   createSharedInvite,
@@ -24,29 +24,39 @@ import {
 } from '../../sharing/sharedCapsule';
 import { buildExperienceGuide, GuideDepth } from '../../guidance/experienceGuide';
 import { routingCapability } from '../../routing/routeIntelligence';
-import { colors, phase } from '../../design/theme';
-import { impactLight } from '../../design/haptics';
-import { useImageContinuity } from '../../design/motion';
-import { CoverImage, ImageShade } from '../CoverImage';
+import { colors, palettes, phase, schemeStyles, typography } from '../../design/theme';
+import { impactLight, impactMedium } from '../../design/haptics';
 import { RouteMapPreview } from '../RouteMapPreview';
-import { BackButton, ChoiceChip, MeaningThreadCard, PrimaryButton } from '../primitives';
+import { ChoiceChip, MeaningThreadCard } from '../primitives';
 import { FlowFrame } from '../frames';
 import { styles } from '../styles/appStyles';
-import { useApp } from '../../app/store';
+import { defaultRegion, useApp } from '../../app/store';
 import { RootStackParamList } from '../navigation/types';
+import { formatClock, goldenWindow, resolveSunTimes } from '../now-v2/nowModel';
+import {
+  ctaSubline,
+  departureModel,
+  journeySegments,
+  packingRows,
+  weatherRows,
+} from '../now-v2/voorpretModel';
 
-// Voorpret (ADR-065, fase 1): Prepare wordt een verhaal dat zich ontvouwt,
-// geen werkblad. Verwachting leidt (foto-hero met de wonderzin als hart),
-// daarna volgen scènes in consumententaal — zo ga je, neem mee, de route en
-// het verhaal van de plek. De genummerde stappenrail, de readiness-checkboxes
-// en de vier operationele vragen zijn verdwenen: maximaal één zichtbare vraag
-// (met wie), de rest krijgt slimme standaardwaarden die zichtbaar zijn in de
-// samenvatting en één tik aanpasbaar via "Aanpassen". Eerlijkheid over
-// bronnen en aannames woont één tik dieper in "Waarom dit plan?".
-// De sticky primaire actie start Presence via de navigator (push).
+// Voorpret volgens concept v2 (ADR-067, fase R3 — herbouw van het
+// Prepare-scherm uit ADR-065, fase 1). De v2-scènes leiden: header met terug
+// en momentnaam, de aftelkaart "Vertrek over" met live klok en voortgang naar
+// het gouden uur, daarna "Zo ga je" (routesegmenten uit het routeplan),
+// "Neem mee" (paklijst uit live weer, met de capsule-lijst als eerlijke
+// fallback) en "Weer onderweg" (huidige meting + zonmodel — geen verzonnen
+// uurverwachting). De Go-CTA start Presence.
+//
+// ADR-065 blijft van kracht: maximaal één zichtbare vraag (met wie), de rest
+// slimme standaardwaarden die zichtbaar zijn in de samenvatting en één tik
+// aanpasbaar. Eerlijkheid over bronnen en aannames woont één tik dieper in
+// "Waarom dit plan?". De kaart, het verhaal van de plek en de deel-flow
+// blijven als rustige verdieping onder de v2-scènes bestaan.
 
 export function PrepareScreen() {
-  const { selected: experience, personalProfile: personal, activeSession, sharedDraft, savePreparation, startPresence } = useApp();
+  const { selected: experience, personalProfile: personal, activeSession, sharedDraft, savePreparation, startPresence, liveWorld, selectionLocationConfirmed } = useApp();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const hostName = personal.firstName || 'Iemand';
   const initialCompany: Company = (activeSession?.experienceId === experience.id ? activeSession.company : sharedDraft ? 'together' : personal.defaultCompany) ?? 'solo';
@@ -102,44 +112,122 @@ export function PrepareScreen() {
     setCompany(value);
     if (value === 'solo') setShared(undefined);
   };
-  // Beeldcontinuïteit (Horizon B, punt 6): dezelfde beeld-uri als op Nu reist mee;
-  // de container legt het beeld met één rustige scale/fade neer (zie motion.ts).
-  const imageContinuity = useImageContinuity();
-  // Scène "Zo ga je": proza uit echte plandata in plaats van een spec-kaart.
-  // Tijden, modus en marge komen uit het routeplan; zonder route spreekt de
-  // duur, inspanning en het tijdvenster van de capsule zelf.
-  const journeyLine = experience.routePlan
-    ? `Je vertrekt ${transportLabels[transport].toLowerCase()} richting ${experience.routePlan.destinationName} — ${experience.routePlan.outboundMinutes} minuten heen, ${experience.routePlan.experienceMinutes} minuten daar en ${experience.routePlan.returnMinutes} minuten terug.`
-    : `${experience.duration} minuten · ${experience.effort.toLowerCase()}${experience.timeWindow ? ` · het mooiste venster is ${experience.timeWindow}` : ''}.`;
-  const journeyNote = experience.routePlan
-    ? `Met ${experience.routePlan.bufferMinutes} minuten marge blijft haast overbodig.`
-    : experience.distance
-      ? `${experience.distance} is al meegerekend, zodat je nergens op hoeft te letten.`
-      : undefined;
+
+  // ——— Concept v2: de aftelkaart en scènes lopen mee met de klok (30s-tick).
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 30000);
+    return () => clearInterval(timer);
+  }, []);
+  const weather = liveWorld?.weather;
+  const sun = useMemo(
+    () => resolveSunTimes(weather, liveWorld?.coordinates ?? defaultRegion.coordinates, now),
+    // Zontijden veranderen per dag, niet per klok-tick — memo op datum + bron.
+    [weather?.sunrise, weather?.sunset, liveWorld?.coordinates, now.toDateString()],
+  );
+  const departure = departureModel(now, experience.duration, sun, transport);
+  const segments = journeySegments(experience, transport);
+  const packing = packingRows(experience, weather);
+  const weatherList = weatherRows(now, sun, weather, departure.end);
+
   const companyLabel = company === 'solo' ? 'Alleen' : company === 'family' ? 'Met gezin' : 'Samen';
   const guideDepthLabel = guideDepth === 'quiet' ? 'rustige begeleiding' : guideDepth === 'deep' ? 'verdiepende gids' : 'gids op het juiste moment';
   return (
     <FlowFrame>
     <View style={styles.flowScreen}>
     <ScrollView contentContainerStyle={[styles.flowScroll, styles.flowScrollStickyAction]} showsVerticalScrollIndicator={false}>
-      <BackButton label="Terug" onPress={onBack} />
-      <Text style={[styles.eyebrow, { color: phase.prepare.text }]}>{experienceKindLabels[experience.kind].toUpperCase()} · VOORPRET</Text><Text style={styles.flowTitle}>{experience.title}</Text><Text style={styles.screenSubtitle}>{experience.promise}</Text>
-      {/* Verwachting eerst: de foto-hero met de wonderzin als hart. Niets
-          praktisch boven de vouw. */}
-      <CoverImage uri={experience.image} style={styles.prepareExpectationCard} imageStyle={styles.prepareExpectationImage} imageContainerStyle={imageContinuity as StyleProp<ViewStyle>}>
-        <ImageShade />
-        <View style={styles.prepareExpectationCopy}>
-          <Text style={styles.prepareExpectationLabel}>DIT MOMENT WACHT OP JE</Text>
-          <Text style={styles.prepareExpectationTitle}>{experience.wonder}</Text>
+      {/* Header volgens concept: ronde terugknop, "Voorpret", momentnaam. */}
+      <View style={vp.head}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Terug" onPress={onBack} style={vp.back}>
+          <Feather name="arrow-left" size={16} color={vp.inkSolid as string} />
+        </Pressable>
+        <View style={styles.flex}>
+          <Text style={vp.headTitle}>Voorpret</Text>
+          <Text style={vp.headSub} numberOfLines={1}>{experience.title}</Text>
         </View>
-      </CoverImage>
+      </View>
+
+      {/* Aftelkaart: vertrektijd uit hetzelfde startmodel als de Nu-CTA;
+          voortgang over het venster van één uur voor vertrek. */}
+      <LinearGradient
+        colors={[vp.gradientStart as string, vp.gradientEnd as string]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={vp.count}
+      >
+        <Text style={vp.countLabel}>Vertrek over</Text>
+        <View style={vp.countBigRow}>
+          <Text style={vp.countBig}>{departure.countdown}</Text>
+          <Text style={vp.countMeta}>{departure.meta}</Text>
+        </View>
+        <View style={vp.countBarTrack}>
+          <View style={[vp.countBarFill, { width: `${Math.round(departure.progress * 100)}%` }]} />
+        </View>
+        <View style={vp.countBarLabels}>
+          <Text style={vp.countBarLabel}>nu · {formatClock(now)}</Text>
+          <Text style={vp.countBarLabel}>{departure.end.getTime() > sun.sunset.getTime() ? `zon onder ${formatClock(sun.sunset)}` : `gouden uur ${formatClock(goldenWindow(sun).peak)}`}</Text>
+        </View>
+      </LinearGradient>
+
+      {/* Scène: zo ga je — routesegmenten uit het plan, eerlijk zonder plan. */}
+      <View style={vp.card}>
+        <View style={vp.cardHead}>
+          <Feather name="map" size={15} color={vp.accentSolid as string} />
+          <Text style={vp.cardTitle}>Zo ga je</Text>
+        </View>
+        {segments.map((segment, index) => (
+          <View key={`${segment.title}-${index}`} style={[vp.row, index > 0 && vp.rowBorder]}>
+            <View style={vp.rowIcon}><Feather name={segment.icon} size={15} color={vp.accentSolid as string} /></View>
+            <View style={styles.flex}>
+              <Text style={vp.rowTitle}>{segment.title}</Text>
+              {segment.sub ? <Text style={vp.rowSub}>{segment.sub}</Text> : null}
+            </View>
+            {segment.trailing ? <Text style={vp.rowTrailing}>{segment.trailing}</Text> : null}
+          </View>
+        ))}
+      </View>
+
+      {/* Scène: neem mee — regels uit live weer; zonder meting de paklijst
+          van de capsule zelf. Status alleen waar een regel uit data volgt. */}
+      <View style={vp.card}>
+        <View style={vp.cardHead}>
+          <Feather name="check" size={15} color={vp.accentSolid as string} />
+          <Text style={vp.cardTitle}>Neem mee</Text>
+        </View>
+        {packing.map((row, index) => (
+          <View key={`${row.title}-${index}`} style={[vp.row, index > 0 && vp.rowBorder]}>
+            <View style={vp.rowIcon}><Feather name={row.icon} size={15} color={vp.accentSolid as string} /></View>
+            <View style={styles.flex}>
+              <Text style={vp.rowTitle}>{row.title}</Text>
+              {row.sub ? <Text style={vp.rowSub}>{row.sub}</Text> : null}
+            </View>
+            {row.status ? <Text style={vp.rowTrailing}>{row.status}</Text> : null}
+          </View>
+        ))}
+      </View>
+
+      {/* Scène: weer onderweg — huidige meting en zonmodel; geen verzonnen
+          uur-voor-uur-verwachting. */}
+      <View style={vp.card}>
+        <View style={vp.cardHead}>
+          <Feather name="sun" size={15} color={vp.accentSolid as string} />
+          <Text style={vp.cardTitle}>Weer onderweg</Text>
+        </View>
+        {weatherList.map((row, index) => (
+          <View key={`${row.title}-${index}`} style={[vp.row, index > 0 && vp.rowBorder]}>
+            <View style={vp.rowIcon}><Feather name={row.icon} size={15} color={vp.accentSolid as string} /></View>
+            <View style={styles.flex}>
+              <Text style={vp.rowTitle}>{row.title}</Text>
+              {row.sub ? <Text style={vp.rowSub}>{row.sub}</Text> : null}
+            </View>
+            {row.trailing ? <Text style={vp.rowTrailing}>{row.trailing}</Text> : null}
+          </View>
+        ))}
+      </View>
+
+      {/* Rustige verdieping onder de v2-scènes: betekenisdraad, kaart en
+          aankomst, verhaal van de plek — ongewijzigd uit ADR-065, fase 1. */}
       {experience.meaningThread && <MeaningThreadCard experience={experience} compact />}
-      {/* Scène: zo ga je — het plan als één rustige zin. */}
-      <View style={styles.commitmentCard}><Text style={styles.commitmentLabel}>ZO GA JE</Text><Text style={styles.commitmentValue}>{journeyLine}</Text>{journeyNote && <Text style={styles.commitmentBody}>{journeyNote}</Text>}</View>
-      {/* Scène: neem mee — de paklijst als deel van het verhaal. */}
-      <View style={styles.prepareCard}><Text style={styles.expectationLabel}>NEEM MEE</Text><Text style={styles.expectationTitle}>{experience.prepareTitle}</Text>{experience.prepare.map((item) => <View key={item} style={styles.prepareRow}><View style={[styles.prepareBullet, { backgroundColor: experience.accent }]} /><Text style={styles.prepareText}>{item}</Text></View>)}</View>
-      {/* Scène: de route — kaart en aankomst in consumententaal. Aannames en
-          bronvensters wonen in "Waarom dit plan?" hieronder. */}
       {experience.routePlan && <View style={styles.routePlanCard}>
         <Text style={styles.liveEvidenceTitle}>ZO KOM JE ER</Text><Text style={styles.routePlanTitle}>{experience.routePlan.destinationName}</Text>
         {/* ADR-061, punt 3: in-kaart oriëntatie op de bestemming (OSM-tegels
@@ -149,7 +237,6 @@ export function PrepareScreen() {
         {experience.routePlan.arrivalPlan && <View style={styles.arrivalPlanCard}><Text style={styles.arrivalPlanLabel}>DAAR AANGEKOMEN</Text><Text style={styles.arrivalPlanTitle}>{experience.routePlan.arrivalPlan.label}</Text><Text style={styles.arrivalPlanBody}>{experience.routePlan.arrivalPlan.instruction}</Text><Text style={styles.arrivalPlanMeta}>{experience.routePlan.arrivalPlan.durationMinutes} min{experience.routePlan.arrivalPlan.radiusMeters ? ` · tot circa ${experience.routePlan.arrivalPlan.radiusMeters} m rond het anker` : ''}</Text><Text style={styles.arrivalPlanReturn}>{experience.routePlan.arrivalPlan.returnTrigger}</Text></View>}
         <Text style={styles.routeGuard}>{experience.routePlan.natureGuard}</Text>
       </View>}
-      {/* Scène: het verhaal van de plek. */}
       {experience.placeKnowledge && <View style={styles.placeKnowledgeCard}>
         <Text style={styles.placeKnowledgeLabel}>VERHAAL VAN DE PLEK</Text>
         <Text style={styles.placeKnowledgeTitle}>{experience.placeKnowledge.title}</Text>
@@ -203,10 +290,153 @@ export function PrepareScreen() {
       <View style={styles.commitmentCard}><Text style={styles.commitmentLabel}>ZO IS DIT PLAN SAMENGESTELD</Text><Text style={styles.commitmentBody}>{guide.coverageLabel}{guide.compositionLabel ? ` · ${guide.compositionLabel}` : ''}. Je kunt tijdens de ervaring altijd terugschakelen naar je omgeving.</Text></View>
       </>}
     </ScrollView>
+    {/* Go-CTA volgens concept: titel + eerlijke subregel + pijl; start
+        Presence via de bestaande flow (push). */}
     <View style={styles.stickyActionBar}>
-      <PrimaryButton label={company === 'solo' ? 'Ik ga nu' : 'Wij gaan beginnen'} onPress={() => onStart(company, guideDepth, shared ? { ...shared, coordination } : undefined, transport)} />
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${company === 'solo' ? 'Ik ga nu' : 'Wij gaan beginnen'} — ${ctaSubline(guideDepth, departure.end)}`}
+        onPress={() => { impactMedium(); onStart(company, guideDepth, shared ? { ...shared, coordination } : undefined, transport); }}
+        style={({ pressed }) => [vp.cta, pressed && vp.pressed]}
+      >
+        <View>
+          <Text style={vp.ctaTitle}>{company === 'solo' ? 'Ik ga nu' : 'Wij gaan beginnen'}</Text>
+          <Text style={vp.ctaSub}>{ctaSubline(guideDepth, departure.end)}</Text>
+        </View>
+        <Feather name="arrow-right" size={20} color={vp.accentInkSolid as string} />
+      </Pressable>
     </View>
     </View>
     </FlowFrame>
   );
 }
+
+// Visuele taal (concept v2): zelfde palet als R1/R2 — near-black podium,
+// glaspanelen, accentgroen uit de #34c772-familie, serif display voor de
+// countdown. De lichte sibling volgt de dagpalet-tokens (ADR-064); alle
+// tekst/achtergrond-paren houden WCAG AA. Detectie via palet-identiteit,
+// zoals schemeStyles het aanlevert.
+const vp = schemeStyles(({ colors: schemeColors }) => {
+  const evening = schemeColors === palettes.dark.colors;
+  const palette = evening
+    ? {
+        ink: '#F5F4F0',
+        ink2: 'rgba(245,244,240,0.62)',
+        accent: '#34C772',
+        accentInk: '#06130C',
+        glass: 'rgba(245,244,240,0.07)',
+        line: 'rgba(245,244,240,0.12)',
+        track: 'rgba(245,244,240,0.1)',
+        rowLine: 'rgba(245,244,240,0.07)',
+        iconTile: 'rgba(52,199,114,0.12)',
+        gradientStart: 'rgba(52,199,114,0.16)',
+        gradientEnd: 'rgba(52,199,114,0.05)',
+        countBorder: 'rgba(52,199,114,0.35)',
+        glow: 'rgba(52,199,114,0.5)',
+      }
+    : {
+        ink: schemeColors.ink,
+        ink2: 'rgba(34,37,45,0.66)',
+        accent: schemeColors.accent,
+        accentInk: schemeColors.onAccent,
+        glass: 'rgba(34,37,45,0.05)',
+        line: 'rgba(34,37,45,0.12)',
+        track: 'rgba(34,37,45,0.14)',
+        rowLine: 'rgba(34,37,45,0.08)',
+        iconTile: 'rgba(32,128,73,0.10)',
+        gradientStart: 'rgba(32,128,73,0.14)',
+        gradientEnd: 'rgba(32,128,73,0.05)',
+        countBorder: 'rgba(32,128,73,0.30)',
+        glow: 'rgba(32,128,73,0.35)',
+      };
+  type VoorpretStyles = {
+    inkSolid: string;
+    accentSolid: string;
+    accentInkSolid: string;
+    gradientStart: string;
+    gradientEnd: string;
+    head: ViewStyle;
+    back: ViewStyle;
+    headTitle: TextStyle;
+    headSub: TextStyle;
+    count: ViewStyle;
+    countLabel: TextStyle;
+    countBigRow: ViewStyle;
+    countBig: TextStyle;
+    countMeta: TextStyle;
+    countBarTrack: ViewStyle;
+    countBarFill: ViewStyle;
+    countBarLabels: ViewStyle;
+    countBarLabel: TextStyle;
+    card: ViewStyle;
+    cardHead: ViewStyle;
+    cardTitle: TextStyle;
+    row: ViewStyle;
+    rowBorder: ViewStyle;
+    rowIcon: ViewStyle;
+    rowTitle: TextStyle;
+    rowSub: TextStyle;
+    rowTrailing: TextStyle;
+    cta: ViewStyle;
+    ctaTitle: TextStyle;
+    ctaSub: TextStyle;
+    pressed: ViewStyle;
+  };
+  const stylesDef: VoorpretStyles = {
+    inkSolid: palette.ink,
+    accentSolid: palette.accent,
+    accentInkSolid: palette.accentInk,
+    gradientStart: palette.gradientStart,
+    gradientEnd: palette.gradientEnd,
+    head: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 22, paddingTop: 10, paddingBottom: 12 },
+    back: {
+      width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center',
+      backgroundColor: palette.glass, borderWidth: 1, borderColor: palette.line,
+    },
+    headTitle: { fontSize: 14.5, fontWeight: '600', color: palette.ink },
+    headSub: { fontSize: 11.5, color: palette.ink2, marginTop: 1 },
+    count: {
+      marginHorizontal: 12, borderRadius: 26, padding: 18,
+      borderWidth: 1, borderColor: palette.countBorder,
+      shadowColor: '#000000', shadowOpacity: 0.4, shadowRadius: 30, shadowOffset: { width: 0, height: 16 }, elevation: 7,
+    },
+    countLabel: { fontSize: 10.5, letterSpacing: 2.1, fontWeight: '700', color: palette.accent, textTransform: 'uppercase' },
+    countBigRow: { flexDirection: 'row', alignItems: 'baseline', gap: 10, marginTop: 6, flexWrap: 'wrap' },
+    countBig: {
+      fontFamily: typography.displayFamilyMedium, fontWeight: '400', fontSize: 44,
+      letterSpacing: -0.9, color: palette.ink,
+    },
+    countMeta: { fontSize: 13, fontWeight: '600', color: palette.ink2 },
+    countBarTrack: { marginTop: 12, height: 5, borderRadius: 999, backgroundColor: palette.track, overflow: 'hidden' },
+    countBarFill: {
+      height: '100%', borderRadius: 999, backgroundColor: palette.accent,
+      shadowColor: palette.accent, shadowOpacity: 0.9, shadowRadius: 6, shadowOffset: { width: 0, height: 0 },
+    },
+    countBarLabels: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
+    countBarLabel: { fontSize: 10, color: palette.ink2, fontWeight: '500' },
+    card: {
+      marginHorizontal: 12, marginTop: 10, borderRadius: 22, paddingHorizontal: 15, paddingVertical: 14,
+      backgroundColor: palette.glass, borderWidth: 1, borderColor: palette.line,
+    },
+    cardHead: { flexDirection: 'row', alignItems: 'center', gap: 9, marginBottom: 10 },
+    cardTitle: { fontSize: 11, letterSpacing: 1.6, fontWeight: '700', color: palette.ink2, textTransform: 'uppercase' },
+    row: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 7 },
+    rowBorder: { borderTopWidth: 1, borderTopColor: palette.rowLine },
+    rowIcon: {
+      width: 32, height: 32, borderRadius: 11, backgroundColor: palette.iconTile,
+      alignItems: 'center', justifyContent: 'center',
+    },
+    rowTitle: { fontSize: 13, fontWeight: '600', color: palette.ink },
+    rowSub: { fontSize: 11, color: palette.ink2, marginTop: 1 },
+    rowTrailing: { fontSize: 11.5, fontWeight: '600', color: palette.ink2 },
+    cta: {
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+      backgroundColor: palette.accent, borderRadius: 999, paddingVertical: 14, paddingHorizontal: 20,
+      shadowColor: palette.glow, shadowOpacity: 0.9, shadowRadius: 26, shadowOffset: { width: 0, height: 10 }, elevation: 10,
+    },
+    ctaTitle: { fontSize: 15.5, fontWeight: '700', letterSpacing: -0.1, color: palette.accentInk },
+    ctaSub: { fontSize: 10.5, fontWeight: '600', color: palette.accentInk, opacity: 0.7, marginTop: 1 },
+    pressed: { opacity: 0.92 },
+  };
+  return stylesDef;
+});
