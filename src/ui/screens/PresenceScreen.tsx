@@ -53,6 +53,9 @@ export function PresenceScreen() {
   const initialStep = activeSession?.experienceId === experience.id ? activeSession.stepIndex : 0;
   const onStepChange = (stepIndex: number) => updatePresenceStep(stepIndex);
   const onFinish = () => {
+    // Het moment is bewust afgerond: een latere reset (bewaren → Leefboek of
+    // overslaan → popToTop) mag Presence zonder tegenactie verwijderen.
+    leavingRef.current = true;
     finishPresence();
     navigation.navigate('Remember');
   };
