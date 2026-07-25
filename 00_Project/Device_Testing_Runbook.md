@@ -27,7 +27,7 @@ These steps require interactive accounts and credentials and are deliberately no
    npx eas-cli login
    ```
 
-3. Apple linking: on the first `eas build` run, EAS interactively asks for the Apple ID and two-factor authentication code of the Apple Developer account, then automatically creates and stores the distribution certificate, the App ID (`com.wjansmaw.momentum`), and the provisioning profile in the EAS credentials store. The Apple Team ID is read automatically from the account login; it does not need to be configured by hand. The repository already carries an EAS `projectId` in `app.json` (`extra.eas.projectId`); the first build attaches to that project.
+3. Apple linking: the Founder's App Store Connect API key is uploaded once to the EAS credentials store (expo.dev → project Momentum → Credentials → iOS → App Store Connect API key; the `.p8` key file itself lives outside the repository and is never committed). EAS then uses that key to create and store the distribution certificate, the App ID (`com.wjansmaw.momentum`), and the provisioning profile. The Apple Team ID is read automatically through the key; it does not need to be configured by hand. The repository already carries an EAS `projectId` in `app.json` (`extra.eas.projectId`); the first build attaches to that project.
 4. Register the iPhone as an allowed test device:
 
    ```text
