@@ -78,7 +78,7 @@ export function decodeSharedInvite(value: string | null | undefined): SharedCaps
 }
 
 export function readInviteFromCurrentUrl(): SharedInviteReadResult {
-  if (typeof window === 'undefined') return { state: 'none' };
+  if (typeof window === 'undefined' || !window.location) return { state: 'none' };
   const value = new URLSearchParams(window.location.search).get(inviteParameter);
   if (!value) return { state: 'none' };
   const invite = decodeSharedInvite(value);
@@ -90,7 +90,7 @@ export function readInviteFromCurrentUrl(): SharedInviteReadResult {
 }
 
 export function buildInviteUrl(invite: SharedCapsuleInvite): string | null {
-  if (typeof window === 'undefined') return null;
+  if (typeof window === 'undefined' || !window.location) return null;
   const url = new URL(window.location.href);
   url.search = '';
   url.hash = '';
@@ -99,7 +99,7 @@ export function buildInviteUrl(invite: SharedCapsuleInvite): string | null {
 }
 
 export function clearInviteFromCurrentUrl() {
-  if (typeof window === 'undefined') return;
+  if (typeof window === 'undefined' || !window.location) return;
   const url = new URL(window.location.href);
   url.searchParams.delete(inviteParameter);
   window.history.replaceState({}, '', url.toString());
