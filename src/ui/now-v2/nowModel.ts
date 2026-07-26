@@ -327,3 +327,35 @@ export function heroFacts(experience: Experience, weather: WeatherSignal | undef
   else facts.push({ icon: 'activity', text: experience.effort.toLowerCase() });
   return facts;
 }
+
+// ——— Vers-samengestelde kaarten (ADR-056/059-transparantie) ———
+// De contextuele generator-set (2–3 concepten per dagdeel-signature) verschijnt
+// als eigen rustige sectie op Nu. Het model hieronder is bewust dun: de kaart
+// toont feiten uit de capsule zelf en de disclosure komt letterlijk uit de
+// generation-metadata van de generator — nooit een eigen formulering eroverheen.
+
+export type FreshCardModel = {
+  eyebrow: string;
+  facts: string;
+  disclosure: string;
+};
+
+/** Kaartmodel voor één vers samengesteld voorstel. Feiten: duur · inspanning ·
+ * bereik (zoals de capsule ze zelf draagt). De eyebrow benoemt eerlijk wat het
+ * is; de bron (remote model of lokale synthese) staat in de disclosure eronder. */
+export function freshCard(experience: Experience): FreshCardModel {
+  const facts = [`${experience.duration} min`, experience.effort.toLowerCase(), experience.distance ?? 'dichtbij'].join(' · ');
+  return {
+    eyebrow: 'Vers samengesteld',
+    facts,
+    disclosure: experience.generation?.disclosure
+      ?? 'Samengesteld voor dit moment; door dezelfde capsulegrenzen gecontroleerd.',
+  };
+}
+
+/** Filtert de generator-set tot wat nog niet zichtbaar is in de bestaande
+ * suggestiecarrousel — geen dubbele kaarten op één scherm. */
+export function freshExcludingSuggestions(fresh: Experience[], suggestions: Experience[]): Experience[] {
+  const shown = new Set(suggestions.map((item) => item.id));
+  return fresh.filter((item) => !shown.has(item.id)).slice(0, 3);
+}
