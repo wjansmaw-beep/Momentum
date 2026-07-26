@@ -53,7 +53,7 @@ export const linking: LinkingOptions<RootStackParamList> = {
   getPathFromState: () => {
     // Laat de browser-URL ongemoeid: de web-preview kent geen routes in de
     // adresbalk en dat blijft zo.
-    if (typeof window !== 'undefined') return window.location.pathname + window.location.search;
+    if (typeof window !== 'undefined' && window.location) return window.location.pathname + window.location.search;
     return '';
   },
 };
