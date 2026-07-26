@@ -262,7 +262,7 @@ export function TodayScreen() {
           </View>
         </Animated.View>
 
-        {/* ——— Ontdekkaart ——— */}
+        {/* ——— Ontdekking in de daglijn ——— */}
         {discovery ? (
           <Animated.View style={entrance[3]}>
             <Pressable

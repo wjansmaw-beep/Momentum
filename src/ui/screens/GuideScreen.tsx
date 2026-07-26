@@ -16,8 +16,10 @@ import { RootStackParamList } from '../navigation/types';
 // GIDS-tab (ADR-067, fase R1): de rustige thuisroute van de gids. Loopt er een
 // ervaring, dan staat hier de concrete onderweg-staat met hervat-knoppen naar
 // de bestaande Presence- of Prepare-stage (de gids zelf is in R1 ongemoeid).
-// Zonder actieve ervaring toont de tab de bestaande rustige staat — geen
-// verzonnen begeleiding.
+// De tab is contextueel (NowTabBar): alleen zichtbaar met een actieve,
+// hervatbare sessie. Wie de sessie hier zelf rustig afsluit, wordt naar Nu
+// geleid. Zonder actieve ervaring toont het scherm de bestaande rustige
+// staat — geen verzonnen begeleiding.
 
 export function GuideScreen() {
   const { activeSession, resumableExperience, resumeSession, discardSession } = useApp();
@@ -30,6 +32,9 @@ export function GuideScreen() {
   const onDiscard = () => {
     impactLight();
     discardSession();
+    // Zonder sessie verdwijnt de GIDS-tab uit de balk; wie hier staat, wordt
+    // daarom rustig naar Nu geleid in plaats van op een verborgen tab te blijven.
+    navigation.dispatch(StackActions.replace('Now'));
   };
   const underway = activeSession && resumableExperience ? resumableExperience : undefined;
 

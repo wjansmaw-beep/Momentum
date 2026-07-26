@@ -1,5 +1,3 @@
-import { Surface } from '../../product/experienceModel';
-
 // Routekaart van de app (ADR-058). De surfaces staan elk als eigen scherm op
 // de native-stack; de tabbalk wisselt ertussen met replace (identiek aan de
 // vroegere directe surface-wissel: geen animatie, geen nieuwe stack-historie,
@@ -16,7 +14,6 @@ export type RootStackParamList = {
   Guide: undefined;
   LifeBook: undefined;
   Profile: undefined;
-  Discover: undefined;
   Onboarding: undefined;
   IncomingInvite: undefined;
   InvalidInvite: undefined;
@@ -37,7 +34,7 @@ export const tabRoutes: Record<TabId, keyof RootStackParamList> = {
 };
 
 /** Welke route welke tab activeert. Presence hoort bij GIDS; schermen buiten
- * het skelet (Discover via deep link, flow-stages) activeren geen tab. */
+ * het skelet (flow-stages) activeren geen tab. */
 export const routeTabs: Partial<Record<keyof RootStackParamList, TabId>> = {
   Now: 'nu',
   Today: 'dag',
@@ -45,13 +42,4 @@ export const routeTabs: Partial<Record<keyof RootStackParamList, TabId>> = {
   Presence: 'gids',
   LifeBook: 'boek',
   Profile: 'jij',
-};
-
-/** Herkomst van een geopende ervaring blijft de bestaande Surface-semantiek
- * (openExperience); dat is iets anders dan de tab-indeling. */
-export const surfaceRoutes: Record<Surface, keyof RootStackParamList> = {
-  now: 'Now',
-  today: 'Today',
-  discover: 'Discover',
-  lifebook: 'LifeBook',
 };
