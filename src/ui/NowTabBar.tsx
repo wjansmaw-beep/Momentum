@@ -6,6 +6,7 @@ import { StackActions, useNavigation, useNavigationState } from '@react-navigati
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { palettes, schemeStyles } from '../design/theme';
 import { impactLight } from '../design/haptics';
+import { useApp } from '../app/store';
 import { RootStackParamList, routeTabs, TabId, tabRoutes } from './navigation/types';
 
 // Tabbalk volgens concept v2 (ADR-067, fase R1): vijf tabs — NU · DAG · GIDS ·
@@ -14,6 +15,12 @@ import { RootStackParamList, routeTabs, TabId, tabRoutes } from './navigation/ty
 // van het project), de actieve tab met accent-dot. Een tabdruk vervangt het
 // surfacescherm via StackActions.replace — zelfde rustige gedrag als de
 // vroegere bottomNav: geen push-historie, Android-back verlaat de app.
+//
+// GIDS is contextueel: de tab verschijnt alleen zolang er een actieve,
+// hervatbare ervaring loopt (activeSession met vindbare ervaring). Zonder
+// sessie toont de balk vier tabs; GuideScreen zelf blijft als scherm bestaan.
+// Wie op de Gids-tab staat terwijl de sessie eindigt, wordt door GuideScreen
+// zelf rustig naar Nu geleid — de balk hoeft dat niet op te vangen.
 
 type TabSpec = { id: TabId; label: string; icon: keyof typeof Ionicons.glyphMap };
 
@@ -42,11 +49,16 @@ export function NowTabBar() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const activeRoute = useNavigationState((state) => state.routes[state.index]?.name);
   const activeTab = routeTabs[activeRoute as keyof RootStackParamList];
+  // GIDS alleen tonen wanneer er iets te gidsen valt: een actieve sessie waar
+  // de ervaring nog van te vinden is (zelfde voorwaarde als GuideScreen).
+  const { activeSession, resumableExperience } = useApp();
+  const guideVisible = Boolean(activeSession && resumableExperience);
+  const visibleTabs = TABS.filter((tab) => tab.id !== 'gids' || guideVisible);
   return (
     <View pointerEvents="box-none" style={styles.wrap}>
       <LinearGradient pointerEvents="none" colors={styles.gradientColors} locations={[0, 0.46]} style={StyleSheet.absoluteFill} />
       <View style={styles.row}>
-        {TABS.map((tab) => {
+        {visibleTabs.map((tab) => {
           const active = activeTab === tab.id;
           return (
             <Pressable

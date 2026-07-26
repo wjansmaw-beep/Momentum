@@ -19,7 +19,6 @@ const config = {
     Guide: 'guide',
     LifeBook: 'lifebook',
     Profile: 'profile',
-    Discover: 'discover',
     Onboarding: 'welcome',
     IncomingInvite: 'invite',
     InvalidInvite: 'invite-invalid',

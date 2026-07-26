@@ -1,9 +1,10 @@
 import { Experience } from './experienceModel';
 import { LiveWorldSnapshot } from '../liveworld/liveWorld';
 
-// Reisgids-compositie voor Ontdekken (ADR-060, punt 1).
+// Reisgids-compositie (ADR-060, punt 1) — nu alleen in gebruik voor de
+// ontdekking in de Dag-lijn; het zelfstandige Ontdek-scherm is opgeruimd.
 //
-// Ontdekken wordt een redactioneel overzicht van de omgeving — een rustig
+// De gids is een redactioneel overzicht van de omgeving — een rustig
 // magazine in plaats van een kandidatenlijst. Deze module stelt de secties en
 // kaarten deterministisch samen uit wat er écht is: de bestaande kandidatenpool
 // (catalogus + contextuele blueprints + live kansen), het Live World-snapshot
