@@ -30,6 +30,8 @@ import {
   fitPercent,
   formatClock,
   formatLongDate,
+  freshCard,
+  freshExcludingSuggestions,
   greetingForHour,
   heroFacts,
   lightCurveModel,
@@ -72,6 +74,7 @@ export function NowScreen() {
   const {
     personalProfile,
     nowSuggestions,
+    contextualPrepared,
     prototypeContext,
     setPrototypeContext,
     liveWorld,
@@ -121,11 +124,15 @@ export function NowScreen() {
   const others = nowSuggestions.filter((_, index) => index !== leadIndex).slice(0, 4);
   const thumbs = others.slice(0, 3);
   const hiddenCount = others.length - thumbs.length;
+  // Vers samengestelde voorstellen (contextuele generator-set van dit dagdeel):
+  // zichtbaar als eigen rustige sectie, minus wat de carrousel al toont.
+  const freshExperiences = freshExcludingSuggestions(contextualPrepared, nowSuggestions.map((item) => item.experience));
+  const freshCards = freshExperiences.map((item) => ({ experience: item, model: freshCard(item) }));
   const eveningWord = prototypeContext.dayPart === 'morning' ? 'vanochtend' : prototypeContext.dayPart === 'evening' ? 'vanavond' : 'vanmiddag';
 
   // Entree volgens ADR-057: de lagen verschijnen verspringend (stil bij
   // reduced-motion); Ken Burns op de hero blijft sub-perceptueel (≤4%, ≥8s).
-  const entrance = useStaggeredEntrance(5);
+  const entrance = useStaggeredEntrance(6);
   const kenBurns = useKenBurns();
 
   const onStart = () => {
@@ -150,6 +157,11 @@ export function NowScreen() {
   const onGuide = () => {
     impactLight();
     navigation.dispatch(StackActions.replace('Guide'));
+  };
+  const onOpenFresh = (item: Experience) => {
+    impactLight();
+    openExperience(item, 'now');
+    navigation.navigate('Prepare');
   };
 
   return (
@@ -353,6 +365,33 @@ export function NowScreen() {
             <Text style={s.correctionText}>Past niet bij mij</Text>
           </Pressable>
         )}
+
+        {/* ——— Vers voor jou samengesteld (contextuele generator, ADR-056/059) ——— */}
+        {freshCards.length ? (
+          <Animated.View style={entrance[5]}>
+            <View style={s.fresh}>
+              <Text style={s.seclbl}>Vers voor jou samengesteld</Text>
+              {freshCards.map(({ experience: item, model }) => (
+                <Pressable
+                  key={item.id}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${model.eyebrow}: ${item.title}. ${model.facts}`}
+                  onPress={() => onOpenFresh(item)}
+                  style={({ pressed }) => [s.freshCard, pressed && s.pressed]}
+                >
+                  <CoverImage uri={item.image} style={s.freshThumb} imageStyle={s.freshThumbRound} />
+                  <View style={s.freshCopy}>
+                    <Text style={s.freshEyebrow}>{model.eyebrow}</Text>
+                    <Text numberOfLines={2} style={s.freshTitle}>{item.title}</Text>
+                    <Text numberOfLines={1} style={s.freshMeta}>{model.facts}</Text>
+                  </View>
+                  <Feather name="arrow-right" size={15} color={s.ink2Solid as string} />
+                </Pressable>
+              ))}
+              <Text style={s.freshDisclosure}>{freshCards[0].model.disclosure}</Text>
+            </View>
+          </Animated.View>
+        ) : null}
       </ScrollView>
     </SurfaceFrame>
   );
@@ -472,6 +511,15 @@ const s = schemeStyles(({ colors }) => {
     altsMoreText: TextStyle;
     correction: ViewStyle;
     correctionText: TextStyle;
+    fresh: ViewStyle;
+    freshCard: ViewStyle;
+    freshThumb: ViewStyle;
+    freshThumbRound: ImageStyle;
+    freshCopy: ViewStyle;
+    freshEyebrow: TextStyle;
+    freshTitle: TextStyle;
+    freshMeta: TextStyle;
+    freshDisclosure: TextStyle;
     pressed: ViewStyle;
   };
   const stylesDef: NowStyles = {
@@ -589,6 +637,22 @@ const s = schemeStyles(({ colors }) => {
     altsMoreText: { fontSize: 11, color: palette.ink2, fontWeight: '600' },
     correction: { alignSelf: 'center', marginTop: 14, paddingVertical: 6, paddingHorizontal: 12 },
     correctionText: { fontSize: 11, color: palette.ink3, fontWeight: '500' },
+    fresh: { marginTop: 22, marginHorizontal: 12, gap: 8 },
+    freshCard: {
+      flexDirection: 'row', alignItems: 'center', gap: 12,
+      backgroundColor: palette.glassPanel, borderWidth: 1, borderColor: palette.line, borderRadius: 22,
+      padding: 10, paddingRight: 14,
+    },
+    freshThumb: { width: 74, height: 74 },
+    freshThumbRound: { borderRadius: 15 },
+    freshCopy: { flex: 1, gap: 2 },
+    freshEyebrow: { fontSize: 9, letterSpacing: 1.6, fontWeight: '700', color: palette.accent, textTransform: 'uppercase' },
+    freshTitle: {
+      fontFamily: typography.displayFamilyMedium, fontWeight: '400', fontSize: 17, lineHeight: 21,
+      letterSpacing: -0.2, color: palette.ink,
+    },
+    freshMeta: { fontSize: 10.5, color: palette.ink2, fontWeight: '500', marginTop: 1 },
+    freshDisclosure: { fontSize: 9.5, lineHeight: 13.5, color: palette.ink3, marginTop: 4, marginHorizontal: 4 },
     pressed: { opacity: 0.92 },
   };
   return stylesDef;

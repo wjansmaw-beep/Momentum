@@ -704,6 +704,7 @@ function useAppStore() {
     contentCatalog: contentCatalog as ResolvedContentCatalog,
     learningContext,
     nowSuggestions,
+    contextualPrepared,
     resumableExperience,
     dayDecisions,
     // actions
