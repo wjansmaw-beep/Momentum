@@ -1,6 +1,7 @@
 import { createServer } from 'node:http';
 import { pathToFileURL } from 'node:url';
 import { CONTRACT_VERSION, validateDrafts, validateRequest } from './contract.mjs';
+import { BRIEFING_CONTRACT_VERSION, validateBriefingRequest, validateBriefingSentences } from './briefing.mjs';
 import { createBudgetTracker } from './budget.mjs';
 import { createFixtureProvider } from './providers/fixture.mjs';
 import { estimateCostUsd, selectProvider } from './providers/provider.mjs';
@@ -129,9 +130,46 @@ export const createGeneratorServer = (env = process.env, argv = process.argv) =>
         budget: isModel ? budget.status() : undefined,
       }, origin); return;
     }
-    if (request.method !== 'POST' || request.url !== '/v1/experience-drafts') { json(response, 404, { error: 'not_found' }, origin); return; }
+    if (request.method !== 'POST' || (request.url !== '/v1/experience-drafts' && request.url !== '/v1/living-world-briefing')) { json(response, 404, { error: 'not_found' }, origin); return; }
     if (!isRequestAllowed(origin, request.headers[NATIVE_CLIENT_HEADER], allowedOrigins)) { json(response, 403, { error: 'origin_not_allowed' }, origin); return; }
     if (!withinRateLimit(request.socket.remoteAddress || 'unknown')) { json(response, 429, { error: 'rate_limited' }, origin); return; }
+
+    // ADR-068: the Levende Wereld briefing is a separate, narrower route. Same
+    // access, rate limit, runtime resolution and budget watch; its own small
+    // contract. Providers without generateBriefing fall back to the fixture
+    // briefing (verbatim fact quotes) — never to a draft-shaped answer.
+    if (request.url === '/v1/living-world-briefing') {
+      try {
+        const parsed = validateBriefingRequest(await readBody(request));
+        if (!parsed.ok) { json(response, 400, { error: 'invalid_request', message: parsed.error }, origin); return; }
+        const { active, isModel, configured, budgetExhausted } = resolveRuntime();
+        if (isModel && !configured) { json(response, 503, { error: 'provider_not_configured' }, origin); return; }
+        if (budgetExhausted) {
+          console.log(JSON.stringify({ event: 'generator_budget_exhausted_fixture_fallback', route: 'living-world-briefing', configuredProvider: provider.name, budget: budget.status() }));
+        }
+        const briefingProvider = typeof active.generateBriefing === 'function' ? active : fixtureProvider;
+        const startedAt = Date.now();
+        const raw = await briefingProvider.generateBriefing(parsed.value, env);
+        if (briefingProvider.kind === 'model') logModelCall(briefingProvider, raw.usage, Date.now() - startedAt);
+        const sentences = validateBriefingSentences(raw, parsed.value);
+        if (!sentences.length) { json(response, 422, { error: 'no_valid_briefing' }, origin); return; }
+        json(response, 200, {
+          contractVersion: BRIEFING_CONTRACT_VERSION,
+          mode: briefingProvider.kind,
+          provider: briefingProvider.name,
+          model: briefingProvider.kind === 'model' ? briefingProvider.modelName(env) : undefined,
+          budgetExhausted: budgetExhausted || undefined,
+          sentences,
+        }, origin);
+      } catch (error) {
+        if (!(error instanceof SyntaxError) && !(error instanceof Error && error.message === 'request_too_large')) {
+          console.warn(JSON.stringify({ event: 'generator_call_failed', route: 'living-world-briefing', provider: provider.name, reason: error instanceof Error ? error.message.slice(0, 120) : 'unknown' }));
+        }
+        const code = error instanceof Error && error.message === 'request_too_large' ? 413 : error instanceof SyntaxError ? 400 : 502;
+        json(response, code, { error: code === 502 ? 'generation_failed' : 'invalid_request' }, origin);
+      }
+      return;
+    }
 
     try {
       const parsed = validateRequest(await readBody(request));

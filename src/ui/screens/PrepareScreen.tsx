@@ -34,6 +34,11 @@ import { defaultRegion, useApp } from '../../app/store';
 import { RootStackParamList } from '../navigation/types';
 import { formatClock, goldenWindow, resolveSunTimes } from '../now-v2/nowModel';
 import {
+  BriefingSentence,
+  LivingWorldBriefing,
+  loadLivingWorldBriefing,
+} from '../../liveworld/livingWorldBriefing';
+import {
   ctaSubline,
   departureModel,
   journeySegments,
@@ -56,7 +61,7 @@ import {
 // blijven als rustige verdieping onder de v2-scènes bestaan.
 
 export function PrepareScreen() {
-  const { selected: experience, personalProfile: personal, activeSession, sharedDraft, savePreparation, startPresence, liveWorld, selectionLocationConfirmed } = useApp();
+  const { selected: experience, personalProfile: personal, activeSession, sharedDraft, savePreparation, startPresence, liveWorld, selectionLocationConfirmed, prototypeContext } = useApp();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const hostName = personal.firstName || 'Iemand';
   const initialCompany: Company = (activeSession?.experienceId === experience.id ? activeSession.company : sharedDraft ? 'together' : personal.defaultCompany) ?? 'solo';
@@ -129,6 +134,36 @@ export function PrepareScreen() {
   const segments = journeySegments(experience, transport);
   const packing = packingRows(experience, weather);
   const weatherList = weatherRows(now, sun, weather, departure.end);
+
+  // ——— ADR-068 · Levende Wereld-briefing (scope: outside) ———
+  // Bij openen van een buiten-Voorpret vraagt de generator-service 2–4
+  // redactionele zinnen die de ervaring aan echte snapshot-feiten verbinden.
+  // Drie eerlijke states: laden (rustige placeholder) → live (zinnen met
+  // bron-labels uit receipts) → bron niet bereikbaar (het blok valt weg en de
+  // bestaande scènes blijven exact wat ze waren — nooit een kapot scherm).
+  const [briefing, setBriefing] = useState<{ state: 'loading' | 'live'; value: LivingWorldBriefing } | { state: 'loading' } | null>(null);
+  useEffect(() => {
+    if (experience.kind !== 'outside' || !liveWorld) { setBriefing(null); return; }
+    let active = true;
+    setBriefing({ state: 'loading' });
+    loadLivingWorldBriefing({ experience, snapshot: liveWorld, dayPart: prototypeContext.dayPart })
+      .then((result) => {
+        if (!active) return;
+        setBriefing(result.status === 'live' ? { state: 'live', value: result.briefing } : null);
+      })
+      .catch(() => { if (active) setBriefing(null); });
+    return () => { active = false; };
+  }, [experience.id, liveWorld?.retrievedAt]);
+
+  // Bron-label per zin: de namen + meetdetails van de geciteerde feiten,
+  // ontdubbeld en in feitvolgorde (bijv. "Open-Meteo · om 22:45 gemeten").
+  const briefingSourceLine = (sentence: BriefingSentence, value: LivingWorldBriefing): string => {
+    const labels = sentence.factIds
+      .map((id) => value.facts.find((fact) => fact.id === id))
+      .filter((fact): fact is NonNullable<typeof fact> => Boolean(fact))
+      .map((fact) => `${fact.source}${fact.sourceDetail ? ` · ${fact.sourceDetail}` : ''}`);
+    return [...new Set(labels)].join(' + ');
+  };
 
   const companyLabel = company === 'solo' ? 'Alleen' : company === 'family' ? 'Met gezin' : 'Samen';
   const guideDepthLabel = guideDepth === 'quiet' ? 'rustige begeleiding' : guideDepth === 'deep' ? 'verdiepende gids' : 'gids op het juiste moment';
@@ -224,6 +259,35 @@ export function PrepareScreen() {
           </View>
         ))}
       </View>
+
+      {/* ADR-068 · Waarom nu echt: redactionele zinnen bovenop echte feiten,
+          elke zin met zichtbare bron-labels. Alleen voor outside; bij laden
+          een rustige placeholder, bij falen valt het blok weg. */}
+      {briefing?.state === 'loading' ? (
+        <View style={vp.card}>
+          <View style={vp.cardHead}>
+            <Feather name="globe" size={15} color={vp.accentSolid as string} />
+            <Text style={vp.cardTitle}>Waarom nu echt</Text>
+          </View>
+          <Text style={vp.briefingLoading}>Verse feiten van dit moment worden verzameld…</Text>
+        </View>
+      ) : briefing?.state === 'live' ? (
+        <View style={vp.card}>
+          <View style={vp.cardHead}>
+            <Feather name="globe" size={15} color={vp.accentSolid as string} />
+            <Text style={vp.cardTitle}>Waarom nu echt</Text>
+          </View>
+          {briefing.value.sentences.map((sentence, index) => (
+            <View key={`${sentence.text.slice(0, 24)}-${index}`} style={[vp.briefingRow, index > 0 && vp.rowBorder]}>
+              <Text style={vp.briefingText}>{sentence.text}</Text>
+              <Text style={vp.briefingSource}>{briefingSourceLine(sentence, briefing.value)}</Text>
+            </View>
+          ))}
+          <Text style={vp.briefingFootnote}>
+            {briefing.value.mode === 'model' ? 'Zinnen door de generator, uitsluitend uit de feiten hierboven.' : 'Feiten letterlijk uit de live bronnen (generator niet actief).'}
+          </Text>
+        </View>
+      ) : null}
 
       {/* Rustige verdieping onder de v2-scènes: betekenisdraad, kaart en
           aankomst, verhaal van de plek — ongewijzigd uit ADR-065, fase 1. */}
@@ -377,6 +441,11 @@ const vp = schemeStyles(({ colors: schemeColors }) => {
     rowTitle: TextStyle;
     rowSub: TextStyle;
     rowTrailing: TextStyle;
+    briefingLoading: TextStyle;
+    briefingRow: ViewStyle;
+    briefingText: TextStyle;
+    briefingSource: TextStyle;
+    briefingFootnote: TextStyle;
     cta: ViewStyle;
     ctaTitle: TextStyle;
     ctaSub: TextStyle;
@@ -429,6 +498,11 @@ const vp = schemeStyles(({ colors: schemeColors }) => {
     rowTitle: { fontSize: 13, fontWeight: '600', color: palette.ink },
     rowSub: { fontSize: 11, color: palette.ink2, marginTop: 1 },
     rowTrailing: { fontSize: 11.5, fontWeight: '600', color: palette.ink2 },
+    briefingLoading: { fontSize: 12, color: palette.ink2, fontWeight: '500', paddingVertical: 4 },
+    briefingRow: { paddingVertical: 7, gap: 3 },
+    briefingText: { fontSize: 13.5, lineHeight: 20, color: palette.ink, fontWeight: '500' },
+    briefingSource: { fontSize: 9.5, lineHeight: 13, color: palette.ink2, fontWeight: '600' },
+    briefingFootnote: { fontSize: 9.5, lineHeight: 13, color: palette.ink2, marginTop: 8, fontStyle: 'italic' },
     cta: {
       flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
       backgroundColor: palette.accent, borderRadius: 999, paddingVertical: 14, paddingHorizontal: 20,
