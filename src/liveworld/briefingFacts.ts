@@ -91,6 +91,23 @@ export function buildBriefingFacts(snapshot: LiveWorldSnapshot): BriefingFact[] 
 
 const unsafeClaims = /geneest|behandelt|voorkomt ziekte|gegarandeerd|zeker weten|altijd veilig|medisch advies/i;
 
+/** Feitensignatuur + cachesleutel. De sleutel bevat ervaring, dagdeel én de
+ * gids-stap (null = Voorpret): onderweg geldt één briefing per stap, met
+ * dezelfde 15-minuten-frisheid als vooraf. */
+export const briefingFactsSignature = (facts: BriefingFact[]) => facts.map((fact) => `${fact.id}:${fact.text}`).join('|');
+export const briefingCacheKey = (experienceId: string, dayPart: string, stepIndex: number | null, facts: BriefingFact[]) =>
+  `${experienceId}|${dayPart}|${stepIndex === null ? 'voorpret' : `stap-${stepIndex}`}|${briefingFactsSignature(facts)}`;
+
+/** Bron-label per zin: de namen + meetdetails van de geciteerde feiten,
+ * ontdubbeld en in feitvolgorde (bijv. "Open-Meteo · om 22:45 gemeten"). */
+export const briefingSourceLine = (sentence: BriefingSentence, facts: BriefingFact[]): string => {
+  const labels = sentence.factIds
+    .map((id) => facts.find((fact) => fact.id === id))
+    .filter((fact): fact is BriefingFact => Boolean(fact))
+    .map((fact) => `${fact.source}${fact.sourceDetail ? ` · ${fact.sourceDetail}` : ''}`);
+  return [...new Set(labels)].join(' + ');
+};
+
 /** Client-side poort, identiek aan de server: 2–4 zinnen, elk met minstens
  * één bestaande feit-verwijzing, geen geblokkeerde claims. */
 export function sanitizeBriefingResponse(value: unknown, facts: BriefingFact[]): BriefingSentence[] {

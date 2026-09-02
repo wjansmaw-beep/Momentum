@@ -39,6 +39,13 @@ export function validateBriefingRequest(value) {
   }).slice(0, MAX_BRIEFING_FACTS);
   if (facts.length < MIN_BRIEFING_SENTENCES) return { ok: false, error: 'Te weinig echte feiten voor een eerlijke briefing.' };
   const dayPart = typeof value.context?.dayPart === 'string' ? clean(value.context.dayPart, 20) : '';
+  // Underway scope (ADR-068, addendum): the client may pass the current guide
+  // step so the briefing can connect this exact step to the facts. The step is
+  // context, never substance — an unusable step is dropped, never an error.
+  const rawStep = value.context?.step && typeof value.context.step === 'object' ? value.context.step : undefined;
+  const stepIndex = rawStep && Number.isInteger(rawStep.index) && rawStep.index >= 0 && rawStep.index <= 40 ? rawStep.index : undefined;
+  const stepTitle = rawStep ? clean(rawStep.title, 90) : '';
+  const step = stepIndex !== undefined && stepTitle ? { index: stepIndex, title: stepTitle } : undefined;
   return {
     ok: true,
     value: {
@@ -46,7 +53,7 @@ export function validateBriefingRequest(value) {
       requestMode: 'living-world-briefing',
       experience: { id, kind: 'outside', title, promise, duration, distance: clean(experience.distance, 60) || undefined },
       facts,
-      context: { dayPart },
+      context: step ? { dayPart, step } : { dayPart },
     },
   };
 }

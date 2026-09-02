@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { Experience } from '../product/experienceModel';
 import { LiveWorldSnapshot } from './liveWorld';
-import { buildBriefingFacts, sanitizeBriefingResponse } from './briefingFacts';
+import { buildBriefingFacts, briefingCacheKey, sanitizeBriefingResponse } from './briefingFacts';
 import type { BriefingFact, BriefingSentence } from './briefingFacts';
 
 // De pure kern (feitenbouw + antwoord-poort) leeft in briefingFacts.ts —
@@ -46,23 +46,25 @@ const briefingHeaders: Record<string, string> = Platform.OS === 'web'
   ? { 'content-type': 'application/json' }
   : { 'content-type': 'application/json', 'X-Momentum-Client': 'native' };
 
-const factsSignature = (facts: BriefingFact[]) => facts.map((fact) => `${fact.id}:${fact.text}`).join('|');
-const cacheKeyFor = (experienceId: string, facts: BriefingFact[], dayPart: string) =>
-  `${experienceId}|${dayPart}|${factsSignature(facts)}`;
-
 /** Vraagt de Levende Wereld-briefing voor een outside-ervaring. Elke vorm van
  * falen (geen URL, te weinig feiten, netwerk, ongeldig antwoord) wordt stil
- * 'unavailable' — de Voorpret valt dan terug op haar bestaande content. */
+ * 'unavailable' — het scherm valt dan terug op haar bestaande content.
+ *
+ * Twee geverifieerde triggers (ADR-068 + addendum): Voorpret (step ontbreekt)
+ * en de Gids onderweg (step = huidige stap, index+titel). De cachesleutel
+ * neemt de stap mee, zodat elke stap hooguit één verse briefing per kwartier
+ * vraagt — geen polling, alleen start en gebruikersactie. */
 export async function loadLivingWorldBriefing(input: {
   experience: Experience;
   snapshot: LiveWorldSnapshot;
   dayPart: string;
+  step?: { index: number; title: string };
 }): Promise<BriefingResult> {
-  const { experience, snapshot, dayPart } = input;
+  const { experience, snapshot, dayPart, step } = input;
   if (experience.kind !== 'outside' || !briefingUrl) return { status: 'unavailable' };
   const facts = buildBriefingFacts(snapshot);
   if (facts.length < 2) return { status: 'unavailable' };
-  const cacheKey = cacheKeyFor(experience.id, facts, dayPart);
+  const cacheKey = briefingCacheKey(experience.id, dayPart, step ? step.index : null, facts);
   try {
     const stored = await AsyncStorage.getItem(CACHE_KEY);
     if (stored) {
@@ -92,7 +94,7 @@ export async function loadLivingWorldBriefing(input: {
           distance: experience.distance,
         },
         facts: facts.map((fact) => ({ id: fact.id, text: fact.text, source: fact.source })),
-        context: { dayPart },
+        context: step ? { dayPart, step: { index: step.index, title: step.title } } : { dayPart },
       }),
     });
     if (!response.ok) return { status: 'unavailable' };

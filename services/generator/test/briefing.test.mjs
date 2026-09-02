@@ -12,6 +12,7 @@ import {
   validateBriefingRequest,
   validateBriefingSentences,
 } from '../briefing.mjs';
+import { buildBriefingPrompt } from '../prompt.mjs';
 import { createGeneratorServer } from '../server.mjs';
 import { createFixtureProvider } from '../providers/fixture.mjs';
 
@@ -132,4 +133,28 @@ test('server route: an invalid briefing request is a 400, and the draft route ke
     body: JSON.stringify(briefingBody({ facts: [] })),
   });
   assert.equal(bad.status, 400);
+});
+
+// ——— Underway scope (ADR-068, addendum): the optional guide-step context ———
+
+test('briefing request: a valid guide step is carried into the context', () => {
+  const parsed = validateBriefingRequest(briefingBody({ context: { dayPart: 'evening', step: { index: 2, title: 'Kijk één keer bewust om je heen' } } }));
+  assert.equal(parsed.ok, true);
+  assert.deepEqual(parsed.value.context.step, { index: 2, title: 'Kijk één keer bewust om je heen' });
+});
+
+test('briefing request: an unusable step is dropped, never an error', () => {
+  const parsed = validateBriefingRequest(briefingBody({ context: { dayPart: 'evening', step: { index: -1, title: '' } } }));
+  assert.equal(parsed.ok, true);
+  assert.equal(parsed.value.context.step, undefined);
+});
+
+test('briefing prompt: with a step the guide speaks to this step in 2–3 sentences', () => {
+  const request = validateBriefingRequest(briefingBody({ context: { dayPart: 'evening', step: { index: 1, title: 'Begin rustig' } } })).value;
+  const prompt = buildBriefingPrompt(request);
+  assert.match(prompt, /2 tot 3/);
+  assert.match(prompt, /Begin rustig/);
+  const withoutStep = buildBriefingPrompt(validateBriefingRequest(briefingBody()).value);
+  assert.match(withoutStep, /2 tot 4/);
+  assert.ok(!withoutStep.includes('Huidige stap'));
 });

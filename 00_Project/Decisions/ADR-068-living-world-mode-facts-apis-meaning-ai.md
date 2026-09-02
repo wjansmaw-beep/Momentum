@@ -36,3 +36,15 @@ The Founder's directive: Voorpret should speak with real facts. The design princ
 - Client: `src/liveworld/briefingFacts.ts` holds the pure core (fact building from the snapshot, the response gate) with no React Native or network imports, so it is deterministically testable; `src/liveworld/livingWorldBriefing.ts` is the async loader (cache, request, timeout, silent fallback); `PrepareScreen.tsx` renders the three-state card.
 - Verification boundary of this change set: typecheck clean; 73 generator-service tests, 73 + 13 app tests, and 3 briefing scenario tests green; web-export screenshots of the loading, live, and fallback states.
 - Later steps, each requiring their own decision: Siri / App Intents surfacing, briefing support for non-outside kinds, and a live model run on the Founder's device as evidence beyond the fixture path.
+
+## Addendum — Underway scope: the guide during the experience (2026-09-02)
+
+The same engine now serves the **Presence screen**: during an outside experience the guide reads as a live travel guide, connecting the *current step* to the real facts of the moment. Everything decided above applies unchanged — the same route, the same contract version, the same receipt-bound payload, the same citation gate on both sides. This addendum records only what the underway scope adds:
+
+- **Triggers are scarce by design — never polling.** A briefing is requested at the start of the experience and when the user moves to another step ("Volgende stap" / "Vorige"). Nothing fires on timers, location changes, or screen re-renders. One good briefing per step is worth more than a stream of calls.
+- **The cache key carries the step.** Fifteen minutes per combination of experience, day part, step index, and fact signature (`briefingCacheKey`). Returning to a step within the window costs zero calls; the Voorpret briefing keeps its own step-less key.
+- **The request may carry the current step** (`context.step`: index + title) as an optional, additive field. The step is context, never substance: an unusable step is dropped by validation, never an error. With a step present, the prompt asks for 2–3 sentences that read as a guide walking alongside; without it, the original 2–4 Voorpret behavior is untouched.
+- **UI:** a quiet card "Nu om je heen" between the current step and the next-moment card — same three honest states (loading line / sentences with source labels / absent on failure). The step content itself never depends on the briefing.
+- **Budget discipline is unchanged and still leading:** the existing rate limit, daily call limit, and budget ceiling apply to every underway call, with fixture fallback on exhaustion.
+
+Verification of this extension: typecheck clean; generator-service tests (incl. step-context validation and prompt shape), app tests, and briefing scenario tests green; web-export screenshots of the live and fallback states of the Presence card.

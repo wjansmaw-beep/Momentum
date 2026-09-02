@@ -37,10 +37,18 @@ Geef uitsluitend het gevraagde gestructureerde object terug.`;
 // AI levert betekenis — nooit andersom.
 export function buildBriefingPrompt(request) {
   const factLines = request.facts.map((fact) => `- [${fact.id}] ${fact.text} (bron: ${fact.source})`).join('\n');
-  return `Je bent de redacteur van Momentum. Schrijf 2 tot 4 korte, rustige Nederlandstalige zinnen die deze buitenervaring verbinden aan de wereld van dit moment.
+  // Onderweg-scope (ADR-068, addendum): bij een actieve stap schrijft de gids
+  // 2–3 zinnen die juist díe stap aan het moment verbinden; vooraf (Voorpret)
+  // blijft het 2–4 zinnen voor de ervaring als geheel.
+  const step = request.context?.step;
+  const opdracht = step
+    ? `Schrijf 2 tot 3 korte, rustige Nederlandstalige zinnen die deze stap van de begeleiding verbinden aan de wereld van dit moment.`
+    : `Schrijf 2 tot 4 korte, rustige Nederlandstalige zinnen die deze buitenervaring verbinden aan de wereld van dit moment.`;
+  const stapRegel = step ? `Huidige stap van de wandelaar: "${step.title}" (stap ${step.index + 1}) — de zinnen lezen mee alsof de gids nú naast iemand loopt.` : '';
+  return `Je bent de redacteur van Momentum. ${opdracht}
 
 Ervaring: "${request.experience.title}" — ${request.experience.promise} (${request.experience.duration} minuten${request.experience.distance ? `, ${request.experience.distance}` : ''})
-Dagdeel: ${request.context.dayPart || 'onbekend'}
+Dagdeel: ${request.context.dayPart || 'onbekend'}${stapRegel ? `\n${stapRegel}` : ''}
 
 Feiten van dit moment (uit live bronnen, elk met een eigen id):
 ${factLines}
