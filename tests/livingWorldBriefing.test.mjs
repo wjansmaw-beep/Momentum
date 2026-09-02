@@ -3,7 +3,7 @@
 // modules zijn TypeScript met extensionless imports, tsx dekt dat.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { buildBriefingFacts, sanitizeBriefingResponse } from '../src/liveworld/briefingFacts.ts';
+import { briefingCacheKey, briefingSourceLine, buildBriefingFacts, sanitizeBriefingResponse } from '../src/liveworld/briefingFacts.ts';
 
 const snapshot = (overrides = {}) => ({
   regionLabel: 'Dokkum',
@@ -64,4 +64,25 @@ test('sanitizeBriefingResponse eist citatie naar bestaande feiten', () => {
   assert.equal(ok.length, 2);
   assert.equal(sanitizeBriefingResponse({ sentences: [{ text: 'Slechts één zin.', factIds: ['weer'] }] }, facts).length, 0);
   assert.equal(sanitizeBriefingResponse('geen object', facts).length, 0);
+});
+
+test('briefingCacheKey scheidt Voorpret en elke gids-stap (ADR-068 addendum)', () => {
+  const facts = buildBriefingFacts(snapshot());
+  const voorpret = briefingCacheKey('wadden-light', 'evening', null, facts);
+  const stap0 = briefingCacheKey('wadden-light', 'evening', 0, facts);
+  const stap1 = briefingCacheKey('wadden-light', 'evening', 1, facts);
+  assert.notEqual(voorpret, stap0);
+  assert.notEqual(stap0, stap1);
+  assert.equal(stap0, briefingCacheKey('wadden-light', 'evening', 0, facts));
+  assert.match(voorpret, /voorpret/);
+  assert.match(stap1, /stap-1/);
+});
+
+test('briefingSourceLine toont bron en meetdetail van geciteerde feiten, ontdubbeld', () => {
+  const facts = buildBriefingFacts(snapshot());
+  const line = briefingSourceLine({ text: 'x', factIds: ['weer', 'zon'] }, facts);
+  assert.match(line, /Open-Meteo · om 20:45 gemeten/);
+  assert.match(line, /uit de actuele weermeting/);
+  const dubbel = briefingSourceLine({ text: 'x', factIds: ['weer', 'weer'] }, facts);
+  assert.equal((dubbel.match(/Open-Meteo/g) ?? []).length, 1);
 });

@@ -27,6 +27,11 @@ import { defaultRegion, useApp } from '../../app/store';
 import { RootStackParamList } from '../navigation/types';
 import { resolveSunTimes } from '../now-v2/nowModel';
 import { guideProgress, guideState, mapTag, nextMoment } from '../now-v2/guideModel';
+import {
+  LivingWorldBriefing,
+  loadLivingWorldBriefing,
+} from '../../liveworld/livingWorldBriefing';
+import { briefingSourceLine } from '../../liveworld/briefingFacts';
 
 // Gids-scherm (onderweg) volgens concept v2 (ADR-067, fase R4 — herbouw van
 // het Presence-scherm uit ADR-058). De v2-scènes leiden: header "Onderweg"
@@ -45,7 +50,7 @@ import { guideProgress, guideState, mapTag, nextMoment } from '../now-v2/guideMo
 // plek, de woorden dragen de informatie.
 
 export function PresenceScreen() {
-  const { selected: experience, personalProfile: personal, activeSession, updatePresenceStep, presenceBack, finishPresence, liveWorld } = useApp();
+  const { selected: experience, personalProfile: personal, activeSession, updatePresenceStep, presenceBack, finishPresence, liveWorld, prototypeContext } = useApp();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const company = activeSession?.company ?? personal.defaultCompany;
   const guideDepth = activeSession?.guideDepth ?? 'guide';
@@ -144,6 +149,28 @@ export function PresenceScreen() {
   const guideInfo = guideState(now, sun, weather, experience, activeSession, stepIndex, guideDepth);
   const routeTag = mapTag(experience);
 
+  // ——— ADR-068 (addendum) · De wereld van dit moment, onderweg ———
+  // Schaarse triggers, nooit polling: bij aanvang van de ervaring en bij elke
+  // stapwissel (de gebruikersactie "Volgende stap"/"Vorige") vraagt dezelfde
+  // briefing-route 2–3 zinnen die juist deze stap aan echte feiten verbinden.
+  // De cachesleutel neemt de stap mee (15 min per ervaring+stap+feitset).
+  // States: laden (rustige placeholder) → live (zinnen met bron-labels) →
+  // afwezig bij falen — de stappen zelf blijven altijd ongewijzigd staan.
+  const [guideBriefing, setGuideBriefing] = useState<{ state: 'loading' } | { state: 'live'; value: LivingWorldBriefing } | null>(null);
+  const currentStepTitle = current.title;
+  useEffect(() => {
+    if (experience.kind !== 'outside' || !liveWorld) { setGuideBriefing(null); return; }
+    let active = true;
+    setGuideBriefing({ state: 'loading' });
+    loadLivingWorldBriefing({ experience, snapshot: liveWorld, dayPart: prototypeContext.dayPart, step: { index: stepIndex, title: currentStepTitle } })
+      .then((result) => {
+        if (!active) return;
+        setGuideBriefing(result.status === 'live' ? { state: 'live', value: result.briefing } : null);
+      })
+      .catch(() => { if (active) setGuideBriefing(null); });
+    return () => { active = false; };
+  }, [experience.id, stepIndex, currentStepTitle, liveWorld?.retrievedAt]);
+
   if (phoneAway) return <FlowFrame statusBar="light"><PhoneAwayView experience={experience} cue={current.title} seconds={current.seconds} remaining={remaining} formatTime={formatTime} shared={shared} onReopen={() => { setPhoneAway(false); setGuideOpen(true); }} /></FlowFrame>;
   return (
     <FlowFrame statusBar="light">
@@ -234,6 +261,35 @@ export function PresenceScreen() {
           <Pressable accessibilityRole="button" accessibilityLabel="Leg de telefoon weg" onPress={() => setPhoneAway(true)} style={gd.quietAction}><Feather name="smartphone" size={13} color={gd.accentSolid as string} /><Text style={gd.quietActionText}>Telefoon weg</Text></Pressable>
         </View>
       </View>
+
+      {/* ADR-068 · Nu om je heen: de gids verbindt deze stap aan echte feiten
+          van dit moment, elke zin met zichtbare bron-labels. Laden = rustige
+          placeholder; falen = het blok valt weg, nooit een kapot scherm. */}
+      {guideBriefing?.state === 'loading' ? (
+        <View style={gd.card}>
+          <View style={gd.cardHead}>
+            <Feather name="globe" size={15} color={gd.accentSolid as string} />
+            <Text style={gd.cardTitle}>Nu om je heen</Text>
+          </View>
+          <Text style={gd.briefingLoading}>Feiten van dit moment worden opgehaald…</Text>
+        </View>
+      ) : guideBriefing?.state === 'live' ? (
+        <View style={gd.card}>
+          <View style={gd.cardHead}>
+            <Feather name="globe" size={15} color={gd.accentSolid as string} />
+            <Text style={gd.cardTitle}>Nu om je heen</Text>
+          </View>
+          {guideBriefing.value.sentences.map((sentence, index) => (
+            <View key={`${sentence.text.slice(0, 24)}-${index}`} style={[gd.briefingRow, index > 0 && gd.rowBorder]}>
+              <Text style={gd.briefingText}>{sentence.text}</Text>
+              <Text style={gd.briefingSource}>{briefingSourceLine(sentence, guideBriefing.value.facts)}</Text>
+            </View>
+          ))}
+          <Text style={gd.briefingFootnote}>
+            {guideBriefing.value.mode === 'model' ? 'Zinnen door de generator, uitsluitend uit de feiten hierboven.' : 'Feiten letterlijk uit de live bronnen (generator niet actief).'}
+          </Text>
+        </View>
+      ) : null}
 
       {/* "Over …": het volgende gidsmoment of het aankomstplan — nooit een
           verzonnen waypoint. */}
@@ -404,6 +460,11 @@ const gd = schemeStyles(({ colors: schemeColors }) => {
     rowTitle: TextStyle;
     rowSub: TextStyle;
     rowTrailing: TextStyle;
+    briefingLoading: TextStyle;
+    briefingRow: ViewStyle;
+    briefingText: TextStyle;
+    briefingSource: TextStyle;
+    briefingFootnote: TextStyle;
     ghost: ViewStyle;
     ghostText: TextStyle;
     footNote: TextStyle;
@@ -532,6 +593,11 @@ const gd = schemeStyles(({ colors: schemeColors }) => {
     rowTitle: { fontSize: 13, fontWeight: '600', color: palette.ink },
     rowSub: { fontSize: 11, color: palette.ink2, marginTop: 1 },
     rowTrailing: { fontSize: 11.5, fontWeight: '600', color: palette.ink2 },
+    briefingLoading: { fontSize: 12, color: palette.ink2, fontWeight: '500', paddingVertical: 4 },
+    briefingRow: { paddingVertical: 7, gap: 3 },
+    briefingText: { fontSize: 13.5, lineHeight: 20, color: palette.ink, fontWeight: '500' },
+    briefingSource: { fontSize: 9.5, lineHeight: 13, color: palette.ink2, fontWeight: '600' },
+    briefingFootnote: { fontSize: 9.5, lineHeight: 13, color: palette.ink2, marginTop: 8, fontStyle: 'italic' },
     ghost: {
       flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
       marginHorizontal: 12, marginTop: 14, borderRadius: 999, paddingVertical: 13,
