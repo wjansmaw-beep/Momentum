@@ -30,3 +30,27 @@ Onveranderlijke regels:
 
 Geef uitsluitend het gevraagde gestructureerde object terug.`;
 }
+
+// ADR-068 · Levende Wereld-briefing: het model schrijft 2–4 redactionele
+// zinnen die een outside-ervaring verbinden aan ECHTE, meegegeven feiten.
+// De discipline is de kern van het productprincipe: API's leveren feiten,
+// AI levert betekenis — nooit andersom.
+export function buildBriefingPrompt(request) {
+  const factLines = request.facts.map((fact) => `- [${fact.id}] ${fact.text} (bron: ${fact.source})`).join('\n');
+  return `Je bent de redacteur van Momentum. Schrijf 2 tot 4 korte, rustige Nederlandstalige zinnen die deze buitenervaring verbinden aan de wereld van dit moment.
+
+Ervaring: "${request.experience.title}" — ${request.experience.promise} (${request.experience.duration} minuten${request.experience.distance ? `, ${request.experience.distance}` : ''})
+Dagdeel: ${request.context.dayPart || 'onbekend'}
+
+Feiten van dit moment (uit live bronnen, elk met een eigen id):
+${factLines}
+
+Onveranderlijke regels:
+1. Gebruik UITSLUITEND de feiten hierboven. Noem geen enkel feit, getal, tijdstip, plaats of voorspelling dat daar niet letterlijk in staat.
+2. Elke zin die een feit noemt, verwijst via factIds naar het feit of de feiten die hem dragen. Een zin zonder feit mag alleen als rustige verbinding, nooit als nieuwe bewering.
+3. Bij twijfel over een feit: noem het niet. Liever één zin minder dan één onzeker feit.
+4. Verbind, voorspel niet: zeg wat er nu meetbaar is en wat dat voor dit moment kan betekenen. Geen weersverwachting, geen garantie, geen druk.
+5. Schrijf concreet en volwassen. Geen punten, streaks of aansporingen.
+
+Geef uitsluitend het gevraagde gestructureerde object terug.`;
+}

@@ -15,6 +15,14 @@ export function createFixtureProvider() {
       // identical to Generator Service v1 behavior).
       return { drafts: createFixtureDrafts(request) };
     },
+    // ADR-068: the fixture briefing quotes the supplied facts verbatim — the
+    // most honest possible fallback. No model, no paraphrase, no invented
+    // meaning; the citation is the fact itself.
+    async generateBriefing(request) {
+      return {
+        sentences: request.facts.slice(0, 3).map((fact) => ({ text: fact.text, factIds: [fact.id] })),
+      };
+    },
     modelName: () => undefined,
     healthLabel: () => 'local fixture provider (no external model)',
   };

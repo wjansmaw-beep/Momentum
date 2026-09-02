@@ -39,7 +39,7 @@
 //   Moonshot answers HTTP 400 "assistant message must not be empty" when
 //   message.content came back empty.
 
-import { buildPrompt } from '../prompt.mjs';
+import { buildBriefingPrompt, buildPrompt } from '../prompt.mjs';
 import { fetchWithRetry, maxOutputTokens, requestTimeoutMs } from './provider.mjs';
 
 export const defaultMoonshotModel = 'kimi-k2.6';
@@ -120,6 +120,39 @@ export function createMoonshotProvider(deps = {}) {
       const usage = payload?.usage ?? {};
       return {
         drafts: Array.isArray(parsed?.drafts) ? parsed.drafts : [],
+        usage: {
+          inputTokens: Number.isFinite(usage.prompt_tokens) ? usage.prompt_tokens : 0,
+          outputTokens: Number.isFinite(usage.completion_tokens) ? usage.completion_tokens : 0,
+        },
+      };
+    },
+    // ADR-068: Levende Wereld-briefing. Eigen prompt (alleen meegegeven
+    // feiten, elke feitzin geciteerd) en een klein JSON-antwoord; dezelfde
+    // JSON-mode, retry-discipline en usage-rapportage als de draft-route.
+    async generateBriefing(request, env, options = {}) {
+      const instruction = 'Antwoord uitsluitend met één geldig JSON-object: {"sentences":[{"text":"…","factIds":["<id uit de feitenlijst>"]}]}. Twee tot vier zinnen. Geen toelichting, geen codeblokken.';
+      const messages = [
+        { role: 'system', content: `${buildBriefingPrompt(request)}\n\n${instruction}` },
+        { role: 'user', content: 'Schrijf nu de briefing voor deze ervaring.' },
+      ];
+      let payload = await call(env, options, messages);
+      let text = payload?.choices?.[0]?.message?.content ?? '';
+      let parsed;
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        const retryMessages = [...messages];
+        if (typeof text === 'string' && text.trim()) {
+          retryMessages.push({ role: 'assistant', content: text.slice(0, 4000) });
+        }
+        retryMessages.push({ role: 'user', content: 'Het vorige antwoord was geen geldige JSON. Geef nu uitsluitend het gevraagde JSON-object, zonder enige toelichting.' });
+        payload = await call(env, options, retryMessages);
+        text = payload?.choices?.[0]?.message?.content ?? '';
+        parsed = JSON.parse(text);
+      }
+      const usage = payload?.usage ?? {};
+      return {
+        sentences: Array.isArray(parsed?.sentences) ? parsed.sentences : [],
         usage: {
           inputTokens: Number.isFinite(usage.prompt_tokens) ? usage.prompt_tokens : 0,
           outputTokens: Number.isFinite(usage.completion_tokens) ? usage.completion_tokens : 0,
