@@ -158,3 +158,38 @@ test('briefing prompt: with a step the guide speaks to this step in 2–3 senten
   assert.match(withoutStep, /2 tot 4/);
   assert.ok(!withoutStep.includes('Huidige stap'));
 });
+
+// ——— Profile colouring (reisgids-doctrine): the user's own chosen terms ———
+
+test('briefing request: chosen interests are carried, bounded and cleaned', () => {
+  const parsed = validateBriefingRequest(briefingBody({
+    profile: { interests: ['vogels kijken', 'fotografie', 'x', 'dit is een veel te lange term die wordt afgekapt', '  fietsen  ', 'nog-een', 'zevende', 'achtste valt af'] },
+  }));
+  assert.equal(parsed.ok, true);
+  assert.deepEqual(parsed.value.profile.interests, ['vogels kijken', 'fotografie', 'dit is een veel te lange', 'fietsen', 'nog-een', 'zevende']);
+});
+
+test('briefing request: no interests means no profile block at all', () => {
+  const parsed = validateBriefingRequest(briefingBody());
+  assert.equal(parsed.ok, true);
+  assert.equal(parsed.value.profile, undefined);
+});
+
+test('briefing prompt: interests colour the angle without touching the fact rules', () => {
+  const request = validateBriefingRequest(briefingBody({ profile: { interests: ['vogels kijken'] } })).value;
+  const prompt = buildBriefingPrompt(request);
+  assert.match(prompt, /vogels kijken/);
+  assert.match(prompt, /verzin nooit een feit/);
+  assert.match(prompt, /UITSLUITEND de feiten/);
+  const neutral = buildBriefingPrompt(validateBriefingRequest(briefingBody()).value);
+  assert.ok(!neutral.includes('interesses'));
+});
+
+test('briefing prompt: an interest may never invent an observation beyond the facts', () => {
+  const request = validateBriefingRequest(briefingBody({ profile: { interests: ['vogels kijken', 'fotografie'] } })).value;
+  const prompt = buildBriefingPrompt(request);
+  assert.match(prompt, /Noem alleen dieren, objecten of details die in de feiten staan/);
+  assert.match(prompt, /een interesse kleurt de invalshoek, ze verzint nooit een waarneming/);
+  const neutral = buildBriefingPrompt(validateBriefingRequest(briefingBody()).value);
+  assert.ok(!neutral.includes('verzint nooit een waarneming'));
+});

@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { Experience } from '../product/experienceModel';
+import { PersonalProfile } from '../profile/personalModel';
 import { LiveWorldSnapshot } from './liveWorld';
 import { buildBriefingFacts, briefingCacheKey, sanitizeBriefingResponse } from './briefingFacts';
 import type { BriefingFact, BriefingSentence } from './briefingFacts';
@@ -34,6 +35,18 @@ export type BriefingResult =
   | { status: 'live'; briefing: LivingWorldBriefing }
   | { status: 'unavailable' };
 
+/** De reisgids-invalshoek uit het profiel: de korte richting-woorden die de
+ * gebruiker zelf koos in "Mijn richting" (gepauzeerde woorden tellen niet
+ * mee), begrensd tot zes termen. Leeg = de gids schrijft neutraal. */
+export function briefingInterests(personal: PersonalProfile): string[] {
+  const paused = new Set(personal.pausedDirections);
+  return [...personal.directions.near, ...personal.directions.growth, ...personal.directions.meaning]
+    .filter((word) => !paused.has(word))
+    .map((word) => word.trim())
+    .filter(Boolean)
+    .slice(0, 6);
+}
+
 const briefingUrl = (() => {
   const base = process.env.EXPO_PUBLIC_MOMENTUM_GENERATOR_URL
     ?? (Platform.OS === 'web' ? 'http://127.0.0.1:8787/v1/experience-drafts' : undefined);
@@ -52,19 +65,23 @@ const briefingHeaders: Record<string, string> = Platform.OS === 'web'
  *
  * Twee geverifieerde triggers (ADR-068 + addendum): Voorpret (step ontbreekt)
  * en de Gids onderweg (step = huidige stap, index+titel). De cachesleutel
- * neemt de stap mee, zodat elke stap hooguit één verse briefing per kwartier
- * vraagt — geen polling, alleen start en gebruikersactie. */
+ * neemt de stap én de interessewoorden mee, zodat elke combinatie hooguit één
+ * verse briefing per kwartier vraagt — geen polling, alleen start en
+ * gebruikersactie. `interests` zijn de korte richting-woorden die de gebruiker
+ * zelf koos (Jij → Mijn richting); ze kleuren alleen de invalshoek. */
 export async function loadLivingWorldBriefing(input: {
   experience: Experience;
   snapshot: LiveWorldSnapshot;
   dayPart: string;
   step?: { index: number; title: string };
+  interests?: string[];
 }): Promise<BriefingResult> {
   const { experience, snapshot, dayPart, step } = input;
+  const interests = (input.interests ?? []).map((word) => word.trim()).filter(Boolean).slice(0, 6);
   if (experience.kind !== 'outside' || !briefingUrl) return { status: 'unavailable' };
   const facts = buildBriefingFacts(snapshot);
   if (facts.length < 2) return { status: 'unavailable' };
-  const cacheKey = briefingCacheKey(experience.id, dayPart, step ? step.index : null, facts);
+  const cacheKey = briefingCacheKey(experience.id, dayPart, step ? step.index : null, facts, interests);
   try {
     const stored = await AsyncStorage.getItem(CACHE_KEY);
     if (stored) {
@@ -95,6 +112,7 @@ export async function loadLivingWorldBriefing(input: {
         },
         facts: facts.map((fact) => ({ id: fact.id, text: fact.text, source: fact.source })),
         context: step ? { dayPart, step: { index: step.index, title: step.title } } : { dayPart },
+        ...(interests.length ? { profile: { interests } } : {}),
       }),
     });
     if (!response.ok) return { status: 'unavailable' };

@@ -70,12 +70,12 @@ const variants = {
     ], { duration: 16, effort: 'Samen', keywords: ['samen', 'kind', 'partner', 'gids', 'connect'] }),
   ],
   outside: [
-    (request) => shared(request, 'outside', 'Lees je directe omgeving opnieuw', 'Gebruik één klein detail om een bekende of onbekende plek aandachtiger te beleven.', 'Materiaal, geluid, vorm en gebruik kunnen een plek een verhaal geven zonder dat je eerst feiten hoeft op te zoeken.', [
+    (request) => shared(request, 'outside', 'Lees je directe omgeving opnieuw', 'Bekijk één plek alsof je er voor het eerst komt — een gevel, boom, plein of pad.', 'Steen, groen, geluid en licht vertellen hun verhaal vanzelf, als je even blijft kijken.', [
       { title: 'Kies een begrensd stukje', instruction: 'Blijf waar toegang duidelijk en veilig is. Kies één gevel, boom, plein, pad of voorwerp.', meta: null, seconds: null, insight: null },
       { title: 'Bekijk vier lagen', instruction: 'Let op materiaal, vorm, sporen van gebruik en geluid. Verzin geen verklaring.', meta: 'Telefoon weg', seconds: 180, insight: { title: 'Waarnemen vóór verklaren', body: 'Door eerst alleen zichtbare kenmerken te benoemen, blijft helder wat je ziet en wat je vermoedt.', topic: 'place' } },
       { title: 'Neem één vraag mee', instruction: 'Formuleer één vraag die de plek opriep. Zoek het antwoord alleen later als je dat nog wilt.', meta: null, seconds: null, insight: null },
     ], { duration: 16, effort: 'Rustig', presenceMode: 'quiet', keywords: ['outside', 'kijken', 'plek', 'ontdekken'] }),
-    (request) => shared(request, 'outside', 'Volg de overgang', 'Maak een korte buitenronde en zoek waar één landschap, straat of geluid merkbaar in iets anders overgaat.', 'Overgangen vallen vaak weg wanneer je alleen op een bestemming let; vandaag is juist de grens het doel.', [
+    (request) => shared(request, 'outside', 'Volg de overgang', 'Loop tot waar de straat in iets anders overgaat — andere grond, ander geluid, ander licht.', 'Wie alleen op de bestemming let mist de grens; vandaag is juist die grens het doel.', [
       { title: 'Kies een veilige richting', instruction: 'Kies een openbare, vertrouwde richting zonder een onbekende routeclaim te volgen.', meta: null, seconds: null, insight: null },
       { title: 'Zoek drie overgangen', instruction: 'Let op een verandering in ondergrond, begroeiing, bebouwing, wind of geluid. Blijf op toegankelijke paden.', meta: 'Telefoon weg', seconds: 300, insight: { title: 'Randen zijn vaak rijk aan verschil', body: 'Waar twee omgevingen elkaar raken, veranderen licht, geluid en gebruik soms binnen enkele stappen.', topic: 'place' } },
       { title: 'Kies de sterkste grens', instruction: 'Sta kort stil bij de overgang die je het duidelijkst voelde en keer daarna op tijd terug.', meta: null, seconds: null, insight: null },
@@ -94,12 +94,12 @@ const variants = {
     ], { duration: 15, effort: 'Rustig', presenceMode: 'quiet', keywords: ['culture', 'geluid', 'openbare ruimte', 'observeren'] }),
   ],
   restore: [
-    (request) => shared(request, 'restore', 'Een rustige overgang', 'Maak een duidelijke pauze tussen wat je deed en wat hierna komt.', 'Wanneer er even geen nieuwe input bijkomt, worden tempo en omgeving vaak vanzelf beter merkbaar.', [
+    (request) => shared(request, 'restore', 'Een rustige overgang', 'Sluit af wat je deed voordat het volgende begint: sta op, kijk ver, en kom pas terug als je je eerstvolgende stap weet.', 'Wanneer er even geen nieuwe input bijkomt, worden tempo en omgeving vaak vanzelf beter merkbaar.', [
       { title: 'Sluit het vorige af', instruction: 'Leg je scherm weg, sta op en laat je schouders rustig zakken zonder je adem te sturen.', meta: null, seconds: 60, insight: null },
       { title: 'Kijk verder', instruction: 'Loop langzaam of blijf staan bij een raam. Noem stil drie concrete dingen die je ziet.', meta: 'Geen prestatie', seconds: 120, insight: null },
       { title: 'Kies wat volgt', instruction: 'Ga pas terug wanneer je weet wat de eerstvolgende kleine handeling wordt.', meta: null, seconds: null, insight: null },
     ], { duration: 10, effort: 'Zeer licht', presenceMode: 'quiet', keywords: ['rust', 'pauze', 'herstel', 'restore'] }),
-    (request) => shared(request, 'restore', 'Maak je aandacht weer breed', 'Laat je aandacht kort loskomen van één taak en opnieuw landen in de ruimte om je heen.', 'Een bredere blik kan een overgang markeren zonder dat je een perfecte ontspanning hoeft te bereiken.', [
+    (request) => shared(request, 'restore', 'Maak je aandacht weer breed', 'Van dichtbij naar ver kijken: laat de ruimte om je taak heen weer bestaan.', 'Een bredere blik kan een overgang markeren zonder dat je een perfecte ontspanning hoeft te bereiken.', [
       { title: 'Onderbreek de stroom', instruction: 'Leg je telefoon buiten handbereik en verander rustig van houding of plek.', meta: '1 minuut', seconds: 60, insight: null },
       { title: 'Van dichtbij naar ver', instruction: 'Kijk achtereenvolgens naar iets dichtbij, halverwege en zo ver mogelijk. Stuur je adem niet en forceer niets.', meta: '3 rustige rondes', seconds: 180, insight: { title: 'Aandacht kan van schaal wisselen', body: 'Door bewust tussen afstanden te schakelen, wordt de ruimte om een taak heen opnieuw merkbaar.', topic: 'general' } },
       { title: 'Kies één rustig vervolg', instruction: 'Bepaal één haalbare volgende handeling en laat de rest nog even liggen.', meta: null, seconds: null, insight: null },
