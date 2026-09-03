@@ -159,7 +159,7 @@ export function ProfileScreen() {
           <Text style={yj.panelNote}>{rhythm.total} afgeronde momenten in 28 dagen · wanneer je ze afrondde, geen prestatie</Text>
         </>
       ) : (
-        <Text style={yj.panelNote}>Nog te weinig afgeronde momenten voor een ritme. Na een paar bewaarde momenten verschijnt hier je weekbeeld.</Text>
+        <Text style={yj.panelNote}>Nog te weinig afgeronde momenten voor een weekbeeld.</Text>
       )}
     </View>
 
@@ -183,13 +183,11 @@ export function ProfileScreen() {
       <Pressable accessibilityRole="button" accessibilityState={{ expanded: regieOpen === 'richting' }} onPress={() => toggleRegie('richting')} style={[yj.setrow, yj.setrowBorder]}>
         <Feather name="compass" size={15} color={yj.accentSolid as string} />
         <Text style={yj.setrowTitle}>Mijn richting & voorkeuren</Text>
-        <Text style={yj.setrowSub} numberOfLines={1}>eigen woorden</Text>
         <Feather name={regieOpen === 'richting' ? 'chevron-up' : 'chevron-right'} size={15} color={yj.ink3Solid as string} />
       </Pressable>
       <Pressable accessibilityRole="button" accessibilityState={{ expanded: regieOpen === 'privacy' }} onPress={() => toggleRegie('privacy')} style={[yj.setrow, yj.setrowBorder]}>
         <Feather name="shield" size={15} color={yj.accentSolid as string} />
         <Text style={yj.setrowTitle}>Privacy & geleerde signalen</Text>
-        <Text style={yj.setrowSub}>jouw data blijft van jou</Text>
         <Feather name={regieOpen === 'privacy' ? 'chevron-up' : 'chevron-right'} size={15} color={yj.ink3Solid as string} />
       </Pressable>
     </View>
@@ -205,7 +203,7 @@ export function ProfileScreen() {
     </>}
 
     {regieOpen === 'richting' && <>
-      <Text style={styles.screenSubtitle}>Dit zijn woorden die jij zelf kiest. Momentum gebruikt ze als zachte richting, nooit als opdracht of score.</Text>
+      <Text style={styles.screenSubtitle}>Jouw woorden sturen zachtjes mee — nooit als opdracht of score.</Text>
       {(Object.keys(directionLabels) as Array<keyof typeof directionLabels>).map((horizon) => <DirectionEditor key={horizon} horizon={horizon} values={personal.directions[horizon]} paused={personal.pausedDirections} onTogglePause={(value) => onPersonalChange({ ...personal, pausedDirections: personal.pausedDirections.includes(value) ? personal.pausedDirections.filter((item) => item !== value) : [...personal.pausedDirections, value] })} onSave={(values) => onPersonalChange({ ...personal, directions: { ...personal.directions, [horizon]: values }, pausedDirections: personal.pausedDirections.filter((item) => values.includes(item) || Object.entries(personal.directions).some(([key, entries]) => key !== horizon && entries.includes(item))) })} />)}
       <Text style={styles.fieldLabel}>ZELF GEKOZEN VOORKEUREN</Text>
       <View style={styles.chipRow}>{(Object.keys(experienceKindLabels) as ExperienceKind[]).map((kind) => <ChoiceChip key={kind} label={experienceKindLabels[kind]} selected={personal.preferredKinds.includes(kind)} onPress={() => onPersonalChange({ ...personal, preferredKinds: personal.preferredKinds.includes(kind) ? personal.preferredKinds.filter((item) => item !== kind) : [...personal.preferredKinds, kind] })} />)}</View>

@@ -47,8 +47,8 @@ export function GuideScreen() {
             <Text style={styles.screenTitle}>Je bent onderweg.</Text>
             <Text style={styles.screenSubtitle}>
               {activeSession?.stage === 'presence'
-                ? 'De ervaring loopt. De gids gaat verder waar je was gebleven.'
-                : 'De voorbereiding ligt klaar. Ga verder wanneer jij vertrekt.'}
+                ? 'De gids gaat verder waar je was gebleven.'
+                : 'De voorbereiding ligt klaar.'}
             </Text>
             <CoverImage uri={underway.image} style={guideStyles.image} imageStyle={guideStyles.imageRound}>
               <ImageShade />
@@ -66,7 +66,7 @@ export function GuideScreen() {
         ) : (
           <QuietCanvas eyebrow="GIDS" title="Er loopt nu geen ervaring.">
             <Text style={styles.screenSubtitle}>
-              Start een moment vanaf Nu. Zodra je vertrekt, verschijnt de begeleiding hier — rustig, en alleen als het helpt.
+              Zodra je vertrekt, verschijnt de begeleiding hier.
             </Text>
             <Pressable
               accessibilityRole="button"

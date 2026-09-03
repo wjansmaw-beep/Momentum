@@ -330,7 +330,6 @@ export function PresenceScreen() {
         <Feather name="check" size={15} color={gd.inkSolid as string} />
         <Text style={gd.ghostText}>Moment afronden</Text>
       </Pressable>
-      <Text style={gd.footNote}>{experience.presenceMode === 'quiet' ? 'Gebruik alleen de aanwijzing die helpt. Leg daarna je telefoon weg.' : 'Alleen de huidige stap vraagt aandacht.'}</Text>
     </ScrollView>
     {guideOpen && <ExperienceGuidePanel guide={guide} depth={guideDepth} accent={experience.accent} image={experience.image} onClose={() => setGuideOpen(false)} />}
     </View>

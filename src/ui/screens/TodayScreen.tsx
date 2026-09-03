@@ -126,7 +126,7 @@ export function TodayScreen() {
           </Pressable>
           <View style={s.who}>
             <Text style={s.hi}>Je dag{firstName ? `, ${firstName}` : ''}</Text>
-            <Text style={s.date}>{formatLongDate(now)} · één overzicht</Text>
+            <Text style={s.date}>{formatLongDate(now)}</Text>
           </View>
           <Pressable
             accessibilityRole="button"
@@ -160,7 +160,7 @@ export function TodayScreen() {
         <Animated.View style={entrance[2]}>
           {!hasMoments && (
             <QuietCanvas eyebrow="EEN OPEN DAG" title="Vandaag vraagt niets van je.">
-              <Text style={s.quietBody}>Momentum vond geen passend moment voor vandaag. De weerstrip hierboven en de ontdekkaart hieronder blijven actueel.</Text>
+              <Text style={s.quietBody}>Momentum vond geen passend moment voor vandaag.</Text>
             </QuietCanvas>
           )}
           <View style={s.timeline}>
@@ -173,7 +173,7 @@ export function TodayScreen() {
                     <View style={[s.tlCard, s.energyCard]}>
                       <Text style={s.tlWhen}>{`${formatClock(now)} · check-in`}</Text>
                       <Text style={s.tlWhat}>Hoe voel je je?</Text>
-                      <Text style={s.energyBody}>Alleen ‘Laag’ stuurt de voorstellen zachtjes bij — dichterbij en rustiger. Sla gerust over.</Text>
+                      <Text style={s.energyBody}>Alleen ‘Laag’ stuurt de voorstellen bij — dichterbij en rustiger.</Text>
                       <View style={s.seg}>
                         {ENERGY_OPTIONS.map((level) => {
                           const selected = energyLevel === level;
@@ -191,7 +191,7 @@ export function TodayScreen() {
                           );
                         })}
                       </View>
-                      {energyLevel ? <Text style={s.energyNote}>Alleen voor vandaag · tik opnieuw om te wissen · blijft op dit apparaat</Text> : null}
+                      {energyLevel ? <Text style={s.energyNote}>Alleen voor vandaag · blijft op dit apparaat</Text> : null}
                     </View>
                   </View>
                 );
