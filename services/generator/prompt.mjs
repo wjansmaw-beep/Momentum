@@ -51,7 +51,7 @@ export function buildBriefingPrompt(request) {
   // het harde frame hieronder).
   const interests = Array.isArray(request.profile?.interests) ? request.profile.interests : [];
   const interesseRegel = interests.length
-    ? `Deze wandelaar koos zelf deze interesses: ${interests.join(', ')}. Laat ze de invalshoek kleuren — bij "vogels kijken" mag een vogelmelding de hoofdrol krijgen, bij "fotografie" het licht. Dezelfde plek, een ander verhaal per wandelaar. Kleuren mag alleen waar de feiten het dragen: verzin nooit een feit om bij een interesse te passen.`
+    ? `Deze wandelaar koos zelf deze interesses: ${interests.join(', ')}. Laat ze de invalshoek kleuren — bij "vogels kijken" mag een vogelmelding de hoofdrol krijgen, bij "fotografie" het licht. Dezelfde plek, een ander verhaal per wandelaar. Kleuren mag alleen waar de feiten het dragen: verzin nooit een feit om bij een interesse te passen. Noem alleen dieren, objecten of details die in de feiten staan; een interesse kleurt de invalshoek, ze verzint nooit een waarneming.`
     : '';
   return `Je bent de reisgids-redacteur van Momentum. ${opdracht}
 

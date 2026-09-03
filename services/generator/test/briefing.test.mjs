@@ -184,3 +184,12 @@ test('briefing prompt: interests colour the angle without touching the fact rule
   const neutral = buildBriefingPrompt(validateBriefingRequest(briefingBody()).value);
   assert.ok(!neutral.includes('interesses'));
 });
+
+test('briefing prompt: an interest may never invent an observation beyond the facts', () => {
+  const request = validateBriefingRequest(briefingBody({ profile: { interests: ['vogels kijken', 'fotografie'] } })).value;
+  const prompt = buildBriefingPrompt(request);
+  assert.match(prompt, /Noem alleen dieren, objecten of details die in de feiten staan/);
+  assert.match(prompt, /een interesse kleurt de invalshoek, ze verzint nooit een waarneming/);
+  const neutral = buildBriefingPrompt(validateBriefingRequest(briefingBody()).value);
+  assert.ok(!neutral.includes('verzint nooit een waarneming'));
+});
