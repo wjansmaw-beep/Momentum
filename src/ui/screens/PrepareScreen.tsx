@@ -36,6 +36,7 @@ import { formatClock, goldenWindow, resolveSunTimes } from '../now-v2/nowModel';
 import {
   BriefingSentence,
   LivingWorldBriefing,
+  briefingInterests,
   loadLivingWorldBriefing,
 } from '../../liveworld/livingWorldBriefing';
 import {
@@ -146,7 +147,7 @@ export function PrepareScreen() {
     if (experience.kind !== 'outside' || !liveWorld) { setBriefing(null); return; }
     let active = true;
     setBriefing({ state: 'loading' });
-    loadLivingWorldBriefing({ experience, snapshot: liveWorld, dayPart: prototypeContext.dayPart })
+    loadLivingWorldBriefing({ experience, snapshot: liveWorld, dayPart: prototypeContext.dayPart, interests: briefingInterests(personal) })
       .then((result) => {
         if (!active) return;
         setBriefing(result.status === 'live' ? { state: 'live', value: result.briefing } : null);

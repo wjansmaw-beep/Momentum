@@ -29,6 +29,7 @@ import { resolveSunTimes } from '../now-v2/nowModel';
 import { guideProgress, guideState, mapTag, nextMoment } from '../now-v2/guideModel';
 import {
   LivingWorldBriefing,
+  briefingInterests,
   loadLivingWorldBriefing,
 } from '../../liveworld/livingWorldBriefing';
 import { briefingSourceLine } from '../../liveworld/briefingFacts';
@@ -162,7 +163,7 @@ export function PresenceScreen() {
     if (experience.kind !== 'outside' || !liveWorld) { setGuideBriefing(null); return; }
     let active = true;
     setGuideBriefing({ state: 'loading' });
-    loadLivingWorldBriefing({ experience, snapshot: liveWorld, dayPart: prototypeContext.dayPart, step: { index: stepIndex, title: currentStepTitle } })
+    loadLivingWorldBriefing({ experience, snapshot: liveWorld, dayPart: prototypeContext.dayPart, step: { index: stepIndex, title: currentStepTitle }, interests: briefingInterests(personal) })
       .then((result) => {
         if (!active) return;
         setGuideBriefing(result.status === 'live' ? { state: 'live', value: result.briefing } : null);

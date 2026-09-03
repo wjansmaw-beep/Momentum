@@ -91,12 +91,12 @@ export function buildBriefingFacts(snapshot: LiveWorldSnapshot): BriefingFact[] 
 
 const unsafeClaims = /geneest|behandelt|voorkomt ziekte|gegarandeerd|zeker weten|altijd veilig|medisch advies/i;
 
-/** Feitensignatuur + cachesleutel. De sleutel bevat ervaring, dagdeel én de
- * gids-stap (null = Voorpret): onderweg geldt één briefing per stap, met
- * dezelfde 15-minuten-frisheid als vooraf. */
+/** Feitensignatuur + cachesleutel. De sleutel bevat ervaring, dagdeel, de
+ * gids-stap (null = Voorpret) én de meegegeven interessewoorden: een nieuwe
+ * invalshoek vraagt een verse briefing, met dezelfde 15-minuten-frisheid. */
 export const briefingFactsSignature = (facts: BriefingFact[]) => facts.map((fact) => `${fact.id}:${fact.text}`).join('|');
-export const briefingCacheKey = (experienceId: string, dayPart: string, stepIndex: number | null, facts: BriefingFact[]) =>
-  `${experienceId}|${dayPart}|${stepIndex === null ? 'voorpret' : `stap-${stepIndex}`}|${briefingFactsSignature(facts)}`;
+export const briefingCacheKey = (experienceId: string, dayPart: string, stepIndex: number | null, facts: BriefingFact[], interests: string[] = []) =>
+  `${experienceId}|${dayPart}|${stepIndex === null ? 'voorpret' : `stap-${stepIndex}`}|${briefingFactsSignature(facts)}|${interests.join(',').toLowerCase()}`;
 
 /** Bron-label per zin: de namen + meetdetails van de geciteerde feiten,
  * ontdubbeld en in feitvolgorde (bijv. "Open-Meteo · om 22:45 gemeten"). */

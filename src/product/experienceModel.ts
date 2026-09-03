@@ -126,8 +126,8 @@ export const experienceFactLabels: Record<ExperienceKind, { duration: string; di
 export const experiences: Experience[] = [
   {
     id: 'wadden-light', kind: 'outside', title: 'Wadden Light Walk',
-    promise: 'Vanavond kleurt het wad goudgeel in de ondergaande zon.',
-    wonder: 'De wind neemt af en het laatste licht valt precies over het water.',
+    promise: 'Het laatste licht valt laag over het wad; water en slik kleuren goud.',
+    wonder: 'Zoute wind, een wijde lucht, en vogels die laag over het water strijken terwijl de zon zakt.',
     image: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=88',
     accent: '#4E9B6A', duration: 45, effort: 'Rustig', distance: '35 min reizen', timeWindow: '19:30 – 20:30', cta: 'Ga dit beleven',
     why: ['Je hebt vanavond ruimte', 'Het weer past bij buiten zijn', 'Natuur past bij wat jou aanspreekt'],
@@ -135,8 +135,8 @@ export const experiences: Experience[] = [
     presenceMode: 'handoff', presenceTitle: 'Geniet van het licht', presenceCue: 'Open de route en laat Momentum daarna verdwijnen.',
     steps: [
       { title: 'Reis naar het startpunt', instruction: 'Laat Kaarten je brengen. Momentum hoeft onderweg niets toe te voegen.', meta: 'Navigatie via vertrouwde app' },
-      { title: 'Begin rustig', instruction: 'Geef jezelf de eerste vijf minuten om aan wind, licht en omgeving te wennen.', meta: 'Telefoon weg', insight: { title: 'Waarom het licht zo laag voelt', body: 'Rond zonsondergang legt het licht een langere weg door de atmosfeer af. Koelere kleuren worden sterker verstrooid, waardoor warme tinten meer opvallen.', topic: 'nature', sourceKind: 'editorial', sourceLabel: 'Momentum natuurredactie' } },
-      { title: 'Kijk één keer bewust om je heen', instruction: 'Zoek geen perfecte foto. Merk één detail op dat alleen vanavond bestaat.', insight: { title: 'Lees de rand van water en land', body: 'Let op waar glans, slik, water en begroeiing elkaar raken. Juist aan zo\'n overgang veranderen kleur, beweging en vogelactiviteit vaak het duidelijkst. Kijk zonder een waarneming af te dwingen.', topic: 'nature', sourceKind: 'editorial', sourceLabel: 'Momentum natuurredactie' } },
+      { title: 'Begin rustig', instruction: 'Sta aan de rand van het wad en sta even stil. Hoor de wind, ruik de zoute lucht, laat je ogen wennen aan het lage licht.', meta: 'Telefoon weg', insight: { title: 'Waarom het licht zo laag voelt', body: 'Rond zonsondergang legt het licht een langere weg door de atmosfeer af. Koelere kleuren worden sterker verstrooid, waardoor warme tinten meer opvallen.', topic: 'nature', sourceKind: 'editorial', sourceLabel: 'Momentum natuurredactie' } },
+      { title: 'Kijk één keer bewust om je heen', instruction: 'Scan waar water, slik en begroeiing elkaar raken. Kies één detail dat er alleen vanavond zo uitziet.', insight: { title: 'Lees de rand van water en land', body: 'Let op waar glans, slik, water en begroeiing elkaar raken. Juist aan zo\'n overgang veranderen kleur, beweging en vogelactiviteit vaak het duidelijkst. Kijk zonder een waarneming af te dwingen.', topic: 'nature', sourceKind: 'editorial', sourceLabel: 'Momentum natuurredactie' } },
       { title: 'Keer zonder haast terug', instruction: 'Laat voldoende tijd over voor de terugweg en verander de route niet wanneer omstandigheden onveilig voelen.' },
     ],
     memoryPrompt: 'Wat wil je van dit licht onthouden?', keywords: ['wandelen', 'wandeling', 'buiten', 'natuur', 'zee', 'strand', 'vogels', 'licht', 'rust'], company: ['solo', 'together', 'family'],
@@ -161,19 +161,19 @@ export const experiences: Experience[] = [
   },
   {
     id: 'work-reset', kind: 'restore', title: 'Tien minuten uit je werkhoofd',
-    promise: 'Een korte pauze kan de middag lichter laten beginnen.',
-    wonder: 'Geen prestatie: alleen frisse lucht, rustige ademhaling en even afstand.',
+    promise: 'Tien minuten buiten: frisse lucht, een wijde blik, geen scherm.',
+    wonder: 'Geen prestatie nodig: alleen lucht, licht en een blik die verder reikt dan je scherm.',
     image: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=88',
     accent: '#3F9E97', duration: 10, effort: 'Zeer licht', timeWindow: '12:20 – 13:30', cta: 'Neem deze pauze',
     why: ['Past tussen twee werkblokken', 'Geen materiaal nodig', 'Kan direct beginnen'],
     prepareTitle: 'Laat je werk even liggen', prepare: ['Meldingen stil', 'Sta op', 'Laat je scherm achter'],
-    presenceMode: 'quiet', presenceTitle: 'Loop zonder doel', presenceCue: 'Je hoeft niets bij te houden. Kom terug wanneer het genoeg is.',
+    presenceMode: 'quiet', presenceTitle: 'Loop zonder doel', presenceCue: 'Niets om bij te houden. Kom terug wanneer het genoeg is.',
     steps: [
-      { title: 'Laat het scherm achter', instruction: 'Sta op en kies de eenvoudigste route naar frisse lucht of een rustigere plek.', insight: { title: 'Waarom deze pauze geen prestatie heeft', body: 'Het doel is alleen een duidelijke overgang tussen twee werkblokken. Je hoeft geen afstand, tempo of ademhaling te verbeteren om de pauze te laten tellen.', topic: 'general', sourceKind: 'editorial', sourceLabel: 'Momentum herstelredactie' } },
-      { title: 'Loop één tempo lager', instruction: 'Niets meten. Laat je blik verder gaan dan de volgende paar meter.', seconds: 120, insight: { title: 'Laat de omgeving het tempo bepalen', body: 'Kies geen doelpunt en tel geen stappen. Een bocht, boom, raam of stukje lucht kan genoeg zijn om even werkelijk ergens anders te zijn dan in je taak.', topic: 'general', sourceKind: 'editorial', sourceLabel: 'Momentum herstelredactie' } },
-      { title: 'Blijf nog even stil', instruction: 'Stop kort voordat je teruggaat. Adem normaal en merk op of je tempo veranderde.', seconds: 60 },
+      { title: 'Laat het scherm achter', instruction: 'Sta op en loop naar buiten, of naar het raam met het verste uitzicht. De deur achter je is het begin.', insight: { title: 'Waarom deze pauze geen prestatie heeft', body: 'Het doel is alleen een duidelijke overgang tussen twee werkblokken. Je hoeft geen afstand, tempo of ademhaling te verbeteren om de pauze te laten tellen.', topic: 'general', sourceKind: 'editorial', sourceLabel: 'Momentum herstelredactie' } },
+      { title: 'Loop één tempo lager', instruction: 'Kijk naar het einde van de straat in plaats van naar de stoep. Niets meten, nergens heen.', seconds: 120, insight: { title: 'Laat de omgeving het tempo bepalen', body: 'Kies geen doelpunt en tel geen stappen. Een bocht in de straat, een boom of een stukje lucht is genoeg om even met je hoofd ergens anders te zijn.', topic: 'general', sourceKind: 'editorial', sourceLabel: 'Momentum herstelredactie' } },
+      { title: 'Blijf nog even stil', instruction: 'Sta één minuut stil voor je teruggaat. Voel de lucht op je gezicht, hoor de straat. Ga dan pas weer.', seconds: 60 },
     ],
-    memoryPrompt: 'Voelde de middag daarna anders?', keywords: ['rust', 'pauze', 'ademen', 'werk', 'ontspannen', 'herstel', 'wandelen'], company: ['solo'],
+    memoryPrompt: 'Wat zag je onderweg?', keywords: ['rust', 'pauze', 'ademen', 'werk', 'ontspannen', 'herstel', 'wandelen'], company: ['solo'],
   },
   {
     id: 'kettlebell-focus', kind: 'movement', title: 'Een sterk halfuur',

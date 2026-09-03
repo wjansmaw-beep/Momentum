@@ -15,8 +15,17 @@ const clean = (value, max) => typeof value === 'string' ? value.trim().slice(0, 
 
 // Request shape: the experience (outside only, id/title/promise/duration) and
 // the verbatim fact list the client already holds from liveWorld receipts.
-// No profile fields, no history, no free text — the payload stays as bounded
-// as the draft payloads (ADR-056), only narrower.
+// No history, no free text — the payload stays as bounded as the draft
+// payloads (ADR-056), only narrower.
+//
+// Profile colouring (reisgids-doctrine, 2026): the owner asked for the guide
+// to read like a travel guide tuned to the reader. The request MAY therefore
+// carry `profile.interests`: up to six short terms the user chose themselves
+// in "Mijn richting" (e.g. "vogels kijken", "fotografie"). They steer the
+// angle only — never the facts. The briefing runs solely on an explicit user
+// action (opening Voorpret, moving through a step), the same bar as
+// active-intent drafts, which already carry the user's own words. Anything
+// overlong, empty or blocked is dropped, never an error.
 export function validateBriefingRequest(value) {
   if (!value || typeof value !== 'object' || value.contractVersion !== BRIEFING_CONTRACT_VERSION) return { ok: false, error: 'Ongeldig contract.' };
   if (value.requestMode !== 'living-world-briefing') return { ok: false, error: 'Ongeldige aanvraagvorm.' };
@@ -38,6 +47,10 @@ export function validateBriefingRequest(value) {
     return [{ id: factId, text, source }];
   }).slice(0, MAX_BRIEFING_FACTS);
   if (facts.length < MIN_BRIEFING_SENTENCES) return { ok: false, error: 'Te weinig echte feiten voor een eerlijke briefing.' };
+  const interests = (Array.isArray(value.profile?.interests) ? value.profile.interests : [])
+    .map((item) => clean(item, 24))
+    .filter((item) => item.length >= 2 && !blockedClaims.test(item))
+    .slice(0, 6);
   const dayPart = typeof value.context?.dayPart === 'string' ? clean(value.context.dayPart, 20) : '';
   // Underway scope (ADR-068, addendum): the client may pass the current guide
   // step so the briefing can connect this exact step to the facts. The step is
@@ -54,6 +67,7 @@ export function validateBriefingRequest(value) {
       experience: { id, kind: 'outside', title, promise, duration, distance: clean(experience.distance, 60) || undefined },
       facts,
       context: step ? { dayPart, step } : { dayPart },
+      ...(interests.length ? { profile: { interests } } : {}),
     },
   };
 }
