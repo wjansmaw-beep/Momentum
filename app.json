@@ -38,6 +38,12 @@
         "android.permission.ACCESS_FINE_LOCATION"
       ]
     },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/13195c21-6844-4e8f-b492-6a579aa70ca8"
+    },
     "extra": {
       "eas": {
         "projectId": "13195c21-6844-4e8f-b492-6a579aa70ca8"
