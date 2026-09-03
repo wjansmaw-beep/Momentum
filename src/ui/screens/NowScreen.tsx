@@ -269,7 +269,6 @@ export function NowScreen() {
               <View style={s.light}>
                 <View style={s.lightHead}>
                   <Text style={s.lightTitle}>Licht de komende uren</Text>
-                  <Text style={s.lightNow}>{curve.peakLabel}</Text>
                 </View>
                 <LightCurve values={curve.values} peakIndex={curve.peakIndex} accentColor={s.accent as string} fillColor={s.curveFill as string} trackColor={s.ringTrack as string} />
                 <View style={s.hours}>

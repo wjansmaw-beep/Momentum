@@ -223,7 +223,7 @@ export function dayTimeline(
       id: `free-${startMinutes}`,
       when: `${formatClock(start)} – ${formatClock(end)} · VRIJE RUIMTE`,
       title: 'Vrije ruimte',
-      sub: `${formatFreeMinutes(window.minutes)} zonder afspraken · Momentum houdt dit bewust vrij`,
+      sub: `${formatFreeMinutes(window.minutes)} zonder afspraken`,
       state: (endMinutes <= nowMinutes ? 'past' : 'later') as 'past' | 'later',
       startMinutes,
     }];

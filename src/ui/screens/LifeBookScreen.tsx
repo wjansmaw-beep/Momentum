@@ -61,10 +61,9 @@ export function LifeBookScreen() {
         <>
           <View style={bk.head}>
             <Text style={bk.headTitle}>Boek</Text>
-            <Text style={bk.headSub}>herinneringen met betekenis</Text>
           </View>
           <QuietCanvas eyebrow="NOG GEEN BEWAARDE MOMENTEN" title="Hier komen je beleefde momenten samen.">
-            <Text style={styles.screenSubtitle}>Bewaar straks wat de moeite waard was. Je herinneringen blijven alleen op dit apparaat.</Text>
+            <Text style={styles.screenSubtitle}>Je herinneringen blijven alleen op dit apparaat.</Text>
           </QuietCanvas>
         </>
       ) : (
