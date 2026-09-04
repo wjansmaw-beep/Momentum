@@ -18,7 +18,10 @@
     },
     "preview": {
       "distribution": "internal",
-      "channel": "preview"
+      "channel": "preview",
+      "env": {
+        "EXPO_PUBLIC_MOMENTUM_GENERATOR_URL": "http://192.168.1.228:8787/v1/experience-drafts"
+      }
     },
     "production": {
       "channel": "production"
