@@ -23,7 +23,6 @@ const config = {
     IncomingInvite: 'invite',
     InvalidInvite: 'invite-invalid',
     Prepare: 'prepare',
-    Presence: 'presence',
     Remember: 'remember',
   },
 };

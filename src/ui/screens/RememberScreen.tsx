@@ -24,9 +24,9 @@ import { useApp } from '../../app/store';
 import { RootStackParamList } from '../navigation/types';
 
 // Remember-scherm (ADR-058): verhuisd uit App.tsx. Bewaren reset naar het
-// Leefboek (voorheen setSurface('lifebook')); overslaan én Android-back tellen
-// als overgeslagen reflectie en keren terug naar de surface onderaan de stack
-// (voorheen setSurface(origin)). De swipe-pop staat uit zodat die telling altijd loopt.
+// Leefboek; overslaan én Android-back tellen als overgeslagen reflectie en
+// resetten schoon naar Nu (nooit terug op een stale Voorpret/Gids-route).
+// De swipe-pop staat uit zodat die telling altijd loopt.
 
 export function RememberScreen() {
   const { selected: experience, personalProfile: personal, completedSession, finishExperience, skipReflection } = useApp();
@@ -36,7 +36,9 @@ export function RememberScreen() {
   const onSkip = () => {
     savedRef.current = true;
     skipReflection();
-    navigation.popToTop();
+    // Reset ipv popToTop: na afronden land je altijd schoon op Nu, nooit op
+    // een stale route (Voorpret/Gids) die onder de stack was blijven hangen.
+    navigation.dispatch(CommonActions.reset({ index: 0, routes: [{ name: 'Now' }] }));
   };
   const onSave = (input: ReflectionInput, generationEvaluation: GenerationEvaluationSignal[] = [], photos: string[] = []) => {
     savedRef.current = true;
