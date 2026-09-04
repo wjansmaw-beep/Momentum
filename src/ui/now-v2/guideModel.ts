@@ -1,6 +1,6 @@
 import type { Experience } from '../../product/experienceModel';
 import type { ActiveSession } from '../../app/store';
-import type { GuideDepth, GuideMoment } from '../../guidance/experienceGuide';
+import type { GuideDepth } from '../../guidance/experienceGuide';
 import type { WeatherSignal } from '../../liveworld/liveWorld';
 import {
   beaufort,
@@ -59,48 +59,6 @@ export function guideProgress(now: Date, experience: Experience, session: Active
       : `${elapsedMinutes} min onderweg`,
     fraction: clamp(elapsedSeconds / totalSeconds, 0, 1),
   };
-}
-
-export type NextMoment = {
-  /** Bijv. "Over ±12 min" of "Daar aangekomen". */
-  over: string;
-  /** Naam van het moment of de plek. */
-  title: string;
-  /** Waarom het de moeite is — uit het inzicht of het aankomstplan. */
-  sub?: string;
-};
-
-/**
- * De "Over …"-kaart: het eerstvolgende gidsmoment na de huidige stap, met een
- * tijdsinschatting uit de stapseconden ertussen ("Over ±X min"). Zonder
- * toekomstig gidsmoment: het aankomstplan van het routeplan ("Daar
- * aangekomen"). Als beide ontbreken valt de kaart weg — nooit een verzonnen
- * waypoint of afstand.
- */
-export function nextMoment(experience: Experience, moments: GuideMoment[], stepIndex: number): NextMoment | undefined {
-  const future = moments
-    .filter((moment) => moment.stepIndex > stepIndex)
-    .sort((a, b) => a.stepIndex - b.stepIndex)[0];
-  if (future) {
-    const betweenSeconds = experience.steps
-      .slice(stepIndex, future.stepIndex)
-      .reduce((sum, step) => sum + (step.seconds ?? 0), 0);
-    const lower = future.insight.title.charAt(0).toLowerCase() + future.insight.title.slice(1);
-    return {
-      over: betweenSeconds > 0 ? `Over ±${Math.max(1, Math.round(betweenSeconds / 60))} min` : 'Bij een volgende stap',
-      title: future.stepTitle,
-      sub: lower,
-    };
-  }
-  const arrival = experience.routePlan?.arrivalPlan;
-  if (arrival) {
-    return {
-      over: 'Daar aangekomen',
-      title: arrival.label,
-      sub: `${arrival.durationMinutes} min · ${arrival.returnTrigger.charAt(0).toLowerCase()}${arrival.returnTrigger.slice(1)}`,
-    };
-  }
-  return undefined;
 }
 
 export type GuideRow = {
@@ -175,9 +133,4 @@ export function guideState(
     });
   }
   return { quiet, rows };
-}
-
-/** Etiket linksboven de kaart: plaats · route — alleen met routeplan. */
-export function mapTag(experience: Experience): string | undefined {
-  return experience.routePlan ? `${experience.routePlan.destinationName} · route` : undefined;
 }

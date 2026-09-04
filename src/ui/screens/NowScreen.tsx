@@ -15,7 +15,7 @@ import { Feather } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import Reanimated from 'react-native-reanimated';
-import { StackActions, useNavigation } from '@react-navigation/native';
+import { CommonActions, StackActions, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Experience } from '../../product/experienceModel';
 import { Company } from '../../product/localIntelligence';
@@ -83,6 +83,9 @@ export function NowScreen() {
     showPendingContextual,
     openExperience,
     applyFeedback,
+    activeSession,
+    resumableExperience,
+    resumeSession,
   } = useApp();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const firstName = personalProfile.firstName.trim();
@@ -156,7 +159,14 @@ export function NowScreen() {
   };
   const onGuide = () => {
     impactLight();
-    navigation.dispatch(StackActions.replace('Guide'));
+    // Zelfde logica als de GIDS-tab: hervat waar je was (onderweg → Gids,
+    // anders → Voorpret). Reset ipv replace zodat er geen stale routes
+    // onder de stack blijven hangen.
+    const stage = resumeSession();
+    const target = stage === 'presence' ? 'Guide' : 'Prepare';
+    navigation.dispatch(
+      CommonActions.reset({ index: 1, routes: [{ name: 'Now' }, { name: target }] }),
+    );
   };
   const onOpenFresh = (item: Experience) => {
     impactLight();
@@ -315,10 +325,12 @@ export function NowScreen() {
               </View>
               <Feather name="arrow-right" size={18} color={s.accentInk as string} />
             </Pressable>
-            <Pressable accessibilityRole="button" accessibilityLabel="Open de gids" onPress={onGuide} style={({ pressed }) => [s.guidebtn, pressed && s.pressed]}>
-              <Feather name="compass" size={17} color={s.inkSolid as string} />
-              <Text style={s.guidebtnText}>GIDS</Text>
-            </Pressable>
+            {activeSession && resumableExperience ? (
+              <Pressable accessibilityRole="button" accessibilityLabel="Open de gids" onPress={onGuide} style={({ pressed }) => [s.guidebtn, pressed && s.pressed]}>
+                <Feather name="compass" size={17} color={s.inkSolid as string} />
+                <Text style={s.guidebtnText}>GIDS</Text>
+              </Pressable>
+            ) : null}
           </View>
         </Animated.View>
 

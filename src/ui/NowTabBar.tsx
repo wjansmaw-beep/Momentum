@@ -2,7 +2,7 @@ import React from 'react';
 import { Platform, Pressable, StyleSheet, Text, TextStyle, View, ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { StackActions, useNavigation, useNavigationState } from '@react-navigation/native';
+import { CommonActions, StackActions, useNavigation, useNavigationState } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { palettes, schemeStyles } from '../design/theme';
 import { impactLight } from '../design/haptics';
@@ -16,11 +16,11 @@ import { RootStackParamList, routeTabs, TabId, tabRoutes } from './navigation/ty
 // surfacescherm via StackActions.replace — zelfde rustige gedrag als de
 // vroegere bottomNav: geen push-historie, Android-back verlaat de app.
 //
-// GIDS is contextueel: de tab verschijnt alleen zolang er een actieve,
-// hervatbare ervaring loopt (activeSession met vindbare ervaring). Zonder
-// sessie toont de balk vier tabs; GuideScreen zelf blijft als scherm bestaan.
-// Wie op de Gids-tab staat terwijl de sessie eindigt, wordt door GuideScreen
-// zelf rustig naar Nu geleid — de balk hoeft dat niet op te vangen.
+// GIDS is contextueel én direct: de tab verschijnt alleen zolang er een
+// actieve, hervatbare ervaring loopt, en opent meteen het gids-scherm op de
+// opgeslagen stap (stage presence) of de Voorpret (stage prepare) — de oude
+// hervatkaart is weg. De hervatting legt Nu onder de flow-stage zodat terug
+// naar de thuisbasis altijd klopt.
 
 type TabSpec = { id: TabId; label: string; icon: keyof typeof Ionicons.glyphMap };
 
@@ -50,10 +50,16 @@ export function NowTabBar() {
   const activeRoute = useNavigationState((state) => state.routes[state.index]?.name);
   const activeTab = routeTabs[activeRoute as keyof RootStackParamList];
   // GIDS alleen tonen wanneer er iets te gidsen valt: een actieve sessie waar
-  // de ervaring nog van te vinden is (zelfde voorwaarde als GuideScreen).
-  const { activeSession, resumableExperience } = useApp();
+  // de ervaring nog van te vinden is. De tab opent de sessie zelf — via
+  // resumeSession naar de Guide op de opgeslagen stap, of naar de Voorpret.
+  const { activeSession, resumableExperience, resumeSession } = useApp();
   const guideVisible = Boolean(activeSession && resumableExperience);
   const visibleTabs = TABS.filter((tab) => tab.id !== 'gids' || guideVisible);
+  const openGuide = () => {
+    const stage = resumeSession();
+    const target: keyof RootStackParamList = stage === 'presence' ? 'Guide' : 'Prepare';
+    navigation.dispatch(CommonActions.reset({ index: 1, routes: [{ name: 'Now' }, { name: target }] }));
+  };
   return (
     <View pointerEvents="box-none" style={styles.wrap}>
       <LinearGradient pointerEvents="none" colors={styles.gradientColors} locations={[0, 0.46]} style={StyleSheet.absoluteFill} />
@@ -66,7 +72,7 @@ export function NowTabBar() {
               accessibilityRole="tab"
               accessibilityLabel={tab.label}
               accessibilityState={{ selected: active }}
-              onPress={() => { impactLight(); if (!active) navigation.dispatch(StackActions.replace(tabRoutes[tab.id])); }}
+              onPress={() => { impactLight(); if (tab.id === 'gids') { openGuide(); } else if (!active) navigation.dispatch(StackActions.replace(tabRoutes[tab.id])); }}
               style={styles.tab}
             >
               <Ionicons name={tab.icon} size={20} color={active ? styles.activeColor : styles.inactiveColor} />

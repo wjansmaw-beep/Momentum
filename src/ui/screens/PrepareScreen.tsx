@@ -53,7 +53,8 @@ import {
 // het gouden uur, daarna "Zo ga je" (routesegmenten uit het routeplan),
 // "Neem mee" (paklijst uit live weer, met de capsule-lijst als eerlijke
 // fallback) en "Weer onderweg" (huidige meting + zonmodel — geen verzonnen
-// uurverwachting). De Go-CTA start Presence.
+// uurverwachting). De strook "De route van dit moment" toont de staptitels;
+// de Go-CTA start de Gids (het onderweg-scherm, voorheen Presence).
 //
 // ADR-065 blijft van kracht: maximaal één zichtbare vraag (met wie), de rest
 // slimme standaardwaarden die zichtbaar zijn in de samenvatting en één tik
@@ -76,7 +77,7 @@ export function PrepareScreen() {
   const onDraftChange = (company: Company, guideDepth: GuideDepth, shared?: SharedCapsuleState, transport?: TransportMode) => savePreparation(company, guideDepth, shared, transport);
   const onStart = (company: Company, guideDepth: GuideDepth, shared?: SharedCapsuleState, transport?: TransportMode) => {
     startPresence(company, guideDepth, shared, transport);
-    navigation.navigate('Presence');
+    navigation.navigate('Guide');
   };
   const supportedCompanies = experience.company;
   const [company, setCompany] = useState<Company>(supportedCompanies.includes(initialCompany) ? initialCompany : supportedCompanies[0]);
@@ -219,6 +220,25 @@ export function PrepareScreen() {
               {segment.sub ? <Text style={vp.rowSub}>{segment.sub}</Text> : null}
             </View>
             {segment.trailing ? <Text style={vp.rowTrailing}>{segment.trailing}</Text> : null}
+          </View>
+        ))}
+      </View>
+
+      {/* Strook: de route van dit moment — staptitels in volgorde, zodat de
+          gids onderweg nooit een verrassing is. De routekaart zelf blijft
+          bewust hier; onderweg is alleen de stap waar je bent. */}
+      <View style={vp.card}>
+        <View style={vp.cardHead}>
+          <Feather name="list" size={15} color={vp.accentSolid as string} />
+          <Text style={vp.cardTitle}>De route van dit moment</Text>
+        </View>
+        {experience.steps.map((step, index) => (
+          <View key={`${step.title}-${index}`} style={[vp.row, index > 0 && vp.rowBorder]}>
+            <View style={vp.stepNo}><Text style={vp.stepNoText}>{index + 1}</Text></View>
+            <View style={styles.flex}>
+              <Text style={vp.rowTitle}>{step.title}</Text>
+            </View>
+            {step.seconds ? <Text style={vp.rowTrailing}>{`${Math.max(1, Math.round(step.seconds / 60))} min`}</Text> : null}
           </View>
         ))}
       </View>
@@ -439,6 +459,8 @@ const vp = schemeStyles(({ colors: schemeColors }) => {
     row: ViewStyle;
     rowBorder: ViewStyle;
     rowIcon: ViewStyle;
+    stepNo: ViewStyle;
+    stepNoText: TextStyle;
     rowTitle: TextStyle;
     rowSub: TextStyle;
     rowTrailing: TextStyle;
@@ -496,6 +518,12 @@ const vp = schemeStyles(({ colors: schemeColors }) => {
       width: 32, height: 32, borderRadius: 11, backgroundColor: palette.iconTile,
       alignItems: 'center', justifyContent: 'center',
     },
+    stepNo: {
+      width: 24, height: 24, borderRadius: 12, backgroundColor: palette.iconTile,
+      borderWidth: 1, borderColor: palette.line,
+      alignItems: 'center', justifyContent: 'center',
+    },
+    stepNoText: { fontSize: 10.5, fontWeight: '700', color: palette.accent },
     rowTitle: { fontSize: 13, fontWeight: '600', color: palette.ink },
     rowSub: { fontSize: 11, color: palette.ink2, marginTop: 1 },
     rowTrailing: { fontSize: 11.5, fontWeight: '600', color: palette.ink2 },
