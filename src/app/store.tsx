@@ -163,6 +163,7 @@ function useAppStore() {
   const [calendarContext, setCalendarContext] = useState<CalendarContextSnapshot>(emptyCalendarContext);
   const [calendarLoading, setCalendarLoading] = useState(false);
   const [memories, setMemories] = useState<Memory[]>([]);
+  const [memoriesHydrated, setMemoriesHydrated] = useState(false);
   // ADR-059: bij openen kan een kleine kandidaat-set (2–3 concepten) arriveren
   // i.p.v. één concept. De hele set concurreert via de bestaande poort en
   // ranking; de hero-stabiliteit (pending-pill) werkt op setniveau.
@@ -186,7 +187,12 @@ function useAppStore() {
 
   useEffect(() => {
     AsyncStorage.getItem(memoryKey).then((value) => {
-      if (value) setMemories(JSON.parse(value));
+      // Only a successful read may unlock writes. A missing key is a new
+      // install; malformed data or a read failure must remain untouched.
+      const stored = value === null ? [] : JSON.parse(value);
+      if (!Array.isArray(stored)) return;
+      setMemories(stored);
+      setMemoriesHydrated(true);
     }).catch(() => undefined);
     AsyncStorage.getItem(contextKey).then((value) => {
       if (value) setPrototypeContext({ ...defaultPrototypeContext(), ...JSON.parse(value) });
@@ -234,8 +240,9 @@ function useAppStore() {
   }, []);
 
   useEffect(() => {
+    if (!memoriesHydrated) return;
     AsyncStorage.setItem(memoryKey, JSON.stringify(memories)).catch(() => undefined);
-  }, [memories]);
+  }, [memories, memoriesHydrated]);
 
   useEffect(() => {
     if (!contextHydrated) return;

@@ -32,6 +32,9 @@ jobs:
       - name: Affirmation tests
         run: node --test tests/affirmation.test.mjs
 
+      - name: Memory startup storage regression tests
+        run: npm run test:memory-storage
+
       - name: Scenario checks
         run: npm run test:scenarios
 
