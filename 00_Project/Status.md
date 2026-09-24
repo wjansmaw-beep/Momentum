@@ -1,13 +1,28 @@
 # Momentum Project Status
 
 Status: Active  
-Version: 2.0
+Version: 2.1
 
-## Application-code boundary: approved through ADR-066
+## Application-code boundary: approved through ADR-068
 
 This file is the single source of truth for the current application-code boundary. Every AI coding agent must read it at the start of each session, before proposing or implementing any change. Only the Founder can extend the boundary, through an ADR.
 
-## Current phase
+## Current scope and evidence — reconciliation 2026-09-24
+
+This reconciliation records existing approvals; it does not extend them. Approval, implementation, verification and release are different states. The document foundation was approved on 2026-07-10; the remaining boundaries are the specific ADRs below, not a blanket ban on application code.
+
+- [ADR-067](Decisions/ADR-067-crafted-density-concrete-copy.md) governs the current crafted-density design and Nu · Dag · Gids · Boek · Jij navigation, with Voorpret as a flow state. Earlier visual and navigation rules apply only where not amended.
+- [ADR-068](Decisions/ADR-068-living-world-mode-facts-apis-meaning-ai.md) approves the narrow outside-only, receipt-bound briefing in Voorpret and during the experience. It allows sourced facts in that specific model-facing contract, mandatory citations and validated fallback; it does not authorize invented live facts, routes, new sources or general personal-data payloads. Underway requests are bounded to start/step changes, not polling, location changes or re-renders.
+- [ADR-063](Decisions/ADR-063-native-generator-access.md) remains home-network-only. The fixed native header identifies a client; it does not authenticate one. Public generator deployment, authentication and TLS require their own approval and release evidence. Provider keys remain server-side.
+- Health data, accounts, production synchronization and new external integrations remain outside this boundary. Previously approved directions such as ADR-064 are not proof that all their phases have shipped.
+
+The September audit and UX review found implementation gaps against existing decisions. A narrow Memory startup-write guard was implemented and locally tested on 2026-09-19; it is not a complete Memory repair or device-release proof. See [recovery evidence and remaining gates](Recovery_Status_2026-09-24.md) and the [roadmap's current queue](Roadmap.md#current-work-queue--2026-09-24).
+
+The Founder supports the audit improvement direction and requested the personal live-guide design proposal. The September proposal for fewer general timers, activity-specific guidance and different information hierarchy remains an explicit design/amendment track; it does not silently replace ADR-067 or broaden ADR-068 triggers. No public release is approved by this reconciliation.
+
+## Historical approval progression
+
+The paragraphs below preserve the approval history. Each statement of a boundary is the boundary **at that point**, not a competing current limit. In particular, ADR-064 later approved the dark/Skia/video directions excluded at ADR-058; ADR-067 amended earlier visual/navigation rules; ADR-068 adds only the briefing exception summarized above. Historical implementation descriptions are not current release evidence.
 
 The Founder approved the document foundation on 2026-07-10 and requested the first application slice. On 2026-07-14 the Founder explicitly advanced the product into the Premium Living Guide direction, and on 2026-07-15 approved the account-free Shared Capsule prototype, layered consultable guide, richer guide moments, automatic deterministic guide and Experience Blueprint composition, the pre-ranking candidate quality gate, adaptive active intent, Meaning Thread continuity, generative capsule candidates behind a validated provider-independent boundary, and Generator Service v1 with a local fixture plus optional OpenAI provider. On 2026-07-16 generated Capsule continuity, bounded contextual generation on open, the deterministic Grounded Guide with source-window integrity, the Living World Opportunity Engine v2 with conservative Route Composer, and deterministic Living World interpretation with an Arrival Plan were approved. On 2026-07-17 worldwide Place Knowledge, the provider-independent Route Intelligence boundary, the local Place Knowledge Lens, bounded OpenStreetMap public outdoor anchors, and visible Generator Evaluation Mode were approved. On 2026-07-18 controlled variation across all seven experience kinds, separate local Generator Evaluation evidence, and a Founder-only evaluation bench were approved. Application code may implement accepted decisions through ADR-049. Accounts, production synchronization, public generator deployment/authentication, model-authored live claims or routes, new external integrations, or other unrecorded scope still require explicit approval.
 
@@ -46,3 +61,5 @@ ADR-065 additionally approves the Experience Renewal program: Prepare becomes Vo
 ADR-066 additionally approves the scene-first form language, amending the ADR-065 UI hierarchy: the app is a film, not a filing cabinet — opening is one living scene with the lead suggestion woven in, alternatives are at most five swipeable poster scenes with visible "why now", choosing is a ritual that transforms the same scene into Voorpret, the day converges toward one editorial horizon, memories become a photo book, the profile is invisible, and Presence stays phone-away. Cards as containers are eliminated from experience surfaces; chips and text lines remain. Gesture discoverability, reduced-motion fallbacks, and WCAG AA in both appearances are required. The option ceiling, no-feed invariant, and navigation transition are preserved. The current application-code boundary therefore extends through ADR-066. Amended by ADR-067 (crafted density and concrete copy).
 
 ADR-067 additionally approves concept v2 as the build direction after the Founder rejected the scene-first phase-2A implementation and the first static concept: the concrete-copy doctrine (words carry information, imagery carries emotion; poetic and mystical phrasing excluded from UI copy), a crafted-density material vocabulary (frosted panels, match ring, reason tiles, charts, segmented controls, badges, progress bars), a six-surface structure with persistent tab bar (Nu · Dag · Gids · Boek · Jij, with Voorpret as flow state), Jij as a visible insight surface instead of an invisible profile, and a dark premium stage with one living green accent as the primary appearance. The match ring is an explanation of fit, never a score or comparison; the option ceiling, no-feed invariant, and pressure-mechanics exclusion are preserved. The rejected scene-first-now implementation is retired. Rebuild follows phases R1–R5 (Nu+skeleton, Dag, Voorpret, Gids, Boek+Jij), each through its own pull request with Founder approval. The current application-code boundary therefore extends through ADR-067.
+
+ADR-068, approved on 2026-09-02, additionally approves Living World Mode through the separate living-world-briefing-v1 contract. Facts come from source receipts, model wording cites those facts, invalid output falls back honestly, and the existing provider/access/budget boundary remains. Its same-day underway addendum adds bounded step context and per-step caching. Siri/App Intents, non-outside briefings and broader production infrastructure are not approved by this decision. The application-code boundary extends through ADR-068.

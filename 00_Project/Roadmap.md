@@ -1,13 +1,32 @@
 # Momentum Product Roadmap
 
 Status: Operational  
-Version: 1.0
+Version: 1.1
 
 ## Purpose
 
 This roadmap orders product learning. It is not a release-date promise. Each phase reduces a different uncertainty before Momentum earns the right to become more complex.
 
 The four continuous tracks are Philosophy, Experience, Understanding, and Trust. Design and Technology implement them only after their current questions are clear.
+
+## Current work queue — 2026-09-24
+
+This queue applies the existing phases; it does not replace them or approve new scope. The Founder supports the audit improvement direction and requested small bounded steps. [Status](Status.md) records the ADR boundary; [recovery evidence](Recovery_Status_2026-09-24.md) separates local work from release proof.
+
+| Order | Work package | Phase / completion gate |
+|---|---|---|
+| Local repair awaiting review/device evidence | Memory startup read-before-write guard | 5/6: locally tested on 19 September; not merged or shipped. Only the startup guard, not the whole Memory audit item, is addressed. |
+| Now | Reconcile project documents with ADR-068 and actual evidence | 1/4/5: documentation-only reconciliation in this working tree; review required before commit. No ADR amendment or release approval. |
+| Next recommended | Separate clickable design for one local discovery and one indoor workout | 4/9: fictional data, useful no-location/missing-source states, no production changes. Founder reviews the complete journey; ADR-067 changes must be explicitly recorded before app implementation. |
+| Subsequent bounded packages | Remaining Memory durability/deletion, location and source validity, explicit feedback, generator payload/budget/cache/configuration, test coverage and compatible dependency updates | 5/6/7/8: one risk/dependency-led package at a time with regression evidence and rollback plan. Recheck current dependency guidance when executing; old audit versions are not installation instructions. |
+| After design approval and required repairs | Implement the approved journey in small complete slices | 4/9: no new sources, health access or model triggers bundled into UI work. |
+| Before wider use | Native update/data-preservation, accessibility and resume checks; explicit release decision | 6: device/build-specific evidence. A green web export or contract suite is not native or public-release proof. |
+
+**Waiting on explicit scope decisions:** final design amendment (timers, fit display and free-consultation guide); precise personal briefing payload; retention/export policy; budget accounting/enforcement and any paid test; broader distribution or production infrastructure. Do not ask the Founder to reapprove already accepted directions, but do not infer these details from general support for the audits. See [Open Questions](Open_Questions.md#current-decision-gates--2026-09-24).
+
+An isolated design with fictional data need not wait for every release repair. Wider distribution and real-provider testing must still respect the relevant privacy, budget and security gates.
+
+**Reading historical notes:** dated implementation notes below record their original stage, not today's verification status. Later ADRs amend earlier statements: ADR-065 approves native invite repair but does not prove native acceptance works; ADR-067 sets the current five-tab skeleton and visual direction; ADR-068 permits only the receipt-bound outside briefing. Historical test counts do not establish present completeness.
 
 ## Phase 1 — Constitution
 
@@ -26,7 +45,7 @@ The four continuous tracks are Philosophy, Experience, Understanding, and Trust.
 - old PRIMX modules are no longer the product structure;
 - every later feature can be tested against the Constitution.
 
-**Current state:** drafted; awaiting explicit Founder approval.
+**Current state (corrected 2026-09-24):** the document foundation was approved on 2026-07-10, as recorded in [Status](Status.md). The former “awaiting approval” label was stale; specific scope gates remain in force.
 
 ## Phase 2 — Experience
 
@@ -96,7 +115,7 @@ The four continuous tracks are Philosophy, Experience, Understanding, and Trust.
 - Feeling-to-visual language;
 - motion, haptics, typography, color, imagery, and accessibility rules;
 - prototypes for passive and active intent.
-- a four-surface interaction architecture for Now, Today, Discover, and Life Book;
+- interaction architecture: the original four surfaces are historical; ADR-067 sets Nu · Dag · Gids · Boek · Jij, with Voorpret as a flow state;
 - a Today orchestration blueprint and open intent-expression model;
 - an active-intent interaction blueprint covering time entry, adaptive clarification, correction, abstention, and transition into a Capsule;
 - a North Star visual flow for the first active-intent challenge scenario;
@@ -291,4 +310,4 @@ The four continuous tracks are Philosophy, Experience, Understanding, and Trust.
 
 ## Advancement rule
 
-A phase may begin discovery before the prior phase is fully complete, but implementation may not use unresolved foundational questions as silent assumptions. Founder approval is required to lift the no-application-code gate.
+A phase may begin discovery before the prior phase is fully complete, but implementation may not use unresolved questions as silent assumptions. The foundation gate was lifted on 2026-07-10; application work remains limited to the approved boundary in [Status](Status.md). New scope, material amendments, commits, distribution and release require their applicable explicit authorization.

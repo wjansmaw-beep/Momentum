@@ -1,20 +1,32 @@
 # Open Questions
 
 Status: Operational, living document  
-Version: 1.0
+Version: 1.1
+
+## Current decision gates — 2026-09-24
+
+This reconciliation closes stale questions only where an existing approval provides the answer. It does not retrospectively authorize implementation drift. The Founder supports the audit direction; the following concrete boundaries still need to be settled or explicitly recorded before affected work:
+
+- **Design amendment:** translate the requested personal live guide into a reviewed prototype and an explicit ADR-067 amendment for generic countdowns, fit presentation and activity-specific guidance. No automatic broadening of ADR-068 request triggers.
+- **Memory:** retention/export policy and durable photo/deletion behavior; visible recovery when storage cannot be read. The locally tested startup guard is not a complete answer. ADR-026 learning-signal deletion does not establish deletion of Life Book entries or photos.
+- **Briefing privacy:** the implementation's free direction/meaning words are not automatically permitted by ADR-068's narrower payload. Define the exact permitted data before a real-provider test; do not silently legalize the discrepancy through documentation.
+- **Generator operations:** clarify total versus daily/process budget enforcement, hard provider limits, and the exact approval for paid tests. The audit found enforcement gaps; documentation is not proof they are fixed.
+- **Distribution:** choose the intended test audience and safe configuration before widening beyond the existing home-network boundary. Public generator infrastructure remains a separate ADR/release gate.
+
+See [recovery evidence](Recovery_Status_2026-09-24.md) for known gaps and the [roadmap](Roadmap.md#current-work-queue--2026-09-24) for order. These gates do not reopen existing ADR approvals.
 
 ## Generative capsules
 
 - **Resolved for the current prototype:** generation is a candidate source behind schema sanitization, domain validation, comparative ranking, and explicit disclosure. Missing or failed remote generation falls back to local synthesis. See ADR-036.
-- **Partly resolved:** Generator Service v1 uses a local fixture and an optional OpenAI Responses provider with a configurable model. The provider key stays server-side and model storage is disabled. See ADR-037.
-- **Still open:** production hosting, gateway and app-attestation, distributed rate limits, redacted observability, the final model after real evaluation, and whether verified Living World evidence may ever enter a model-facing evidence envelope.
+- **Resolved provider boundary:** ADR-037's initial fixture/OpenAI service is extended by ADR-056 to explicit fixture, OpenAI, Anthropic and Moonshot adapters. Keys remain server-side; no app-provider switch is implied by changing the development assistant.
+- **Still open:** production hosting, gateway and app-attestation, distributed rate limits, redacted observability and the final model after real evaluation. ADR-068 resolves only the narrow receipt-bound outside-briefing evidence envelope; broader evidence or personal data is not authorized by that exception.
 - **Resolved for Founder evaluation:** `Now` may expose one explicit Momentmaker action that opens one newly synthesized candidate as a complete Capsule. Fixture, model, local fallback, and offline states remain visibly distinct. See ADR-047.
 - **Resolved for controlled variety and evaluation:** a bounded non-identifying variation key may select another complete valid Capsule within the same domain and practical context. Optional post-experience generator-quality signals remain local and separate from durable personal learning. See ADR-048.
 - **Resolved for Founder coverage review:** Momentum Lab may explicitly test one experience kind and practical context at a time, opening the ordinary complete Capsule flow and aggregating local quality coverage per kind. The bench never becomes a consumer feed or changes ordinary context and preference. See ADR-049.
 - **Resolved for structured Founder coverage:** a local fourteen-scenario core matrix recommends the next missing context across all seven kinds. Completing it shows prototype coverage only; it does not establish real-user or production-model quality. See ADR-050.
 - **Resolved for local continuity:** an accepted generated Capsule is Guide-composed, structurally audited, stored with an active local session, and preserved with its optional Memory. It does not silently become editorial or live-source truth. See ADR-038.
 - **Resolved for bounded initiative:** opening Momentum may produce one cached contextual candidate from one explicitly chosen domain and minimal practical context. No private free text or location enters that request. Verified environmental evidence may be attached only afterwards by its owning adapter. See ADR-039.
-- **Resolved for deterministic grounding:** source evidence can enrich a generated or editorial Capsule after generation, with visible origin and expiry. Cached data never receives a renewed source window. Model-authored live interpretation remains unapproved. See ADR-040.
+- **Resolved for deterministic grounding:** source evidence can enrich a generated or editorial Capsule after generation, with visible origin and expiry. Cached data never receives a renewed source window (ADR-040). ADR-068 additionally permits outside-only model wording grounded in cited source facts, in Voorpret and bounded underway requests. Invented facts/routes, new sources and broader model interpretation remain unapproved.
 
 ## Resolved direction — personal model (2026-07-12)
 
@@ -40,7 +52,7 @@ Priority labels:
 
 - **Now:** Is Momentum the final product name, a working title, or the name of one stage in the Experience Loop?
 - **Now:** Should the loop stage also be called Momentum if the product keeps that name?
-- **Soon:** What is the initial product language, and which repository documents remain English?
+- **Resolved product language:** Dutch is primary/default under ADR-064; additional languages require deliberate reviewed additions. This repository retains English technical documents and the Founder vault carries Dutch explanations.
 - **Soon:** What single sentence explains Momentum to a first-time user without leading with AI?
 
 ## Primary experience and autonomy
@@ -52,15 +64,15 @@ Priority labels:
 - **Soon:** When may Momentum proactively surface a detected moment, and how does the user control that initiative?
 - **Prototype direction:** `low` local ranking confidence now abstains into one clarification path. The production threshold remains a user-test decision; see ADR-027.
 - **Resolved prototype direction:** Now, Today, and Discover use one deterministic local decision engine with editable mock context and structured reasons. Production thresholds remain a user-test question; see ADR-016.
-- **Soon:** How many alternatives preserve autonomy without becoming a feed?
+- **Resolved bound:** at most five options for one moment (ADR-059, preserved by ADR-067), never a feed. Usability within that bound still needs testing.
 - **Resolved premium direction:** `Now` renders one promise at a time and allows immediate replacement from a finite, precomputed set. The first item remains the best match; no row or endless carousel appears. See ADR-028.
 - **Resolved direction:** Broader exploration is a conscious-choice surface and does not appear as a feed on `Now`; see ADR-012 and its four-surface refinement in ADR-014.
-- **Resolved direction:** The primary product surfaces are `Now`, `Today`, `Discover`, and `Life Book`. Today is a finite day rhythm; Discover supports open intent expression.
+- **Resolved current structure:** ADR-067 amends the original four surfaces to Nu · Dag · Gids · Boek · Jij, with Voorpret as a flow state. The finite day rhythm and intentional discovery remain purposes, not permission for a feed.
 - **Resolved prototype direction:** “Why this fits” shows a concise subset of non-sensitive time, explicit preference and feasibility reasons, labelled by certainty; see `Decisions/ADR-013-explanation-and-situational-decline.md`.
 
 ## Experience Promises and feelings
 
-- **Now:** How should the opening become a personal contextual day line without pretending to know the user's inner state? Decide the permitted context, writing grammar, fallback, variation, user control, and whether “affirmation” is the right product concept. See ADR-055.
+- **Resolved direction:** ADR-059 closes ADR-055's contextual day-line question through deterministic composition and neutral fallback; ADR-061 requires a concrete anchor and ADR-067 requires concrete rather than mystical copy. Quality and tone remain test obligations, not an unresolved permission to invent inner states.
 
 - **Resolved direction:** The first interaction prototype tests calm, energy, surprise, connection, and challenge, plus a transparent “choose for me” path.
 - **Soon:** How is a desired feeling distinguished from an inferred need in language and learning?
@@ -75,13 +87,13 @@ Priority labels:
 - **Prototype direction:** an active Capsule and current step persist locally and return through an explicit resume action; completion is never inferred from the handoff. Native return-state refinement remains open. See ADR-027.
 - **Soon:** Which experiences require safety or accessibility screening before acceptance?
 - **Later:** How should shared or family capsules work when participants have different needs and permissions?
-- **Partly resolved:** preparation can choose company, choose a shared meeting pattern, send a versioned web invitation, accept locally as a guest, survive reload, and be left locally. Prototype links expire after 72 hours. The payload excludes private selection context and live-source claims. Account identity, server-backed token expiry, cross-device revocation, native deep links, remote acceptance, shared progress, participant conflicts, and retention remain open. See ADR-028 and ADR-029.
+- **Partly resolved:** ADR-028/029 define the local web invitation prototype, with 72-hour expiry and no private ranking context in the payload. Native invite repair is approved by ADR-065, but native end-to-end acceptance is not established by the September audit. Account identity, server-backed expiry/revocation, synchronized remote acceptance/progress, participant conflicts and retention remain unresolved; approval of native repair does not authorize a new synchronization service.
 
 ## Memory and learning
 
 - **Soon:** What is the smallest meaningful Memory: feeling, photo, sentence, inferred completion, or a combination?
 - **Soon:** When should reflection appear, and when should Momentum remain silent?
-- **Partly resolved:** the prototype shows plain-language reflection memories and supports individual deletion plus a full learning reset. Pausing and retention still need a final interaction. See ADR-026.
+- **Partly resolved:** ADR-026 provides individual learning-signal deletion and a full learning reset. These are not proof of Life Book entry/photo deletion. Memory durability, retention and recovery gaps remain recorded in the current decision gates above.
 - **Soon:** How long are moment-level signals retained?
 - **Later:** Does a Life view exist, and how can it celebrate lived experience without becoming a performance dashboard?
 
@@ -91,7 +103,7 @@ Priority labels:
 - **Resolved prototype direction:** a sufficiently matched user-confirmed direction may appear as a soft Meaning Thread in Promise, Prepare, and Memory. Weak matches remain absent and no score or obligation is created. See ADR-035.
 - **Resolved direction:** learning can be a source-grounded layer inside place, nature, culture, workout, recipe, and other Capsules. “Read a book” is one possible experience, not the definition of learning.
 - **Soon:** What is the smallest onboarding or later conversation that can invite direction without asking someone to define their life purpose?
-- **Partly resolved:** Profile now supports review, edit, deletion through editing, and pause/resume without a fifth primary surface. Expiry and review timing remain open.
+- **Partly resolved:** direction review/edit and pause/resume remain part of the profile contract; ADR-067 now gives Jij a visible primary surface. Expiry and review timing remain open.
 - **Partly resolved:** deterministic composition may combine current evidence, route contracts, and reviewed experience-kind guidance and is visibly labelled. A future language model may only propose grounded drafts behind the same validation boundary. Model choice, review thresholds, evaluation, and off-device data remain open. See ADR-032.
 - **Partly resolved:** all current composed candidates pass a structural quality gate before ranking and rejected candidates fall back to the approved catalogue. Domain-specific safety, accessibility, dietary, route, and licensing validators remain required before open generative composition. See ADR-033.
 - **Prototype resolved:** representative Capsules use at most three stage-specific guide moments; Presence shows only the current one and deeper content remains explicitly consultable. Field validation may lower this per experience type. See ADR-031.
@@ -140,7 +152,9 @@ Priority labels:
 - **Soon:** Which measurements prove meaningful action without invasive monitoring?
 - **Later:** How can sponsorship exist without corrupting personal recommendation?
 
-## Questions waiting for Founder decision
+## Original foundation checklist — reconciled 2026-09-24
+
+This original checklist is retained as history, not a blanket set of current blockers. Item 1 was resolved by the foundation approval recorded in Status. Existing active-entry and staged prototype approvals remain valid for items 3 and 5 within their ADR boundaries. Item 4's product language is resolved by ADR-064. No new decision on the final product name is inferred. Use the current decision gates above for the immediate work.
 
 1. Approve or amend the document foundation and lift—or retain—the no-application-code gate.
 2. Confirm whether Momentum remains the working product name.

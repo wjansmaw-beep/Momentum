@@ -1,7 +1,13 @@
 # Design Language
 
 Status: Directional, pre-UI  
-Version: 1.0
+Version: 1.1
+
+## Reading this foundation after later amendments — 2026-09-24
+
+The original language below is retained as design history where amended. For current colors, typography, materials, concrete copy and navigation, use [ADR-067](../00_Project/Decisions/ADR-067-crafted-density-concrete-copy.md), with the appearance/accessibility boundaries of [ADR-064](../00_Project/Decisions/ADR-064-evening-tone-expansion-program.md). The original single-family, daylight-only and umber-accent prescriptions below are not instructions to undo those accepted changes. Desire before proof, autonomy, accessible craft and quiet Presence remain governing principles.
+
+The September personal live-guide proposal is a design/amendment track, not a silently accepted replacement specification. See the [current roadmap](../00_Project/Roadmap.md#current-work-queue--2026-09-24).
 
 Momentum should feel like an invitation into life, not a destination on a screen: calm, personal, emotionally compelling, useful at a glance, and quiet once action begins.
 
