@@ -7,7 +7,7 @@ Version: 1.1
 
 This reconciliation closes stale questions only where an existing approval provides the answer. It does not retrospectively authorize implementation drift. The Founder supports the audit direction; the following concrete boundaries still need to be settled or explicitly recorded before affected work:
 
-- **Design amendment:** translate the requested personal live guide into a reviewed prototype and an explicit ADR-067 amendment for generic countdowns, fit presentation and activity-specific guidance. No automatic broadening of ADR-068 request triggers.
+- **Design amendment, partly resolved 2026-09-25:** ADR-069 records the Founder's request to build the first activity-specific slice directly in the app: preparation without a departure countdown, freely consultable outside/handoff guide, optional useful timers and explicit feedback. Nu/Dag hierarchy and fit presentation remain follow-up work. No broadening of ADR-068 request triggers.
 - **Memory:** retention/export policy and durable photo/deletion behavior; visible recovery when storage cannot be read. The locally tested startup guard is not a complete answer. ADR-026 learning-signal deletion does not establish deletion of Life Book entries or photos.
 - **Briefing privacy:** the implementation's free direction/meaning words are not automatically permitted by ADR-068's narrower payload. Define the exact permitted data before a real-provider test; do not silently legalize the discrepancy through documentation.
 - **Generator operations:** clarify total versus daily/process budget enforcement, hard provider limits, and the exact approval for paid tests. The audit found enforcement gaps; documentation is not proof they are fixed.

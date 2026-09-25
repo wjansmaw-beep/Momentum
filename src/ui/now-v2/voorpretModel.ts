@@ -2,6 +2,7 @@ import { Experience } from '../../product/experienceModel';
 import { TransportMode, transportLabels } from '../../product/localIntelligence';
 import { GuideDepth } from '../../guidance/experienceGuide';
 import { WeatherSignal } from '../../liveworld/liveWorld';
+import { experiencePresentation } from './experiencePresentation';
 import {
   beaufort,
   formatClock,
@@ -103,7 +104,7 @@ export function packingRows(experience: Experience, weather: WeatherSignal | und
   const totalMinutes = experience.routePlan
     ? experience.routePlan.outboundMinutes + experience.routePlan.experienceMinutes + experience.routePlan.returnMinutes
     : experience.duration;
-  if (!weather) {
+  if (!weather || !experiencePresentation(experience).outdoorContext) {
     return experience.prepare.map((item) => ({ icon: 'check' as const, title: item }));
   }
   const rows: PackingRow[] = [];

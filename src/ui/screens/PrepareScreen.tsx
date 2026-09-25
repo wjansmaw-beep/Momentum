@@ -27,12 +27,14 @@ import { routingCapability } from '../../routing/routeIntelligence';
 import { colors, palettes, phase, schemeStyles, typography } from '../../design/theme';
 import { impactLight, impactMedium } from '../../design/haptics';
 import { RouteMapPreview } from '../RouteMapPreview';
+import { CoverImage, ImageShade } from '../CoverImage';
 import { ChoiceChip, MeaningThreadCard } from '../primitives';
 import { FlowFrame } from '../frames';
 import { styles } from '../styles/appStyles';
 import { defaultRegion, useApp } from '../../app/store';
 import { RootStackParamList } from '../navigation/types';
-import { formatClock, goldenWindow, resolveSunTimes } from '../now-v2/nowModel';
+import { resolveSunTimes } from '../now-v2/nowModel';
+import { experiencePresentation } from '../now-v2/experiencePresentation';
 import {
   BriefingSentence,
   LivingWorldBriefing,
@@ -40,8 +42,6 @@ import {
   loadLivingWorldBriefing,
 } from '../../liveworld/livingWorldBriefing';
 import {
-  ctaSubline,
-  departureModel,
   journeySegments,
   packingRows,
   weatherRows,
@@ -49,10 +49,10 @@ import {
 
 // Voorpret volgens concept v2 (ADR-067, fase R3 — herbouw van het
 // Prepare-scherm uit ADR-065, fase 1). De v2-scènes leiden: header met terug
-// en momentnaam, de aftelkaart "Vertrek over" met live klok en voortgang naar
-// het gouden uur, daarna "Zo ga je" (routesegmenten uit het routeplan),
+// en momentnaam. ADR-069 vervangt de aftelkaart door een uitnodiging zonder
+// vertrekklok; "Zo ga je" verschijnt alleen bij buiten-/routecontext.
 // "Neem mee" (paklijst uit live weer, met de capsule-lijst als eerlijke
-// fallback) en "Weer onderweg" (huidige meting + zonmodel — geen verzonnen
+// fallback) en "Weer onderweg" (huidige meting — geen verzonnen
 // uurverwachting). De strook "De route van dit moment" toont de staptitels;
 // de Go-CTA start de Gids (het onderweg-scherm, voorheen Presence).
 //
@@ -126,16 +126,16 @@ export function PrepareScreen() {
     const timer = setInterval(() => setNow(new Date()), 30000);
     return () => clearInterval(timer);
   }, []);
-  const weather = liveWorld?.weather;
+  const presentation = experiencePresentation(experience);
+  const weather = presentation.outdoorContext && selectionLocationConfirmed ? liveWorld?.weather : undefined;
   const sun = useMemo(
     () => resolveSunTimes(weather, liveWorld?.coordinates ?? defaultRegion.coordinates, now),
     // Zontijden veranderen per dag, niet per klok-tick — memo op datum + bron.
     [weather?.sunrise, weather?.sunset, liveWorld?.coordinates, now.toDateString()],
   );
-  const departure = departureModel(now, experience.duration, sun, transport);
   const segments = journeySegments(experience, transport);
   const packing = packingRows(experience, weather);
-  const weatherList = weatherRows(now, sun, weather, departure.end);
+  const weatherList = weatherRows(now, sun, weather, now).filter((row) => row.icon === 'thermometer');
 
   // ——— ADR-068 · Levende Wereld-briefing (scope: outside) ———
   // Bij openen van een buiten-Voorpret vraagt de generator-service 2–4
@@ -184,30 +184,25 @@ export function PrepareScreen() {
         </View>
       </View>
 
-      {/* Aftelkaart: vertrektijd uit hetzelfde startmodel als de Nu-CTA;
-          voortgang over het venster van één uur voor vertrek. */}
+      <CoverImage uri={experience.image} style={styles.memoryPreview} imageStyle={styles.memoryImageStyle}>
+        <ImageShade />
+        <Text style={styles.memoryPreviewTitle}>{experience.title}</Text>
+      </CoverImage>
+      {/* ADR-069: dezelfde beleving, zonder kunstmatige vertrekdruk. */}
       <LinearGradient
         colors={[vp.gradientStart as string, vp.gradientEnd as string]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={vp.count}
       >
-        <Text style={vp.countLabel}>Vertrek over</Text>
-        <View style={vp.countBigRow}>
-          <Text style={vp.countBig}>{departure.countdown}</Text>
-          <Text style={vp.countMeta}>{departure.meta}</Text>
-        </View>
-        <View style={vp.countBarTrack}>
-          <View style={[vp.countBarFill, { width: `${Math.round(departure.progress * 100)}%` }]} />
-        </View>
-        <View style={vp.countBarLabels}>
-          <Text style={vp.countBarLabel}>nu · {formatClock(now)}</Text>
-          <Text style={vp.countBarLabel}>{departure.end.getTime() > sun.sunset.getTime() ? `zon onder ${formatClock(sun.sunset)}` : `gouden uur ${formatClock(goldenWindow(sun).peak)}`}</Text>
-        </View>
+        <Text style={vp.countLabel}>{presentation.preparationLabel}</Text>
+        <Text style={vp.headTitle}>{experience.title}</Text>
+        <Text style={vp.rowSub}>{experience.presenceCue}</Text>
+        <Text style={vp.countMeta}>Ongeveer {experience.duration} minuten · jij kiest wanneer</Text>
       </LinearGradient>
 
       {/* Scène: zo ga je — routesegmenten uit het plan, eerlijk zonder plan. */}
-      <View style={vp.card}>
+      {presentation.outdoorContext && <View style={vp.card}>
         <View style={vp.cardHead}>
           <Feather name="map" size={15} color={vp.accentSolid as string} />
           <Text style={vp.cardTitle}>Zo ga je</Text>
@@ -222,7 +217,7 @@ export function PrepareScreen() {
             {segment.trailing ? <Text style={vp.rowTrailing}>{segment.trailing}</Text> : null}
           </View>
         ))}
-      </View>
+      </View>}
 
       {/* Strook: de route van dit moment — staptitels in volgorde, zodat de
           gids onderweg nooit een verrassing is. De routekaart zelf blijft
@@ -230,7 +225,7 @@ export function PrepareScreen() {
       <View style={vp.card}>
         <View style={vp.cardHead}>
           <Feather name="list" size={15} color={vp.accentSolid as string} />
-          <Text style={vp.cardTitle}>De route van dit moment</Text>
+          <Text style={vp.cardTitle}>{presentation.freeGuide ? 'Om te ontdekken' : 'Zo ziet je ervaring eruit'}</Text>
         </View>
         {experience.steps.map((step, index) => (
           <View key={`${step.title}-${index}`} style={[vp.row, index > 0 && vp.rowBorder]}>
@@ -264,7 +259,7 @@ export function PrepareScreen() {
 
       {/* Scène: weer onderweg — huidige meting en zonmodel; geen verzonnen
           uur-voor-uur-verwachting. */}
-      <View style={vp.card}>
+      {weather && <View style={vp.card}>
         <View style={vp.cardHead}>
           <Feather name="sun" size={15} color={vp.accentSolid as string} />
           <Text style={vp.cardTitle}>Weer onderweg</Text>
@@ -279,7 +274,7 @@ export function PrepareScreen() {
             {row.trailing ? <Text style={vp.rowTrailing}>{row.trailing}</Text> : null}
           </View>
         ))}
-      </View>
+      </View>}
 
       {/* ADR-068 · Waarom nu echt: redactionele zinnen bovenop echte feiten,
           elke zin met zichtbare bron-labels. Alleen voor outside; bij laden
@@ -380,13 +375,13 @@ export function PrepareScreen() {
     <View style={styles.stickyActionBar}>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`${company === 'solo' ? 'Ik ga nu' : 'Wij gaan beginnen'} — ${ctaSubline(guideDepth, departure.end)}`}
+        accessibilityLabel={presentation.startLabel}
         onPress={() => { impactMedium(); onStart(company, guideDepth, shared ? { ...shared, coordination } : undefined, transport); }}
         style={({ pressed }) => [vp.cta, pressed && vp.pressed]}
       >
         <View>
-          <Text style={vp.ctaTitle}>{company === 'solo' ? 'Ik ga nu' : 'Wij gaan beginnen'}</Text>
-          <Text style={vp.ctaSub}>{ctaSubline(guideDepth, departure.end)}</Text>
+          <Text style={vp.ctaTitle}>{presentation.startLabel}</Text>
+          <Text style={vp.ctaSub}>Op jouw tempo · telefoon weg wanneer je wilt</Text>
         </View>
         <Feather name="arrow-right" size={20} color={vp.accentInkSolid as string} />
       </Pressable>

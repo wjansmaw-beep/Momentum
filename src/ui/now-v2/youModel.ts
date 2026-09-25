@@ -77,7 +77,7 @@ export function youInsights(personal: PersonalProfile, memories: Memory[]): YouI
     .filter((event) => POSITIVE.includes(event.outcome))
     .forEach((event) => positiveByKind.set(event.kind, (positiveByKind.get(event.kind) ?? 0) + 1));
   personal.reflectionMemories
-    .filter((memory) => POSITIVE.includes(memory.outcome))
+    .filter((memory) => memory.outcome !== undefined && POSITIVE.includes(memory.outcome))
     .forEach((memory) => positiveByKind.set(memory.kind, (positiveByKind.get(memory.kind) ?? 0) + 1));
   const topKind = [...positiveByKind.entries()].sort((a, b) => b[1] - a[1])[0];
   if (topKind && topKind[1] >= 2) {

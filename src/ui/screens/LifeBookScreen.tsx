@@ -94,6 +94,10 @@ export function LifeBookScreen() {
               ))}
             </View>
           </View>
+          {featured.note?.trim() ? <View style={bk.observ}>
+            <Text style={bk.observLabel}>Jouw herinnering</Text>
+            <Text style={bk.observText}>{featured.note}</Text>
+          </View> : null}
           {/* Momentum merkt: een telling over echte data, of de zachte
               observatie uit het leermodel; anders valt de kaart weg. */}
           {observation && <View style={bk.observ}>

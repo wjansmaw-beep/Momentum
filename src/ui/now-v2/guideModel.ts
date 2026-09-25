@@ -108,26 +108,12 @@ export function guideState(
       sub: `gemeld · wind ${beaufort(weather.windSpeed)} bft`,
     });
   }
-  // Verwachte thuiskomst: resterende stapseconden (de huidige stap telt vol,
-  // want een niet-gestarte timer staat nog vooraan) plus de terugweg.
-  const remainingSeconds = experience.steps
-    .slice(stepIndex)
-    .reduce((sum, step) => sum + (step.seconds ?? 0), 0);
-  const returnMinutes = experience.routePlan?.returnMinutes ?? 0;
-  const hasEstimate = remainingSeconds > 0 || returnMinutes > 0;
-  if (hasEstimate) {
-    const home = new Date(now.getTime() + remainingSeconds * 1000 + returnMinutes * 60000);
-    const dark = home.getTime() > sun.sunset.getTime();
-    rows.push({
-      icon: 'clock',
-      title: `Rond ${formatClock(home)} thuis`,
-      sub: dark ? `na zonsondergang (${formatClock(sun.sunset)})` : 'vóór zonsondergang',
-    });
-  }
+  // ADR-069: browsing a topic is not progress along a physical route.
+  // Step durations cannot prove a departure, position or arrival time.
   if (experience.routePlan) {
     rows.push({
       icon: 'home',
-      title: 'Snelste route terug',
+      title: 'Terugweg volgens je plan',
       sub: `vanaf ${experience.routePlan.destinationName}`,
       trailing: `${experience.routePlan.returnMinutes} min`,
     });

@@ -3,7 +3,15 @@
 Status: Active  
 Version: 2.1
 
-## Application-code boundary: approved through ADR-068
+## Application-code boundary: approved through ADR-069
+
+### Founder amendment — 2026-09-25
+
+[ADR-069](Decisions/ADR-069-consultable-guidance-without-countdown-pressure.md)
+records explicit approval to implement the discussed activity-specific guide
+directly in the app instead of a standalone prototype. It amends countdowns,
+consultation and explicit feedback only. The historical design gate below is
+superseded for this bounded slice, not for new sources or public production.
 
 This file is the single source of truth for the current application-code boundary. Every AI coding agent must read it at the start of each session, before proposing or implementing any change. Only the Founder can extend the boundary, through an ADR.
 

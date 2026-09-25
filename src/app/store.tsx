@@ -583,7 +583,7 @@ function useAppStore() {
       title: selected.title,
       date: 'Vandaag',
       image: selected.image,
-      note: input.note || 'Een moment dat de moeite waard was.',
+      note: input.note?.trim() || '',
       sharedWith: completedSession?.shared?.participants.filter((participant) => participant.status === 'ready' && participant.role !== completedSession.shared?.role).map((participant) => participant.name),
       meaning: selected.meaningThread?.label,
       experienceSnapshot: selected,

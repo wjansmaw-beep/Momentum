@@ -26,7 +26,8 @@ import { styles } from '../styles/appStyles';
 import { defaultRegion, useApp } from '../../app/store';
 import { RootStackParamList } from '../navigation/types';
 import { resolveSunTimes } from '../now-v2/nowModel';
-import { guideProgress, guideState } from '../now-v2/guideModel';
+import { guideState } from '../now-v2/guideModel';
+import { experiencePresentation, hasUsefulTimer } from '../now-v2/experiencePresentation';
 import {
   LivingWorldBriefing,
   briefingInterests,
@@ -55,7 +56,7 @@ import { briefingSourceLine } from '../../liveworld/briefingFacts';
 // direct op de opgeslagen stap; de oude hervatkaart-GuideScreen is verdwenen.
 
 export function GuideScreen() {
-  const { selected: experience, personalProfile: personal, activeSession, updatePresenceStep, presenceBack, finishPresence, discardSession, liveWorld, prototypeContext } = useApp();
+  const { selected: experience, personalProfile: personal, activeSession, updatePresenceStep, presenceBack, finishPresence, discardSession, liveWorld, prototypeContext, selectionLocationConfirmed } = useApp();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const company = activeSession?.company ?? personal.defaultCompany;
   const guideDepth = activeSession?.guideDepth ?? 'guide';
@@ -78,6 +79,8 @@ export function GuideScreen() {
   const [stepIndex, setStepIndex] = useState(Math.min(initialStep, Math.max(0, experience.steps.length - 1)));
   const [remaining, setRemaining] = useState(experience.steps[Math.min(initialStep, Math.max(0, experience.steps.length - 1))]?.seconds ?? 0);
   const [timerRunning, setTimerRunning] = useState(false);
+  const [timerChosen, setTimerChosen] = useState(false);
+  const presentation = experiencePresentation(experience);
   const [phoneAway, setPhoneAway] = useState(false);
   const [deepOpen, setDeepOpen] = useState(false);
   const [factsOpen, setFactsOpen] = useState(false);
@@ -92,6 +95,7 @@ export function GuideScreen() {
   useEffect(() => {
     setRemaining(current.seconds ?? 0);
     setTimerRunning(false);
+    setTimerChosen(false);
     onStepChange(stepIndex);
   }, [current.seconds, stepIndex]);
 
@@ -150,13 +154,12 @@ export function GuideScreen() {
     const timer = setInterval(() => setNow(new Date()), 30000);
     return () => clearInterval(timer);
   }, []);
-  const weather = liveWorld?.weather;
+  const weather = presentation.outdoorContext && selectionLocationConfirmed ? liveWorld?.weather : undefined;
   const sun = useMemo(
     () => resolveSunTimes(weather, liveWorld?.coordinates ?? defaultRegion.coordinates, now),
     // Zontijden veranderen per dag, niet per klok-tick — memo op datum + bron.
     [weather?.sunrise, weather?.sunset, liveWorld?.coordinates, now.toDateString()],
   );
-  const progress = guideProgress(now, experience, activeSession, stepIndex);
   const guideInfo = guideState(now, sun, weather, experience, activeSession, stepIndex, guideDepth);
   const activeEvidence = guide.evidence.filter((item) => item.freshness === 'current');
   const observedLabel = (value: string) => {
@@ -185,7 +188,7 @@ export function GuideScreen() {
     return () => { active = false; };
   }, [experience.id, stepIndex, currentStepTitle, liveWorld?.retrievedAt]);
 
-  if (phoneAway) return <FlowFrame statusBar="light"><PhoneAwayView experience={experience} cue={current.title} seconds={current.seconds} remaining={remaining} formatTime={formatTime} shared={shared} onReopen={() => setPhoneAway(false)} /></FlowFrame>;
+  if (phoneAway) return <FlowFrame statusBar="light"><PhoneAwayView experience={experience} cue={current.title} seconds={timerChosen && hasUsefulTimer(experience.kind, current) ? current.seconds : undefined} remaining={remaining} formatTime={formatTime} shared={shared} onReopen={() => setPhoneAway(false)} /></FlowFrame>;
   return (
     <FlowFrame statusBar="light">
     <View style={styles.flowScreen}>
@@ -200,33 +203,40 @@ export function GuideScreen() {
           <Text style={gd.headTitle}>Gids</Text>
           <Text style={gd.headSub} numberOfLines={1}>{experience.duration} min · {company === 'solo' ? 'alleen' : company === 'family' ? 'met gezin' : 'samen'}</Text>
         </View>
-        <Pressable accessibilityRole="button" accessibilityLabel="Open route in Kaarten" onPress={openHandoff} style={gd.iconbtn}>
+        {experience.routePlan && <Pressable accessibilityRole="button" accessibilityLabel="Open route in Kaarten" onPress={openHandoff} style={gd.iconbtn}>
           <Feather name="map-pin" size={16} color={gd.inkSolid as string} />
-        </Pressable>
+        </Pressable>}
       </View>
 
-      {/* De cover draagt de beleving: beeld, serif-titel en voortgang uit
-          echte sessiedata (tijd- en stapgebaseerd — er is geen GPS-tracking,
-          dus nooit een verzonnen kilometerstand). */}
+      {/* ADR-069: de cover draagt de beleving, niet een afgeleide voortgang.
+          Een geraadpleegd onderwerp bewijst geen afgelegde tijd of afstand. */}
       <CoverImage uri={experience.image} style={gd.cover} imageStyle={gd.coverRound}>
         <ImageShade />
         <View style={gd.coverCopy}>
           <Text style={[gd.coverTitle, styles.onImageText]}>{experience.title}</Text>
           <View style={gd.coverProgressRow}>
-            <Text style={[gd.coverProgressValue, styles.onImageText]}>{progress.headline} <Text style={gd.coverProgressSuffix}>{progress.suffix}</Text></Text>
-            <Text style={gd.coverProgressSub}>{progress.sub}</Text>
-          </View>
-          <View style={gd.coverBarTrack}>
-            <View style={[gd.coverBarFill, { width: `${Math.round(progress.fraction * 100)}%` }]} />
+            <Text style={gd.coverProgressSub}>{presentation.freeGuide ? 'Kijk rond. Je gids is er als je hem nodig hebt.' : 'Op jouw tempo. Je hoeft niets af te vinken.'}</Text>
           </View>
         </View>
       </CoverImage>
+
+      <Pressable accessibilityRole="button" accessibilityLabel="Leg de telefoon weg" onPress={() => { impactLight(); setPhoneAway(true); }} style={gd.quietAction}>
+        <Feather name="smartphone" size={16} color={gd.accentSolid as string} />
+        <Text style={gd.quietActionText}>Telefoon weg · terug wanneer jij wilt</Text>
+      </Pressable>
+      {presentation.freeGuide && <View style={gd.card}>
+        <Text style={gd.cardTitle}>Jouw gids · kies wat je wilt raadplegen</Text>
+        {experience.steps.map((step, index) => <Pressable key={index} accessibilityRole="button" accessibilityState={{ selected: index === stepIndex }} onPress={() => { impactLight(); setStepIndex(index); }} style={gd.quietAction}>
+          <Feather name={index === stepIndex ? 'book-open' : 'chevron-right'} size={15} color={gd.accentSolid as string} />
+          <Text style={gd.quietActionText}>{step.title}</Text>
+        </Pressable>)}
+      </View>}
 
       {/* De huidige stap — de enige plek waar de staptekst staat. */}
       <View style={gd.card}>
         <View style={gd.cardHead}>
           <Feather name="compass" size={15} color={gd.accentSolid as string} />
-          <Text style={gd.cardTitle}>{experience.steps.length > 1 ? `Stap ${stepIndex + 1} van ${experience.steps.length}` : experience.presenceMode === 'quiet' ? 'Rustige begeleiding' : 'Onderweg'}</Text>
+          <Text style={gd.cardTitle}>{presentation.freeGuide ? 'Even raadplegen' : experience.steps.length > 1 ? `${experience.kind === 'movement' ? 'Oefening' : 'Stap'} ${stepIndex + 1} van ${experience.steps.length}` : 'Rustige begeleiding'}</Text>
           {experience.steps.length <= 1 ? <Text style={gd.cardHeadRight}>{company === 'solo' ? 'alleen' : company === 'family' ? 'met gezin' : 'samen'}</Text> : null}
         </View>
         {shared && <View style={gd.togetherRow}>
@@ -242,13 +252,13 @@ export function GuideScreen() {
           <Text style={gd.insightBody}>{current.insight?.body}</Text>
           {current.insight?.sourceUrl ? <Pressable accessibilityRole="link" onPress={() => Linking.openURL(current.insight!.sourceUrl!).catch(() => undefined)}><Text style={[gd.insightSource, { color: gd.accentSolid as string }]}>{current.insight.sourceLabel} · Bekijk bron <Ionicons name="open-outline" size={11} color={gd.accentSolid as string} /></Text></Pressable> : <Text style={gd.insightSource}>{current.insight?.sourceKind === 'live' ? 'Actuele bron' : current.insight?.sourceKind === 'curator' ? 'Plaatskennis' : 'Redactioneel'} · {current.insight?.sourceLabel}</Text>}
         </View>}
-        {current.seconds ? (
+        {hasUsefulTimer(experience.kind, current) ? (
           <View style={gd.timerRow}>
             <View style={styles.flex}>
-              <Text style={gd.timerValue}>{formatTime(remaining)}</Text>
-              <Text style={gd.timerUnit}>{remaining === 0 ? 'KLAAR' : timerRunning ? 'LOOPT · JE MAG AL DOOR' : 'KLAAR OM TE STARTEN'}</Text>
+              <Text style={gd.timerValue}>{timerChosen ? formatTime(remaining) : 'Timer als hulpmiddel'}</Text>
+              <Text style={gd.timerUnit}>{!timerChosen ? 'OPTIONEEL' : remaining === 0 ? 'KLAAR' : timerRunning ? 'LOOPT · JE MAG AL DOOR' : 'GEPAUZEERD'}</Text>
             </View>
-            <Pressable accessibilityRole="button" accessibilityLabel={remaining === 0 ? 'Timer afgerond' : timerRunning ? 'Pauzeer timer' : 'Start timer'} accessibilityState={{ disabled: remaining === 0 }} onPress={() => remaining > 0 && setTimerRunning((value) => !value)} style={gd.timerControl}>
+            <Pressable accessibilityRole="button" accessibilityLabel={remaining === 0 ? 'Timer afgerond' : timerRunning ? 'Pauzeer timer' : 'Start timer'} accessibilityState={{ disabled: remaining === 0 }} onPress={() => { if (remaining > 0) { setTimerChosen(true); setTimerRunning((value) => !value); } }} style={gd.timerControl}>
               {remaining === 0 ? <Feather name="check" size={14} color={gd.accentInkSolid as string} /> : <Text style={gd.timerControlText}>{timerRunning ? 'Pauze' : 'Start'}</Text>}
             </Pressable>
           </View>
@@ -256,13 +266,13 @@ export function GuideScreen() {
         {experience.presenceMode === 'handoff' && stepIndex === 0 && <Pressable accessibilityRole="button" onPress={openHandoff} style={gd.quietAction}><Feather name="navigation" size={13} color={gd.accentSolid as string} /><Text style={gd.quietActionText}>Open route in Kaarten</Text></Pressable>}
         {handoffStatus ? <Text style={gd.handoffStatus}>{handoffStatus}</Text> : null}
         <View style={gd.stepNavRow}>
-          {stepIndex > 0 && <Pressable accessibilityRole="button" onPress={() => { impactLight(); setStepIndex((value) => Math.max(0, value - 1)); }} style={gd.stepNavButton}><Text style={gd.stepNavText}>Vorige</Text></Pressable>}
+          {!presentation.freeGuide && stepIndex > 0 && <Pressable accessibilityRole="button" onPress={() => { impactLight(); setStepIndex((value) => Math.max(0, value - 1)); }} style={gd.stepNavButton}><Text style={gd.stepNavText}>Vorige</Text></Pressable>}
           <Pressable
             accessibilityRole="button"
-            onPress={next}
+            onPress={presentation.freeGuide ? onFinish : next}
             style={[gd.stepNavButton, gd.stepNavPrimary]}
           >
-            <Text style={[gd.stepNavText, gd.stepNavPrimaryText]}>{isLast ? 'Ervaring afronden' : 'Volgende stap'}</Text>
+            <Text style={[gd.stepNavText, gd.stepNavPrimaryText]}>{presentation.freeGuide || isLast ? 'Ervaring afronden' : experience.kind === 'movement' ? 'Volgende oefening' : 'Volgende stap'}</Text>
           </Pressable>
         </View>
         <View style={gd.stepToolsRow}>

@@ -26,7 +26,7 @@ export type ReflectionMemory = {
   experienceId: string;
   experienceTitle: string;
   kind: ExperienceKind;
-  outcome: LearningOutcome;
+  outcome?: LearningOutcome;
   learningEventId?: string;
   aspects: ReflectionAspect[];
   mutedInsightTopics: InsightTopic[];
@@ -39,7 +39,7 @@ export type ReflectionMemory = {
 };
 
 export type ReflectionInput = {
-  outcome: LearningOutcome;
+  outcome?: LearningOutcome;
   aspects: ReflectionAspect[];
   note?: string;
   feelings?: string[];
@@ -204,7 +204,7 @@ function rebuildLearning(profile: PersonalProfile, learningEvents: LearningEvent
 const aspectExplanation = (aspects: ReflectionAspect[]) => aspects.map((aspect) => reflectionAspectLabels[aspect].toLowerCase()).join(', ');
 
 export function applyReflection(profile: PersonalProfile, experience: Experience, input: ReflectionInput): PersonalProfile {
-  let next = applyLearning(profile, experience, input.outcome);
+  let next = input.outcome ? applyLearning(profile, experience, input.outcome) : profile;
   const learningEventId = next.learningEvents[0]?.id !== profile.learningEvents[0]?.id ? next.learningEvents[0]?.id : undefined;
   const topics = Array.from(new Set(experience.steps.flatMap((step) => step.insight?.topic ? [step.insight.topic] : [])));
   const muteTopics = input.aspects.includes('topic-not-useful') ? topics : [];

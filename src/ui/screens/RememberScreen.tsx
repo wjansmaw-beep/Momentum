@@ -52,7 +52,7 @@ export function RememberScreen() {
   }), [navigation]);
   const [note, setNote] = useState('');
   const [aspects, setAspects] = useState<ReflectionAspect[]>([]);
-  const [outcome, setOutcome] = useState<LearningOutcome>('worth-it');
+  const [outcome, setOutcome] = useState<LearningOutcome | undefined>(undefined);
   const [feelings, setFeelings] = useState<string[]>([]);
   const [doAgain, setDoAgain] = useState<DoAgain | undefined>(undefined);
   const [photos, setPhotos] = useState<string[]>([]);
@@ -79,11 +79,11 @@ export function RememberScreen() {
       {shared && <View style={styles.sharedMemoryCard}><Text style={styles.expectationLabel}>SAMEN BELEEFD</Text><Text style={styles.sharedMemoryTitle}>{shared.participants.filter((participant) => participant.status === 'ready').map((participant) => participant.name).join(' + ')}</Text><Text style={styles.sharedMemoryBody}>Je bewaart alleen jouw eigen herinnering. De andere deelnemer krijgt geen kopie van jouw reflectie.</Text></View>}
       {experience.meaningThread && <MeaningThreadCard experience={experience} reflective />}
       {meaningThread.length ? <View style={styles.meaningTraceCard}><Text style={styles.expectationLabel}>WAT MISSCHIEN BLEEF HANGEN</Text><Text style={styles.meaningTraceTitle}>{meaningThread.join(' · ')}</Text><Text style={styles.meaningTraceBody}>Je hoeft hier niets over te schrijven. Bewaar alleen wat voor jou werkelijk betekenis had.</Text></View> : null}
-      <Text style={styles.fieldLabel}>HOE WAS DIT VOOR JOU?</Text>
+      <Text style={styles.fieldLabel}>HOE WAS DIT VOOR JOU? · OPTIONEEL</Text>
       <View style={styles.memoryOutcomeRow}>
-        <ChoiceChip label="De moeite waard" selected={outcome === 'worth-it'} onPress={() => setOutcome('worth-it')} />
-        <ChoiceChip label="Neutraal" selected={outcome === 'neutral'} onPress={() => setOutcome('neutral')} />
-        <ChoiceChip label="Paste niet" selected={outcome === 'not-for-me'} onPress={() => setOutcome('not-for-me')} />
+        <ChoiceChip label="De moeite waard" selected={outcome === 'worth-it'} onPress={() => setOutcome(outcome === 'worth-it' ? undefined : 'worth-it')} />
+        <ChoiceChip label="Neutraal" selected={outcome === 'neutral'} onPress={() => setOutcome(outcome === 'neutral' ? undefined : 'neutral')} />
+        <ChoiceChip label="Paste niet" selected={outcome === 'not-for-me'} onPress={() => setOutcome(outcome === 'not-for-me' ? undefined : 'not-for-me')} />
       </View>
       {/* Rijkere reflectie (ADR-061, punt 3): gevoelschips en "opnieuw doen?"
           verrijken de herinnering en het omkeerbare leermodel. Geen scores. */}

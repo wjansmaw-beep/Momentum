@@ -9,7 +9,26 @@ This roadmap orders product learning. It is not a release-date promise. Each pha
 
 The four continuous tracks are Philosophy, Experience, Understanding, and Trust. Design and Technology implement them only after their current questions are clear.
 
-## Current work queue — 2026-09-24
+## Current work queue — 2026-09-25
+
+**Founder update, 25 September:** the Memory guard was committed and published
+to the existing iOS preview (group c7bb7115-a23e-409d-82bc-07be32410f50).
+The Founder reports that it appears to work; this is not comprehensive device
+acceptance. The document reconciliation is also committed. The Founder then
+explicitly replaced the separate prototype with direct app implementation.
+[ADR-069](Decisions/ADR-069-consultable-guidance-without-countdown-pressure.md)
+authorizes the first phase 4/9 slice: relevant preparation, free outside/handoff
+consultation, optional useful timers and a personal memory without an assumed vote.
+This slice is implemented; local evidence is in
+[the delivery report](Guide_Delivery_2026-09-25.md). iPhone acceptance remains open.
+
+**Next:** Founder tries one outside/cycling experience and one indoor workout,
+then address the highest-impact gap in Nu's invitation/context (including
+default place, irrelevant weather, fit score and artificial start time). Do not
+add new sources or a public generator. Remaining Memory retention/deletion and
+privacy/release repairs stay separate bounded packages.
+
+### Historical queue — 24 September (superseded where updated above)
 
 This queue applies the existing phases; it does not replace them or approve new scope. The Founder supports the audit improvement direction and requested small bounded steps. [Status](Status.md) records the ADR boundary; [recovery evidence](Recovery_Status_2026-09-24.md) separates local work from release proof.
 
