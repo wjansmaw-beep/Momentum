@@ -1,6 +1,6 @@
 # Recovery evidence — 24 September 2026
 
-Status: Local working-tree record; not a release approval  
+Status: Local working-tree record; not a release approval
 Version: 1.0
 
 ## Evidence boundary
