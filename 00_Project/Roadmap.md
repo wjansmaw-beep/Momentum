@@ -22,11 +22,18 @@ consultation, optional useful timers and a personal memory without an assumed vo
 This slice is implemented; local evidence is in
 [the delivery report](Guide_Delivery_2026-09-25.md). iPhone acceptance remains open.
 
-**Next:** Founder tries one outside/cycling experience and one indoor workout,
-then address the highest-impact gap in Nu's invitation/context (including
-default place, irrelevant weather, fit score and artificial start time). Do not
-add new sources or a public generator. Remaining Memory retention/deletion and
-privacy/release repairs stay separate bounded packages.
+**Continuation, completed locally 26 September:** the Founder requested the
+proposed Nu repair. ADR-070 replaces the artificial start clock, numerical fit
+and unconfirmed place/weather presentation with a relevant invitation.
+120 tests, scenarios and web export passed; the workout-to-Prepare transition
+was checked in the browser. Native acceptance remains open.
+
+**Next:** Founder checks Nu plus one outside/cycling and one workout flow.
+Then normalize existing weather timestamps at the adapter boundary: the current
+adapter uses timezone-auto local strings without an offset; Nu now withholds
+those ambiguous observations instead of claiming freshness. No new sources or
+public generator. Editorial photograph relevance, remaining Memory durability,
+retention/deletion and privacy/release repairs remain separate bounded packages.
 
 ### Historical queue — 24 September (superseded where updated above)
 

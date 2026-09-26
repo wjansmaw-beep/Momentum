@@ -3,7 +3,14 @@
 Status: Active  
 Version: 2.1
 
-## Application-code boundary: approved through ADR-069
+## Application-code boundary: approved through ADR-070
+
+### Nu continuation — 2026-09-25
+
+[ADR-070](Decisions/ADR-070-truthful-now-invitation.md) records the Founder's
+approval to continue with the proposed Nu invitation repair: no invented
+start time, no numerical fit, activity-relevant explanations and honest
+unconfirmed-location/weather presentation. No ranking or provider expansion.
 
 ### Founder amendment — 2026-09-25
 

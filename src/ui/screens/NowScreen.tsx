@@ -1,7 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Animated,
   ImageStyle,
+  Linking,
   Pressable,
   ScrollView,
   StyleProp,
@@ -14,61 +15,34 @@ import {
 import { Feather } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
-import Reanimated from 'react-native-reanimated';
 import { CommonActions, StackActions, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Experience } from '../../product/experienceModel';
 import { Company } from '../../product/localIntelligence';
 import { palettes, schemeStyles, typography } from '../../design/theme';
 import { impactLight, impactMedium } from '../../design/haptics';
-import { useBreathing, useKenBurns, useStaggeredEntrance } from '../../design/motion';
+import { useKenBurns, useStaggeredEntrance } from '../../design/motion';
 import { CoverImage } from '../CoverImage';
 import { SurfaceFrame } from '../frames';
-import { MatchRing } from '../now-v2/MatchRing';
-import { LightCurve } from '../now-v2/LightCurve';
+import { nowInvitation } from '../now-v2/nowInvitation';
 import {
-  fitPercent,
-  formatClock,
   formatLongDate,
   freshCard,
   freshExcludingSuggestions,
   greetingForHour,
-  heroFacts,
-  lightCurveModel,
-  liveBadge,
-  placeLine,
-  reasonTiles,
-  resolveSunTimes,
-  suggestedStart,
-  whyHeadline,
 } from '../now-v2/nowModel';
-import { defaultRegion, useApp } from '../../app/store';
+import { useApp } from '../../app/store';
 import { RootStackParamList } from '../navigation/types';
 
-// Nu-scherm volgens concept v2 (ADR-067, fase R1 — herbouw van het vroegere
-// Nu-scherm uit ADR-058). Opbouw van boven naar onder: app-balk met begroeting,
-// fotografische hero met live-badge en feitenrij, glaspaneel "Waarom nu" met
-// match-ring (fit-uitleg, geen score), reden-tegels uit live data, licht-curve,
-// gezelschapssegment (Alleen/Samen/Gezin — de bestaande company-refinement),
-// primaire CTA met concrete starttijd, ronde gids-knop en de rustige
-// alternatievenrij (max-5-plafond, ADR-059).
-//
-// Concrete-copy doctrine: woorden dragen informatie (tijden, afstanden, wind,
-// droogte), beelden dragen emotie. Elke regel is een feit uit de live wereld
-// of uit de bestaande ranking; waar geen live bron is, rekent het scherm
-// deterministisch uit zonverloop en zonsondergang (nowModel).
+// ADR-070 preserves ADR-067's crafted materials and finite alternatives,
+// but leads with the experience instead of a score or invented departure.
+// nowInvitation keeps unconfirmed place/weather out of the presentation.
 
 const COMPANY_OPTIONS: Array<{ id: Company; label: string }> = [
   { id: 'solo', label: 'Alleen' },
   { id: 'together', label: 'Samen' },
   { id: 'family', label: 'Gezin' },
 ];
-
-/** Pulserende stip in de live-badge (stil bij reduced-motion, ADR-057). */
-function PulseDot({ color }: { color: string }) {
-  const breath = useBreathing({ period: 2200, scaleTo: 1.35, opacityTo: 0.45 });
-  return <Reanimated.View style={[{ width: 6, height: 6, borderRadius: 3, backgroundColor: color }, breath]} />;
-}
 
 export function NowScreen() {
   const {
@@ -92,7 +66,7 @@ export function NowScreen() {
   const [leadIndex, setLeadIndex] = useState(0);
   const [now, setNow] = useState(() => new Date());
 
-  // De badge, CTA en licht-curve lopen mee met de klok (rustige 30s-tick).
+  // Only greeting/date and source expiry follow the clock; no network polling.
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 30000);
     return () => clearInterval(timer);
@@ -105,24 +79,11 @@ export function NowScreen() {
 
   const lead = nowSuggestions[Math.min(leadIndex, nowSuggestions.length - 1)] ?? nowSuggestions[0];
   const experience: Experience = lead.experience;
-  const decision = lead.decision;
-  const weather = liveWorld?.weather;
-  const region = (liveWorld?.regionLabel ?? defaultRegion.label).split(' proefcontext')[0];
-  // "Van hier"-afstanden alleen als de omgeving echt gekoppeld is; anders de
-  // eerlijke fallback uit de capsule (reistijd of "dichtbij").
-  const here = selectionLocationConfirmed ? liveWorld?.coordinates ?? undefined : undefined;
-  const sun = useMemo(
-    () => resolveSunTimes(weather, liveWorld?.coordinates ?? defaultRegion.coordinates, now),
-    // Zontijden veranderen per dag, niet per klok-tick — memo op datum + bron.
-    [weather?.sunrise, weather?.sunset, liveWorld?.coordinates, now.toDateString()],
-  );
-  const badge = liveBadge(now, sun);
-  const percent = fitPercent(decision.selected?.score);
-  const headline = whyHeadline(now, sun, weather, decision);
-  const tiles = reasonTiles(now, sun, weather, decision, experience.why);
-  const curve = lightCurveModel(now, sun);
-  const start = suggestedStart(now, experience.duration, sun);
-  const facts = heroFacts(experience, weather, here);
+  const invitation = nowInvitation(experience, personalProfile.preferredKinds, selectionLocationConfirmed, liveWorld, now);
+  const facts: Array<{ icon: 'clock' | 'activity'; text: string }> = [
+    { icon: 'clock', text: `ca. ${experience.duration} min` },
+    { icon: 'activity', text: experience.effort.toLowerCase() },
+  ];
   const saved = personalProfile.favoriteExperienceIds.includes(experience.id);
   const others = nowSuggestions.filter((_, index) => index !== leadIndex).slice(0, 4);
   const thumbs = others.slice(0, 3);
@@ -131,7 +92,6 @@ export function NowScreen() {
   // zichtbaar als eigen rustige sectie, minus wat de carrousel al toont.
   const freshExperiences = freshExcludingSuggestions(contextualPrepared, nowSuggestions.map((item) => item.experience));
   const freshCards = freshExperiences.map((item) => ({ experience: item, model: freshCard(item) }));
-  const eveningWord = prototypeContext.dayPart === 'morning' ? 'vanochtend' : prototypeContext.dayPart === 'evening' ? 'vanavond' : 'vanmiddag';
 
   // Entree volgens ADR-057: de lagen verschijnen verspringend (stil bij
   // reduced-motion); Ken Burns op de hero blijft sub-perceptueel (≤4%, ≥8s).
@@ -191,7 +151,7 @@ export function NowScreen() {
           </Pressable>
           <View style={s.who}>
             <Text style={s.hi}>{greetingForHour(now.getHours())}{firstName ? `, ${firstName}` : ''}</Text>
-            <Text style={s.date}>{formatLongDate(now)} · {region}</Text>
+            <Text style={s.date}>{formatLongDate(now)} · {invitation.region}</Text>
           </View>
           <Pressable
             accessibilityRole="button"
@@ -216,8 +176,8 @@ export function NowScreen() {
             />
             <View style={s.heroTop}>
               <View style={s.livePill}>
-                {badge.pulse ? <PulseDot color={s.accent as string} /> : <View style={s.liveStill} />}
-                <Text style={s.liveText}>{badge.label}</Text>
+                <View style={s.liveStill} />
+                <Text style={s.liveText}>{invitation.badge}</Text>
               </View>
               <Pressable
                 accessibilityRole="button"
@@ -232,7 +192,7 @@ export function NowScreen() {
             <View style={s.onphoto}>
               <View style={s.placeRow}>
                 <Feather name="map-pin" size={12} color="rgba(245,244,240,0.85)" />
-                <Text style={s.place}>{placeLine(experience, region, here)}</Text>
+                <Text style={s.place}>{invitation.place}</Text>
               </View>
               <Text style={s.heroTitle}>{experience.title}</Text>
               <View style={s.metaRow}>
@@ -252,39 +212,30 @@ export function NowScreen() {
           <View style={s.panelWrap}>
             <BlurView intensity={22} tint={s.blurTint} style={[s.panelBlur, { backgroundColor: s.glassPanel as string }]}>
               <View style={s.whyhead}>
-                <MatchRing percent={percent} trackColor={s.ringTrack as string} accentColor={s.accent as string}>
-                  <Text style={s.ringValue}>{percent}</Text>
-                  <Text style={s.ringLabel}>match</Text>
-                </MatchRing>
                 <View style={s.whyCopy}>
-                  <Text style={s.seclbl}>Waarom nu</Text>
-                  <Text style={s.headline}>
-                    {headline.map((part, index) => (
-                      <Text key={index} style={part.accent ? s.headlineAccent : undefined}>{part.text}</Text>
-                    ))}
-                  </Text>
+                  <Text style={s.seclbl}>Dit kun je beleven</Text>
+                  <Text style={s.headline}>{invitation.promise}</Text>
                 </View>
               </View>
 
               <View style={s.reasons}>
-                {tiles.map((tile) => (
+                {invitation.tiles.map((tile) => (
                   <View key={`${tile.icon}-${tile.title}`} style={s.reason}>
                     <Feather name={tile.icon} size={15} color={s.accent as string} />
-                    <Text style={s.reasonTitle} numberOfLines={2}>{tile.title}</Text>
-                    {tile.sub ? <Text style={s.reasonSub} numberOfLines={2}>{tile.sub}</Text> : null}
+                    <Text style={s.reasonTitle}>{tile.title}</Text>
+                    <Text style={s.reasonSub}>{tile.sub}</Text>
                   </View>
                 ))}
               </View>
 
-              <View style={s.light}>
-                <View style={s.lightHead}>
-                  <Text style={s.lightTitle}>Licht de komende uren</Text>
-                </View>
-                <LightCurve values={curve.values} peakIndex={curve.peakIndex} accentColor={s.accent as string} fillColor={s.curveFill as string} trackColor={s.ringTrack as string} />
-                <View style={s.hours}>
-                  {curve.hourLabels.map((label) => <Text key={label} style={s.hour}>{label}</Text>)}
-                </View>
-              </View>
+              {invitation.weather && <View style={s.light}>
+                <Text style={s.lightTitle}>Buitencontext · geen garantie voor je hele ervaring</Text>
+                <Text style={s.reasonTitle}>{invitation.weather.text}</Text>
+                <Pressable accessibilityRole="link" accessibilityLabel="Bekijk de weerbron Open-Meteo" onPress={() => Linking.openURL('https://open-meteo.com/').catch(() => undefined)}>
+                  <Text style={s.reasonSub}>{invitation.weather.source} · Bekijk bron</Text>
+                </Pressable>
+              </View>}
+              {invitation.contextNote && <Text style={[s.reasonSub, { marginTop: 12 }]}>{invitation.contextNote}</Text>}
 
               <View style={s.whoSeg}>
                 <Text style={s.seclbl}>Met wie</Text>
@@ -315,13 +266,13 @@ export function NowScreen() {
           <View style={s.ctarow}>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={`Start om ${formatClock(start.start)} — ${start.subline}`}
+              accessibilityLabel={invitation.cta}
               onPress={onStart}
               style={({ pressed }) => [s.cta, pressed && s.pressed]}
             >
-              <View>
-                <Text style={s.ctaTitle}>Start om {formatClock(start.start)}</Text>
-                <Text style={s.ctaSub}>{start.subline}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={s.ctaTitle}>{invitation.cta}</Text>
+                <Text style={s.ctaSub}>Jij kiest wanneer je begint</Text>
               </View>
               <Feather name="arrow-right" size={18} color={s.accentInk as string} />
             </Pressable>
@@ -338,7 +289,7 @@ export function NowScreen() {
         {others.length ? (
           <Animated.View style={entrance[4]}>
             <View style={s.alts}>
-              <Text style={s.altsTitle}>Ook mooi {eveningWord}</Text>
+              <Text style={s.altsTitle}>Liever iets anders</Text>
               <View style={s.thumbs}>
                 {thumbs.map((item, thumbIndex) => {
                   const originalIndex = nowSuggestions.indexOf(item);
@@ -599,9 +550,9 @@ const s = schemeStyles(({ colors }) => {
     headlineAccent: { color: palette.accent, fontWeight: '700' },
     ringValue: { fontSize: 15, fontWeight: '700', letterSpacing: -0.3, color: palette.ink },
     ringLabel: { fontSize: 7.5, letterSpacing: 0.9, color: palette.ink3, textTransform: 'uppercase', fontWeight: '600', marginTop: 1 },
-    reasons: { marginTop: 12, flexDirection: 'row', gap: 8 },
+    reasons: { marginTop: 12, flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
     reason: {
-      flex: 1, backgroundColor: palette.tile, borderWidth: 1, borderColor: palette.line, borderRadius: 16,
+      flexGrow: 1, flexBasis: 110, backgroundColor: palette.tile, borderWidth: 1, borderColor: palette.line, borderRadius: 16,
       paddingHorizontal: 9, paddingTop: 9, paddingBottom: 8, gap: 5, minHeight: 86,
     },
     reasonTitle: { fontSize: 12, fontWeight: '600', letterSpacing: -0.1, color: palette.ink },
