@@ -1,6 +1,6 @@
 # Personal nature pilot delivery
 
-Status: Local verification complete; preview publication and iPhone acceptance pending
+Status: Local verification complete; iOS preview published; iPhone acceptance pending
 Version: 1.0
 Date: 2026-10-02
 
@@ -58,6 +58,20 @@ photograph relevance and remaining Memory/privacy audit items are not solved.
 Existing iOS preview/runtime 0.1.0 is the only intended distribution target.
 Rollback candidate: `b8c885d7-afea-44e4-b4f3-0a06e2e3d470` (previous Nu update).
 No main merge or public production release.
+
+### Verified preview publication — 2026-10-02
+
+- Code commit: `29467e5aa330024fc11974d69b90979a86cb5c0c`, pushed to own branch.
+- iOS export passed; channel/branch `preview`, runtime `0.1.0`.
+- Update group: `db8ef9fa-1ec1-4155-9d97-0459c4999222`.
+- iOS update: `01a0faee-48ae-7431-898b-6b435eead6a8`.
+- Published `2026-10-02T04:45:15.310Z`, confirmed with EAS update:view.
+- Existing untracked local audit exports explain the CLI commit asterisk;
+  tracked application files were clean at publication.
+- Browser deselection also checked: the optional coverage text disappears
+  when both interests are removed. This is not native screen-reader proof.
+
+Publication does not prove delivery to or acceptance on the Founder's phone.
 
 ## Founder iPhone acceptance
 
