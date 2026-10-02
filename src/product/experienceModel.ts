@@ -81,6 +81,7 @@ export type Experience = {
   keywords: string[];
   company: Array<'solo' | 'together' | 'family'>;
   liveEvidence?: LiveEvidence[];
+  natureTopics?: import('../profile/naturePreferences').NatureInterest[];
   routePlan?: RoutePlan;
   placeKnowledge?: {
     title: string;

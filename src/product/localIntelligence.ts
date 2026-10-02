@@ -1,4 +1,5 @@
 import { Experience, ExperienceKind, experiences } from './experienceModel';
+import { NatureInterest, natureInterestLabels } from '../profile/naturePreferences';
 
 export type DayPart = 'morning' | 'midday' | 'afternoon' | 'evening';
 export type PrototypeProfile = 'balanced' | 'explorer' | 'mover' | 'family';
@@ -34,6 +35,7 @@ export type LocalDecision = {
 };
 
 export type PersonalLearningContext = {
+  natureInterests?: NatureInterest[];
   kindAffinity: Partial<Record<ExperienceKind, number>>;
   blockedExperienceIds: string[];
   favoriteExperienceIds: string[];
@@ -98,7 +100,7 @@ export function rankForMoment(context: PrototypeContext, intentText = '', exclud
   const feasible = candidatePool.filter((experience) =>
     !excludedIds.includes(experience.id)
     && !learning?.blockedExperienceIds.includes(experience.id)
-    && experience.duration + 5 <= context.availableMinutes
+    && experience.duration + ((experience.routePlan?.bufferMinutes ?? 0) >= 5 ? 0 : 5) <= context.availableMinutes
     && (!experience.routePlan || experience.routePlan.outboundMinutes <= effectiveTravelCap)
     && equipmentAllowed(experience, context)
     && companyAllowed(experience, context));
@@ -136,6 +138,11 @@ export function rankForMoment(context: PrototypeContext, intentText = '', exclud
       reasons.unshift({ certainty: 'calculated', text: 'de wereld van nu maakt dit moment onderscheidend' });
     }
     if (experience.prepare.length <= 4) score += 5;
+    const natureMatch = learning?.natureInterests?.find((interest) => experience.natureTopics?.includes(interest));
+    if (natureMatch) {
+      score += 18;
+      reasons.unshift({ certainty: 'chosen', text: `${natureInterestLabels[natureMatch]} koos je zelf als interesse` });
+    }
 
     const directionScore = directionFit(experience, learning?.directionTerms ?? []);
     score += directionScore;

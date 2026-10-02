@@ -79,7 +79,7 @@ export function NowScreen() {
 
   const lead = nowSuggestions[Math.min(leadIndex, nowSuggestions.length - 1)] ?? nowSuggestions[0];
   const experience: Experience = lead.experience;
-  const invitation = nowInvitation(experience, personalProfile.preferredKinds, selectionLocationConfirmed, liveWorld, now);
+  const invitation = nowInvitation(experience, personalProfile.preferredKinds, selectionLocationConfirmed, liveWorld, now, personalProfile.natureInterests);
   const facts: Array<{ icon: 'clock' | 'activity'; text: string }> = [
     { icon: 'clock', text: `ca. ${experience.duration} min` },
     { icon: 'activity', text: experience.effort.toLowerCase() },

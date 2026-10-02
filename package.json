@@ -14,7 +14,7 @@
     "test:generator": "node --test \"services/generator/test/*.test.mjs\"",
     "test:affirmation": "node --test tests/affirmation.test.mjs",
     "test:memory-storage": "node --test tests/memoryPersistence.test.mjs",
-    "test:experience": "tsx --test tests/experiencePresentation.test.mjs tests/nowInvitation.test.mjs",
+    "test:experience": "tsx --test tests/experiencePresentation.test.mjs tests/nowInvitation.test.mjs tests/natureDiscovery.test.mjs",
     "test:scenarios": "tsx tests/runContentCatalogScenarios.ts && tsx tests/runPersonalMemoryScenarios.ts",
     "test:app": "npm run typecheck && npm run test:generator && npm run test:affirmation && npm run test:memory-storage && npm run test:experience && npm run test:scenarios",
     "typecheck": "tsc --noEmit"

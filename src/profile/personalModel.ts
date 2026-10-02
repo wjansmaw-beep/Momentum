@@ -1,5 +1,6 @@
 import type { Experience, ExperienceKind, InsightTopic } from '../product/experienceModel';
 import type { Company } from '../product/localIntelligence';
+import { hydrateNatureInterests, NatureInterest } from './naturePreferences';
 
 export type Initiative = 'on-open' | 'day-rhythm' | 'proactive-later';
 export type LearningOutcome = 'not-now' | 'neutral' | 'worth-it' | 'repeat' | 'not-for-me';
@@ -54,6 +55,7 @@ export type PersonalProfile = {
   directions: Record<DirectionHorizon, string[]>;
   pausedDirections: string[];
   preferredKinds: ExperienceKind[];
+  natureInterests: NatureInterest[];
   defaultCompany: Company;
   equipment: { kettlebell: boolean; bike: boolean; car: boolean };
   maxTravelMinutes: number;
@@ -111,7 +113,7 @@ export function defaultPersonalProfile(): PersonalProfile {
     version: 2, onboardingComplete: false, firstName: '', aspiration: '', directions: emptyDirections(), pausedDirections: [], preferredKinds: [], defaultCompany: 'solo',
     equipment: { kettlebell: false, bike: false, car: false }, maxTravelMinutes: 20, initiative: 'day-rhythm', kindAffinity: emptyAffinity(),
     guidanceBalance: 0, durationBiasMinutes: 0, intensityBalance: 0, travelBiasMinutes: 0, mutedInsightTopics: [], mutedInsightExperienceIds: [], blockedExperienceIds: [], favoriteExperienceIds: [],
-    recentExperienceIds: [], learningEvents: [], reflectionMemories: [],
+    recentExperienceIds: [], learningEvents: [], reflectionMemories: [], natureInterests: [],
   };
 }
 
@@ -124,6 +126,7 @@ export function hydratePersonalProfile(value: unknown): PersonalProfile {
     ...base,
     ...stored,
     version: 2,
+    natureInterests: hydrateNatureInterests(stored.natureInterests),
     equipment: { ...base.equipment, ...(stored.equipment ?? {}) },
     kindAffinity: { ...base.kindAffinity, ...(stored.kindAffinity ?? {}) },
     directions: {

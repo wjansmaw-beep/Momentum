@@ -3,7 +3,20 @@
 Status: Operational, living document  
 Version: 1.1
 
-## Current decision gates — 2026-09-24
+## Nature pilot follow-up — 2026-10-02
+
+ADR-071 records approval for explicit birdwatching/nature photography interests
+and concrete proposals from existing sources. A broad source programme is not
+approved by that slice. Real eBird activation remains blocked by the legacy
+public client-token path and insufficient public-access/sensitivity verification;
+no token was configured. A secure source contract needs Founder approval.
+
+The existing weather adapter now requests Unix instants and normalizes to UTC;
+ambiguous old cache cannot qualify as current outdoor-opportunity weather.
+This addresses the adapter gap below, not every historical weather consumer.
+Device behavior and real source coverage remain to be checked.
+
+## Previous decision gates — 2026-09-24
 
 This reconciliation closes stale questions only where an existing approval provides the answer. It does not retrospectively authorize implementation drift. The Founder supports the audit direction; the following concrete boundaries still need to be settled or explicitly recorded before affected work:
 

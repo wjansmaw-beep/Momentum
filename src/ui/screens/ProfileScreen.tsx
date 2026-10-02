@@ -18,6 +18,7 @@ import {
   initiativeLabels,
 } from '../../profile/personalModel';
 import { futureSourceRegistry } from '../../liveworld/liveWorld';
+import { NatureInterest, natureInterestLabels } from '../../profile/naturePreferences';
 import { livingWorldSourceRegistry } from '../../liveworld/sourceRegistry';
 import { formatWindow } from '../../context/calendarContext';
 import { routingCapability } from '../../routing/routeIntelligence';
@@ -111,7 +112,7 @@ export function ProfileScreen() {
   const nextCompany = companies.find((item) => item.id === nextEvaluation.company)?.label ?? nextEvaluation.company;
 
   // ——— Concept v2: identiteit, inzichten, weekritme en voorkeuren uit echte data.
-  const region = (liveWorld?.regionLabel ?? (locationConfirmed ? defaultRegion.label : undefined))?.split(' proefcontext')[0];
+  const region = locationConfirmed ? liveWorld?.regionLabel?.split(' proefcontext')[0] : undefined;
   const identity = identityLine(personal, region, memories);
   const insights = youInsights(personal, memories);
   const rhythm = weekRhythm(personal, new Date());
@@ -203,6 +204,10 @@ export function ProfileScreen() {
     </>}
 
     {regieOpen === 'richting' && <>
+      <Text style={styles.fieldLabel}>WAT TREKT JE NAAR BUITEN?</Text>
+      <Text style={styles.screenSubtitle}>Kies alleen wat je aanspreekt. Dit weegt lokaal mee bij passende plekken; tik opnieuw om te verwijderen.</Text>
+      <View style={styles.chipRow}>{(Object.keys(natureInterestLabels) as NatureInterest[]).map((interest) => <ChoiceChip key={interest} label={natureInterestLabels[interest]} selected={personal.natureInterests.includes(interest)} onPress={() => onPersonalChange({ ...personal, natureInterests: personal.natureInterests.includes(interest) ? personal.natureInterests.filter((item) => item !== interest) : [...personal.natureInterests, interest] })} />)}</View>
+      {personal.natureInterests.length > 0 && <Text style={styles.sourcePrivacy}>{!locationConfirmed ? 'Kies eerst je omgeving bij koppelingen voor plaatsgebonden voorstellen.' : 'Voorstellen hangen af van beschikbare bronnen, weer en je tijd.'} {personal.natureInterests.includes('birds') && (liveWorld?.sources.some((source) => source.id === 'ebird' && source.state === 'live') ? 'Alleen recente meldingen met bevestigde openbare locatie kunnen een voorstel worden; een melding garandeert geen vogel.' : 'Recente vogelmeldingen zijn niet beschikbaar. Momentum verzint geen waarnemingen.')}</Text>}
       <Text style={styles.screenSubtitle}>Jouw woorden sturen zachtjes mee — nooit als opdracht of score.</Text>
       {(Object.keys(directionLabels) as Array<keyof typeof directionLabels>).map((horizon) => <DirectionEditor key={horizon} horizon={horizon} values={personal.directions[horizon]} paused={personal.pausedDirections} onTogglePause={(value) => onPersonalChange({ ...personal, pausedDirections: personal.pausedDirections.includes(value) ? personal.pausedDirections.filter((item) => item !== value) : [...personal.pausedDirections, value] })} onSave={(values) => onPersonalChange({ ...personal, directions: { ...personal.directions, [horizon]: values }, pausedDirections: personal.pausedDirections.filter((item) => values.includes(item) || Object.entries(personal.directions).some(([key, entries]) => key !== horizon && entries.includes(item))) })} />)}
       <Text style={styles.fieldLabel}>ZELF GEKOZEN VOORKEUREN</Text>

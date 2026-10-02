@@ -1,5 +1,6 @@
 import { byId, Experience, LiveEvidence, RoutePlan } from '../product/experienceModel';
 import { PrototypeContext } from '../product/localIntelligence';
+import { unixSecondsToIso } from './sourceTime';
 
 declare const process: { env: { EXPO_PUBLIC_EBIRD_API_KEY?: string } };
 
@@ -26,6 +27,7 @@ export type BirdObservation = {
   locationName: string;
   locationId: string;
   publicLocation: boolean;
+  publicLocationBasis?: 'explicit-source-flag';
 };
 
 export type MarineSignal = {
@@ -79,8 +81,8 @@ export type LiveWorldSnapshot = {
 const snapshotFresh = (snapshot: LiveWorldSnapshot, maxMinutes: number) => Date.now() - new Date(snapshot.retrievedAt).getTime() <= maxMinutes * 60000;
 
 type OpenMeteoResponse = {
-  current?: { time: string; temperature_2m: number; wind_speed_10m: number; visibility: number; weather_code: number };
-  daily?: { sunrise?: string[]; sunset?: string[] };
+  current?: { time: number; temperature_2m: number; wind_speed_10m: number; visibility: number; weather_code: number };
+  daily?: { sunrise?: number[]; sunset?: number[] };
 };
 
 type EbirdObservation = {
@@ -127,21 +129,23 @@ async function loadWeather(coordinates: Coordinates): Promise<{ signal?: Weather
   const params = new URLSearchParams({
     latitude: String(coordinates.latitude), longitude: String(coordinates.longitude),
     current: 'temperature_2m,wind_speed_10m,visibility,weather_code',
-    daily: 'sunrise,sunset', timezone: 'auto', forecast_days: '1',
+    daily: 'sunrise,sunset', timezone: 'auto', forecast_days: '1', timeformat: 'unixtime',
   });
   const url = `https://api.open-meteo.com/v1/forecast?${params.toString()}`;
   try {
     const response = await safeFetch(url);
     const data = await response.json() as OpenMeteoResponse;
     if (!data.current) throw new Error('Geen actuele velden');
+    const observedAt = unixSecondsToIso(data.current.time);
+    if (!observedAt) throw new Error('Geen eenduidige weertijd');
     return {
       signal: {
         temperature: data.current.temperature_2m,
         windSpeed: data.current.wind_speed_10m,
         visibilityMeters: data.current.visibility,
         weatherCode: data.current.weather_code,
-        sunrise: data.daily?.sunrise?.[0] ?? '', sunset: data.daily?.sunset?.[0] ?? '',
-        observedAt: data.current.time,
+        sunrise: unixSecondsToIso(data.daily?.sunrise?.[0]), sunset: unixSecondsToIso(data.daily?.sunset?.[0]),
+        observedAt,
       },
       receipt: { id: 'open-meteo', name: 'Open-Meteo', state: 'live', detail: 'Weer, zicht en licht opgehaald', url: 'https://open-meteo.com/' },
     };
@@ -163,7 +167,8 @@ async function loadBirds(coordinates: Coordinates): Promise<{ observations: Bird
       return [{
         commonName: item.comName, scientificName: item.sciName, observedAt: item.obsDt,
         latitude: item.lat, longitude: item.lng, locationName: item.locName, locationId: item.locId,
-        publicLocation: item.locationPrivate !== true && item.locId.startsWith('L'),
+        publicLocation: item.locationPrivate === false,
+        publicLocationBasis: item.locationPrivate === false ? 'explicit-source-flag' : undefined,
       }];
     });
     return { observations, receipt: { id: 'ebird', name: 'eBird', state: 'live', detail: `${observations.length} recente openbare meldingen beoordeeld`, url: 'https://ebird.org/' } };

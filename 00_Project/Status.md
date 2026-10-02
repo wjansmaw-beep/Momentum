@@ -3,7 +3,14 @@
 Status: Active  
 Version: 2.1
 
-## Application-code boundary: approved through ADR-070
+## Application-code boundary: approved through ADR-071
+
+### Nature pilot — 2026-10-01
+
+[ADR-071](Decisions/ADR-071-personal-nature-pilot.md) records the approved
+bounded nature/photography profile-to-opportunity slice. No new sources,
+public backend, health data or paid model tests. Bird-source activation
+requires its own secure delivery and public-location verification.
 
 ### Nu continuation — 2026-09-25
 

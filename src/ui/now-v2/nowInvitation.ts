@@ -2,6 +2,7 @@ import type { Experience, ExperienceKind } from '../../product/experienceModel';
 import type { LiveWorldSnapshot } from '../../liveworld/liveWorld';
 import { experiencePresentation } from './experiencePresentation';
 import { beaufort, formatClock, isDryCode, precipWord } from './nowModel';
+import { NatureInterest, natureInterestLabels } from '../../profile/naturePreferences';
 
 const names: Record<ExperienceKind, string> = {
   outside: 'Buiten ontdekken', movement: 'Bewegen', food: 'Koken & voeding',
@@ -16,6 +17,7 @@ export function nowInvitation(
   locationConfirmed: boolean,
   snapshot: LiveWorldSnapshot | null | undefined,
   now: Date,
+  natureInterests: NatureInterest[] = [],
 ) {
   const outdoor = experiencePresentation(experience).outdoorContext;
   const region = locationConfirmed ? snapshot?.regionLabel?.replace(/ proefcontext.*$/i, '').trim() : undefined;
@@ -36,7 +38,12 @@ export function nowInvitation(
     { icon: 'clock', title: `Ongeveer ${experience.duration} min`, sub: 'Duur van dit voorstel' },
     { icon: 'activity', title: experience.effort, sub: 'Beschreven inspanning' },
   ];
-  if (preferredKinds.includes(experience.kind)) {
+  const route = locationConfirmed ? experience.routePlan : undefined;
+  if (route) tiles[1] = { icon: 'activity', title: `Circa ${route.outboundMinutes} min ${route.mode === 'cycling' ? 'fietsen' : 'lopen'} heen`, sub: `Schatting, geen routecheck · ${route.experienceMinutes} min ter plekke · ${route.returnMinutes} min terug · ${route.bufferMinutes} min buffer` };
+  const natureMatch = natureInterests.find((interest) => experience.natureTopics?.includes(interest));
+  if (natureMatch) {
+    tiles.push({ icon: 'check', title: natureInterestLabels[natureMatch], sub: 'Een door jou gekozen interesse' });
+  } else if (preferredKinds.includes(experience.kind)) {
     tiles.push({ icon: 'check', title: names[experience.kind], sub: 'Een door jou gekozen interesse' });
   }
   return {

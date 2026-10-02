@@ -272,8 +272,8 @@ function useAppStore() {
     ? { ...prototypeContext, availableMinutes: Math.max(15, Math.min(120, calendarContext.currentFreeMinutes)) }
     : prototypeContext, [calendarContext.currentFreeMinutes, calendarContext.state, prototypeContext]);
   const opportunityResult = useMemo<OpportunityEngineResult>(() => liveWorld && selectionLocationConfirmed
-    ? composeLivingWorldOpportunities(liveWorld, effectiveContext, { maxTravelMinutes: personalProfile.maxTravelMinutes, bike: personalProfile.equipment.bike })
-    : { ready: [], withheld: [], considered: 0, sourceLabel: 'Globale omgeving niet gekoppeld', sourceMix: [], perspectiveCount: 0, knowledgeCount: 0 }, [effectiveContext, liveWorld, personalProfile.equipment.bike, personalProfile.maxTravelMinutes, selectionLocationConfirmed]);
+    ? composeLivingWorldOpportunities(liveWorld, effectiveContext, { maxTravelMinutes: personalProfile.maxTravelMinutes, bike: personalProfile.equipment.bike, natureInterests: personalProfile.natureInterests })
+    : { ready: [], withheld: [], considered: 0, sourceLabel: 'Globale omgeving niet gekoppeld', sourceMix: [], perspectiveCount: 0, knowledgeCount: 0 }, [effectiveContext, liveWorld, personalProfile.equipment.bike, personalProfile.maxTravelMinutes, personalProfile.natureInterests, selectionLocationConfirmed]);
   const liveExperiences = useMemo(() => opportunityResult.ready.map((opportunity) => composeGuideMoments(opportunityToExperience(opportunity))), [opportunityResult]);
   const contentCatalog = useMemo(() => resolveContentCatalog(createWorldContext(liveWorld?.coordinates ?? defaultRegion.coordinates, new Date(), 'nl', selectionLocationConfirmed)), [liveWorld?.coordinates, selectionLocationConfirmed]);
   const guidedCatalogExperiences = useMemo(() => contentCatalog.experiences.map((item) => composeGuideMoments(item)), [contentCatalog.experiences]);
@@ -291,6 +291,7 @@ function useAppStore() {
   const candidatePool = compositionAudit.accepted.length ? compositionAudit.accepted : baseCandidatePool;
   const learningContext = useMemo<PersonalLearningContext>(() => ({
     kindAffinity: personalProfile.kindAffinity,
+    natureInterests: personalProfile.natureInterests,
     blockedExperienceIds: personalProfile.blockedExperienceIds,
     favoriteExperienceIds: personalProfile.favoriteExperienceIds,
     recentExperienceIds: personalProfile.recentExperienceIds,

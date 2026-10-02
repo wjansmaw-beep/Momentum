@@ -9,7 +9,24 @@ This roadmap orders product learning. It is not a release-date promise. Each pha
 
 The four continuous tracks are Philosophy, Experience, Understanding, and Trust. Design and Technology implement them only after their current questions are clear.
 
-## Current work queue — 2026-09-25
+## Current work queue — 2026-10-02
+
+**Active delivery — personal nature pilot (ADR-071):** the Founder prioritized
+concrete source-grounded experiences and richer explicit interests. The first
+phase 3/8/9 slice connects birdwatching/nature photography choices to the
+existing opportunity pipeline; no new external source is activated. Existing
+weather timestamps are normalized and stale/public-location guards tightened.
+Local verification and device acceptance are recorded in
+[the delivery report](Nature_Pilot_Delivery_2026-10-02.md).
+
+**Next:** iPhone acceptance of reversible profile choices and a real nearby
+park/viewpoint when source coverage permits. Then propose the smallest secure
+bird-source delivery contract, including public-location/sensitivity evidence,
+source licensing and key handling, before implementing any backend. Broad
+source coverage, full profile renewal and golden-hour/wildlife promises are
+not delivered by this pilot. Earlier native checks remain open.
+
+### Previous queue — 2026-09-25
 
 **Founder update, 25 September:** the Memory guard was committed and published
 to the existing iOS preview (group c7bb7115-a23e-409d-82bc-07be32410f50).

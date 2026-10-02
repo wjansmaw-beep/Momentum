@@ -2,6 +2,8 @@ import { byId, Experience, LiveEvidence, RoutePlan } from '../product/experience
 import { PrototypeContext } from '../product/localIntelligence';
 import { routingCapability } from '../routing/routeIntelligence';
 import { BirdObservation, Coordinates, LiveWorldSnapshot, NearbyPlace, PlaceKnowledge } from './liveWorld';
+import { NatureInterest } from '../profile/naturePreferences';
+import { isCurrentInstant, recentBirdDate } from './sourceTime';
 
 export type OpportunityKind = 'recent-nature' | 'open-place';
 export type OpportunityStatus = 'ready' | 'withheld';
@@ -22,6 +24,7 @@ export type LivingWorldOpportunity = {
   knowledge?: PlaceKnowledge;
   reasons: string[];
   guards: string[];
+  natureTopics?: NatureInterest[];
 };
 
 export type OpportunityEngineResult = {
@@ -51,6 +54,11 @@ const closestKnowledge = (destination: Coordinates, snapshot: LiveWorldSnapshot,
   .filter((item) => item.distance <= maxDistanceMeters)
   .sort((a, b) => a.distance - b.distance)[0]?.knowledge;
 const weatherSuitableForOutside = (snapshot: LiveWorldSnapshot) => Boolean(snapshot.weather
+  && snapshot.sources.some((source) => source.id === 'open-meteo' && source.state === 'live')
+  && isCurrentInstant(snapshot.weather.observedAt, Date.now())
+  && Number.isFinite(snapshot.weather.temperature)
+  && Number.isFinite(snapshot.weather.weatherCode)
+  && snapshot.weather.windSpeed >= 0
   && snapshot.weather.windSpeed <= 35
   && snapshot.weather.visibilityMeters >= 3000
   && ![65, 66, 67, 75, 77, 82, 85, 86, 95, 96, 99].includes(snapshot.weather.weatherCode)
@@ -58,10 +66,12 @@ const weatherSuitableForOutside = (snapshot: LiveWorldSnapshot) => Boolean(snaps
 const weatherEvidence = (snapshot: LiveWorldSnapshot): LiveEvidence | undefined => snapshot.weather ? {
   label: `${Math.round(snapshot.weather.temperature)}°C · wind ${Math.round(snapshot.weather.windSpeed)} km/u · zicht ${Math.round(snapshot.weather.visibilityMeters / 1000)} km`,
   sourceName: 'Open-Meteo', sourceUrl: 'https://open-meteo.com/', observedAt: snapshot.weather.observedAt, retrievedAt: snapshot.retrievedAt,
-  expiresAt: expiresAfter(snapshot.retrievedAt, 2), certainty: 'forecast',
+  expiresAt: earliestExpiry(expiresAfter(snapshot.retrievedAt, 2), expiresAfter(snapshot.weather.observedAt, 2)), certainty: 'forecast',
 } : undefined;
 
 const routeFor = (source: Coordinates, destination: Coordinates, destinationName: string, availableMinutes: number, maxTravelMinutes: number, bike: boolean, sourceLabel: string, expiresAt: string, guard: string): RoutePlan | undefined => {
+  const validCoordinates = (point: Coordinates) => Number.isFinite(point.latitude) && Math.abs(point.latitude) <= 90 && Number.isFinite(point.longitude) && Math.abs(point.longitude) <= 180;
+  if (!validCoordinates(source) || !validCoordinates(destination) || !Number.isFinite(availableMinutes) || !Number.isFinite(maxTravelMinutes)) return undefined;
   const directKm = distanceKm(source, destination);
   const mode: RoutePlan['mode'] = bike && directKm > 1.8 ? 'cycling' : 'walking';
   const roadFactor = 1.28;
@@ -79,8 +89,10 @@ const routeFor = (source: Coordinates, destination: Coordinates, destinationName
 };
 
 const birdOpportunity = (bird: BirdObservation, snapshot: LiveWorldSnapshot, context: PrototypeContext, maxTravelMinutes: number, bike: boolean): LivingWorldOpportunity | { id: string; reason: string } => {
-  const id = `opportunity-bird-${bird.locationId}`;
-  if (!bird.publicLocation) return { id, reason: 'Geen openbare bronlocatie.' };
+  const id = `opportunity-bird-${bird.locationId}-${bird.scientificName}`;
+  if (!bird.publicLocation || bird.publicLocationBasis !== 'explicit-source-flag') return { id, reason: 'Geen bevestigde openbare bronlocatie.' };
+  const reportDate = recentBirdDate(bird.observedAt, Date.now());
+  if (!reportDate || !snapshot.sources.some((source) => source.id === 'ebird' && source.state === 'live')) return { id, reason: 'Geen recente melding uit een beschikbare vogelbron.' };
   if (snapshot.weather && !weatherSuitableForOutside(snapshot)) return { id, reason: 'De actuele buitencondities zijn niet sterk genoeg voor dit natuurvoorstel.' };
   const expiresAt = expiresAfter(snapshot.retrievedAt, 12);
   if (Date.parse(expiresAt) <= Date.now()) return { id, reason: 'Het waarnemingsvenster is verlopen.' };
@@ -91,12 +103,13 @@ const birdOpportunity = (bird: BirdObservation, snapshot: LiveWorldSnapshot, con
   const route = routeFor(snapshot.coordinates, destination, bird.locationName, context.availableMinutes, maxTravelMinutes, bike, currentWeather ? 'eBird + Open-Meteo' : 'eBird openbare bronlocatie', opportunityExpiry, guard);
   if (!route) return { id, reason: 'De heenweg, beleving, terugweg en buffer passen niet verantwoord binnen dit moment.' };
   route.arrivalPlan = { kind: 'open-observation', label: 'Open observatieronde', durationMinutes: route.experienceMinutes, radiusMeters: Math.min(900, route.experienceMinutes * 20), instruction: 'Gebruik de openbare bronlocatie als anker. Kies ter plaatse alleen toegestane paden en maak een rustige lus zonder een dier te achtervolgen.', returnTrigger: `Keer na uiterlijk ${route.experienceMinutes} minuten terug naar het ankerpunt.` };
-  const evidence: LiveEvidence = { label: `${bird.commonName} gemeld bij ${bird.locationName}`, sourceName: 'eBird', sourceUrl: 'https://ebird.org/', observedAt: bird.observedAt, retrievedAt: snapshot.retrievedAt, expiresAt, certainty: 'observation' };
+  const evidence: LiveEvidence = { label: `${bird.commonName} gemeld bij ${bird.locationName} op ${reportDate}`, sourceName: 'eBird', sourceUrl: 'https://ebird.org/', observedAt: bird.observedAt, retrievedAt: snapshot.retrievedAt, expiresAt, certainty: 'observation' };
   const knowledge = closestKnowledge(destination, snapshot);
   return {
-    id, kind: 'recent-nature', status: 'ready', score: 92 - route.outboundMinutes, title: `Naar het landschap van de ${bird.commonName.toLowerCase()}`,
-    promise: `Een recente openbare melding geeft richting aan een wandeling; het landschap blijft het doel, ook wanneer de vogel alweer weg is.`,
-    wonder: `${bird.locationName} is nu haalbaar binnen je tijd. Kijk breed naar lucht, water en land in plaats van één waarneming na te jagen.`,
+    id, kind: 'recent-nature', status: 'ready', score: 92 - route.outboundMinutes, title: `Vogels kijken bij ${bird.locationName}`,
+    natureTopics: ['birds'],
+    promise: `Ga vogels kijken bij ${bird.locationName}; op ${reportDate} werd hier ${bird.commonName} gemeld.`,
+    wonder: `eBird meldt ${bird.commonName} bij ${bird.locationName} op ${reportDate}. Neem je verrekijker mee als je die hebt. De vogel kan alweer weg zijn; blijf op openbare paden.`,
     destinationName: bird.locationName, destination, experienceKind: 'outside', route, evidence: [evidence, ...(currentWeather ? [currentWeather] : [])], knowledge,
     reasons: ['Recente openbare natuurwaarneming', `Conservatieve ${route.mode === 'cycling' ? 'fiets-' : 'wandel'}inschatting past met terugkeerbuffer`, 'De ervaring blijft waardevol zonder waarneming'],
     guards: [guard, 'Waarneming is geen garantie voor huidige aanwezigheid.'],
@@ -107,6 +120,7 @@ const placeKind = (place: NearbyPlace): Experience['kind'] => place.kind === 'ca
 
 const placeOpportunity = (place: NearbyPlace, snapshot: LiveWorldSnapshot, context: PrototypeContext, maxTravelMinutes: number, bike: boolean): LivingWorldOpportunity | { id: string; reason: string } => {
   const id = `opportunity-place-${place.id}`;
+  if (!snapshot.sources.some((source) => source.id === 'openstreetmap-places' && source.state === 'live')) return { id, reason: 'De plaatsbron is niet actueel beschikbaar.' };
   const outdoorLead = place.accessBasis === 'public-outdoor-lead';
   if (place.openingState === 'closed' || (!outdoorLead && place.openingState !== 'open')) return { id, reason: place.openingState === 'closed' ? 'Volgens eenvoudige openbare tijden gesloten.' : 'Opening of toegang is niet betrouwbaar genoeg.' };
   const expiresAt = expiresAfter(snapshot.retrievedAt, 6);
@@ -136,14 +150,25 @@ const placeOpportunity = (place: NearbyPlace, snapshot: LiveWorldSnapshot, conte
   };
 };
 
-export function composeLivingWorldOpportunities(snapshot: LiveWorldSnapshot, context: PrototypeContext, options: { maxTravelMinutes: number; bike: boolean }): OpportunityEngineResult {
+export function composeLivingWorldOpportunities(snapshot: LiveWorldSnapshot, context: PrototypeContext, options: { maxTravelMinutes: number; bike: boolean; natureInterests?: NatureInterest[] }): OpportunityEngineResult {
   const age = Date.now() - Date.parse(snapshot.retrievedAt);
-  if (!Number.isFinite(age) || age > 2 * 3600000) return { ready: [], withheld: [{ id: 'snapshot', reason: 'De regionale bronset is te oud voor nieuwe kansen.' }], considered: 0, sourceLabel: 'Living World verlopen', sourceMix: [], perspectiveCount: 0, knowledgeCount: 0 };
+  if (!Number.isFinite(age) || age < 0 || age >= 2 * 3600000) return { ready: [], withheld: [{ id: 'snapshot', reason: 'De regionale bronset heeft geen actueel tijdvenster.' }], considered: 0, sourceLabel: 'Living World verlopen', sourceMix: [], perspectiveCount: 0, knowledgeCount: 0 };
   const raw = [
     ...snapshot.birdObservations.slice(0, 8).map((bird) => birdOpportunity(bird, snapshot, context, options.maxTravelMinutes, options.bike)),
     ...snapshot.nearbyPlaces.slice(0, 15).map((place) => placeOpportunity(place, snapshot, context, options.maxTravelMinutes, options.bike)),
   ];
-  const sorted = raw.filter((item): item is LivingWorldOpportunity => 'status' in item).sort((a, b) => b.score - a.score);
+  const sorted = raw.filter((item): item is LivingWorldOpportunity => 'status' in item).map((item) => {
+    const place = snapshot.nearbyPlaces.find((candidate) => `opportunity-place-${candidate.id}` === item.id);
+    if (options.natureInterests?.includes('nature-photo') && place && ['park', 'viewpoint'].includes(place.kind)) {
+      item.natureTopics = ['nature-photo'];
+      item.title = `Fotografeer ${place.name}`;
+      item.promise = `Maak bij ${place.name} een landschapsfoto en één close-up van een detail dat je aanspreekt.`;
+      item.wonder = `${place.name} staat als ${place.kind === 'park' ? 'park' : 'uitzichtpunt'} in OpenStreetMap. Probeer een landschapsfoto en een close-up; licht en toegang beoordeel je ter plaatse.`;
+      if (item.route.arrivalPlan) item.route.arrivalPlan = { ...item.route.arrivalPlan, label: 'Een landschap en een detail', instruction: 'Kies vanaf een toegestaan pad een ruim beeld en daarna een detail. Gebruik je telefoon of camera; ga voor een foto nooit van het pad af. Berg hem daarna gerust weer op.' };
+    }
+    if (options.natureInterests?.some((interest) => item.natureTopics?.includes(interest))) item.score += 10;
+    return item;
+  }).sort((a, b) => b.score - a.score);
   const diverse = sorted.filter((item, index, all) => all.findIndex((candidate) => candidate.experienceKind === item.experienceKind) === index);
   const ready = [...diverse, ...sorted.filter((item) => !diverse.includes(item))].slice(0, 4);
   const withheld = raw.filter((item): item is { id: string; reason: string } => !('status' in item));
@@ -156,6 +181,7 @@ export function opportunityToExperience(opportunity: LivingWorldOpportunity): Ex
   const route = opportunity.route;
   return {
     ...base, id: opportunity.id, kind: opportunity.experienceKind, title: opportunity.title, promise: opportunity.promise, wonder: opportunity.wonder,
+    natureTopics: opportunity.natureTopics,
     duration: route.outboundMinutes + route.experienceMinutes + route.returnMinutes + route.bufferMinutes, distance: `${route.outboundMinutes} min tot start`, timeWindow: `bron geldig tot ${new Date(route.expiresAt ?? 0).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })}`,
     cta: 'Bereid deze ontdekking voor', why: opportunity.reasons, prepareTitle: `Klaar voor ${opportunity.destinationName}?`,
     prepare: [...opportunity.guards, 'Controleer vlak voor vertrek de bronstatus en Maps-route'], presenceMode: 'handoff', presenceTitle: opportunity.destinationName,
