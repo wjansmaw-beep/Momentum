@@ -3,7 +3,15 @@
 Status: Active  
 Version: 2.1
 
-## Application-code boundary: approved through ADR-071
+## Application-code boundary: approved through ADR-072
+
+### Private source-service approval — 2026-10-02
+
+[ADR-072](Decisions/ADR-072-private-place-source-pilot.md) authorizes the staged
+Geoapify/Cloudflare private place-source pilot at EUR 0, with no paid upgrades.
+Real provider qualification precedes activation. Native acceptance, account
+terms, secret provisioning and privacy checks remain gates, not completed work.
+This does not approve public generator hosting or bird-source activation.
 
 ### Nature pilot — 2026-10-01
 

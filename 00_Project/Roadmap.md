@@ -11,6 +11,13 @@ The four continuous tracks are Philosophy, Experience, Understanding, and Trust.
 
 ## Current work queue — 2026-10-02
 
+**Founder approval, subsequent session:** ADR-072 approves the EUR 0 private
+Geoapify/Cloudflare pilot. Current package: provider qualification and strict
+coarse-region request contract. Wait for secure key provisioning before real
+Geoapify checks; do not activate infrastructure before that evidence gate.
+The Founder has confirmed seeing the interests on iPhone, not acceptance of
+a complete source-grounded discovery. Earlier work below remains historical.
+
 **Active delivery — personal nature pilot (ADR-071):** the Founder prioritized
 concrete source-grounded experiences and richer explicit interests. The first
 phase 3/8/9 slice connects birdwatching/nature photography choices to the

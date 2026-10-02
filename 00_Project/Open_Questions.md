@@ -5,6 +5,12 @@ Version: 1.1
 
 ## Nature pilot follow-up — 2026-10-02
 
+**Subsequent decision:** ADR-072 approves Geoapify/Cloudflare for the private
+EUR 0 places pilot. Open: account readiness, secure key provisioning, actual
+provider access/category evidence, retention and native credential storage.
+Bird-source activation remains excluded. This amends the place-service gate,
+not the unresolved wildlife contract below.
+
 ADR-071 records approval for explicit birdwatching/nature photography interests
 and concrete proposals from existing sources. A broad source programme is not
 approved by that slice. Real eBird activation remains blocked by the legacy
