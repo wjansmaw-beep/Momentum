@@ -1,5 +1,9 @@
 # Momentum Repository Instructions
 
+## Founder working agreement — 2026-11-08
+
+Clear Founder decisions may be implemented without asking for the same approval again. Record their scope in an ADR before or with implementation. Ask for direction only on materially unresolved choices. This supersedes repeated approval requirements below, not scope, privacy, preservation of unrelated changes, or verification requirements. See ADR-069. It does not authorize automatic external publication or paid-service activation.
+
 These instructions apply to the entire repository.
 
 ## Current phase

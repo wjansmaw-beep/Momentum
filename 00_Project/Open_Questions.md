@@ -1,5 +1,13 @@
 # Open Questions
 
+## iPhone completion — 2026-11-08
+
+ADR-070 authorizes completion of the combined guide brief. Native orientation will reuse the existing map library and external routing. Remaining implementation research includes verified reference content and imagery, playable audio with transcript, and current iPhone provisioning/account availability. These are work items, not grounds for repeating approval of the accepted design.
+
+## Adaptive Guide — 2026-11-08
+
+Resolved for the first slice by ADR-069: earlier-concept visual direction, one Guide owner, three presentation modes, voluntary reversible local task progress and no repeated approval for clear Founder decisions. Still open for later slices: verified location-specific chapter assets, interactive map integration, audio provider/assets and device behavior, broader source-grounded questions. No placeholder may imply these are already available.
+
 Status: Operational, living document  
 Version: 1.0
 

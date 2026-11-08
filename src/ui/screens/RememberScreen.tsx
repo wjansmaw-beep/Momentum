@@ -1,3 +1,4 @@
+import { ImageCredit } from '../ImageCredit';
 import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -75,7 +76,7 @@ export function RememberScreen() {
     <FlowFrame>
     <ScrollView contentContainerStyle={styles.flowScroll} keyboardShouldPersistTaps="handled">
       <Text style={[styles.eyebrow, { color: phase.remember.text }]}>HERINNERING</Text><Text style={styles.flowTitle}>Wat blijft er over?</Text><Text style={styles.screenSubtitle}>{experience.memoryPrompt}</Text>
-      <CoverImage uri={experience.image} style={styles.memoryPreview} imageStyle={styles.memoryImageStyle}><ImageShade /><Text style={styles.memoryPreviewTitle}>{experience.title}</Text></CoverImage>
+      <CoverImage uri={experience.image} style={styles.memoryPreview} imageStyle={styles.memoryImageStyle}><ImageShade /><Text style={styles.memoryPreviewTitle}>{experience.title}</Text></CoverImage><ImageCredit uri={experience.image} />
       {shared && <View style={styles.sharedMemoryCard}><Text style={styles.expectationLabel}>SAMEN BELEEFD</Text><Text style={styles.sharedMemoryTitle}>{shared.participants.filter((participant) => participant.status === 'ready').map((participant) => participant.name).join(' + ')}</Text><Text style={styles.sharedMemoryBody}>Je bewaart alleen jouw eigen herinnering. De andere deelnemer krijgt geen kopie van jouw reflectie.</Text></View>}
       {experience.meaningThread && <MeaningThreadCard experience={experience} reflective />}
       {meaningThread.length ? <View style={styles.meaningTraceCard}><Text style={styles.expectationLabel}>WAT MISSCHIEN BLEEF HANGEN</Text><Text style={styles.meaningTraceTitle}>{meaningThread.join(' · ')}</Text><Text style={styles.meaningTraceBody}>Je hoeft hier niets over te schrijven. Bewaar alleen wat voor jou werkelijk betekenis had.</Text></View> : null}

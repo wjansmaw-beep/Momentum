@@ -3,7 +3,7 @@
     "name": "Momentum",
     "slug": "momentum",
     "scheme": "momentum",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "plugins": [
@@ -23,7 +23,17 @@
         }
       ],
       "expo-font",
-      "expo-image"
+      "expo-image",
+      [
+        "expo-audio",
+        {
+          "enableBackgroundRecording": false,
+          "microphonePermission": false,
+          "recordAudioAndroid": false,
+          "enableBackgroundPlayback": false
+        }
+      ],
+      "expo-asset"
     ],
     "ios": {
       "supportsTablet": false,

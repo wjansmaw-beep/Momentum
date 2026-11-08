@@ -1,3 +1,4 @@
+import { referenceExperiences } from '../../product/referenceExperiences';
 import React, { useState } from 'react';
 import { Platform, Pressable, ScrollView, Text, TextStyle, View, ViewStyle } from 'react-native';
 import { Feather, Ionicons } from '@expo/vector-icons';
@@ -67,6 +68,7 @@ export function ProfileScreen() {
     liveWorld,
     selectionLocationConfirmed: locationConfirmed,
     contentCatalog,
+    openExperience,
     liveLoading,
     liveMessage,
     memories,
@@ -228,6 +230,11 @@ export function ProfileScreen() {
       {MOMENTUM_DEBUG && <>
       <Pressable accessibilityRole="button" accessibilityState={{ expanded: labOpen }} onPress={() => setLabOpen((value) => !value)} style={styles.labDisclosure}><View style={styles.flex}><Text style={styles.labDisclosureTitle}>Momentum Lab</Text><Text style={styles.labDisclosureBody}>Testcontext, bronstatus en lokale compositiediagnostiek.</Text></View><Ionicons name={labOpen ? 'chevron-up' : 'chevron-down'} size={18} color={colors.gold} /></Pressable>
       {labOpen && <>
+      <Text style={styles.fieldLabel}>BRONGEBONDEN ONTDEKKINGEN</Text>
+      <Text style={styles.screenSubtitle}>Open een complete referentie-ervaring. De hoofdstukken gebruiken gecontroleerde bronnen; toegang en reistijd controleer je zelf.</Text>
+      {referenceExperiences.map(experience => <SecondaryButton key={experience.id} label={experience.title} onPress={() => {
+        openExperience(experience, 'now'); navigation.navigate('Prepare');
+      }} />)}
       <Text style={styles.fieldLabel}>MOMENTMAKER-PROEFBANK</Text>
       <Text style={styles.screenSubtitle}>Open telkens één volledige capsule met gecontroleerde testcontext. Dit wijzigt je profiel, agenda en gewone Nu-selectie niet.</Text>
       <View style={styles.learningCard}>

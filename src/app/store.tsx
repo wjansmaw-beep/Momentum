@@ -62,6 +62,7 @@ import {
   SharedInviteReadResult,
 } from '../sharing/sharedCapsule';
 import { GuideDepth } from '../guidance/experienceGuide';
+import { AdaptiveGuideState, GuideMode, chapterIds, restoreAdaptiveGuide, toggleGuideTask } from '../guidance/adaptiveGuide';
 import { composeGuideMoments } from '../guidance/guideComposer';
 import { auditCandidatePool, CompositionSummary } from '../guidance/compositionAudit';
 import { colors, useAppearance } from '../design/theme';
@@ -78,7 +79,7 @@ import { GeneratorEvaluationSignal as GenerationEvaluationSignal, GeneratorEvalu
 
 export type FlowStage = 'invite' | 'prepare' | 'presence' | 'remember' | 'profile' | null;
 export type Memory = { id: string; title: string; date: string; image: string; note: string; sharedWith?: string[]; meaning?: string; experienceSnapshot?: Experience; photos?: string[] };
-export type ActiveSession = { experienceId: string; experienceSnapshot?: Experience; stage: 'prepare' | 'presence'; stepIndex: number; origin: Surface; company?: Company; transport?: TransportMode; guideDepth?: GuideDepth; shared?: SharedCapsuleState; updatedAt: string };
+export type ActiveSession = { experienceId: string; experienceSnapshot?: Experience; stage: 'prepare' | 'presence'; stepIndex: number; origin: Surface; company?: Company; transport?: TransportMode; guideDepth?: GuideDepth; adaptiveGuide?: AdaptiveGuideState; shared?: SharedCapsuleState; updatedAt: string };
 export type GenerationKindEvidence = { shown: number; evaluated: number; personal: number; surprising: number; executable: number; contentUseful: number };
 export type PrototypeEvidence = {
   started: number;
@@ -115,8 +116,9 @@ export const timeOptions = [15, 30, 60, 120];
 export const dutchMonthNames = ['januari', 'februari', 'maart', 'april', 'mei', 'juni', 'juli', 'augustus', 'september', 'oktober', 'november', 'december'];
 export const defaultRegion = { coordinates: { latitude: 53.325, longitude: 5.999 }, label: 'Dokkum' };
 // Profiel-lab (evaluatie, dekkingsmatrix, proefbank) staat alleen aan achter een debug-vlag (ADR-057).
+declare const process: { env: { EXPO_PUBLIC_MOMENTUM_DEBUG?: string } };
 export const MOMENTUM_DEBUG = (globalThis as any).__DEV__ === true
-  || (globalThis as any).process?.env?.EXPO_PUBLIC_MOMENTUM_DEBUG === '1';
+  || process.env.EXPO_PUBLIC_MOMENTUM_DEBUG === '1';
 
 export type AppStore = ReturnType<typeof useAppStore>;
 
@@ -155,6 +157,8 @@ function useAppStore() {
   const [inviteGuestMode, setInviteGuestMode] = useState(false);
   const [evidence, setEvidence] = useState<PrototypeEvidence>(emptyPrototypeEvidence);
   const [sessionHydrated, setSessionHydrated] = useState(false);
+  const [sessionSaveError, setSessionSaveError] = useState('');
+  const sessionWrites = useRef<Promise<void>>(Promise.resolve());
   const [evidenceHydrated, setEvidenceHydrated] = useState(false);
   const [liveWorld, setLiveWorld] = useState<LiveWorldSnapshot | null>(null);
   const [selectionLocationConfirmed, setSelectionLocationConfirmed] = useState(false);
@@ -249,8 +253,18 @@ function useAppStore() {
 
   useEffect(() => {
     if (!sessionHydrated) return;
-    if (activeSession) AsyncStorage.setItem(activeSessionKey, JSON.stringify(activeSession)).catch(() => undefined);
-    else AsyncStorage.removeItem(activeSessionKey).catch(() => undefined);
+    const snapshot = activeSession ? JSON.stringify(activeSession) : null;
+    // Serialize writes: a slow earlier task update must not overwrite a later
+    // undo, mode change, or session removal.
+    sessionWrites.current = sessionWrites.current.then(async () => {
+      try {
+        if (snapshot) await AsyncStorage.setItem(activeSessionKey, snapshot);
+        else await AsyncStorage.removeItem(activeSessionKey);
+        setSessionSaveError('');
+      } catch {
+        setSessionSaveError('Je voortgang kon niet op dit toestel worden bewaard. Houd de app open om hier verder te gaan.');
+      }
+    });
   }, [activeSession, sessionHydrated]);
 
   useEffect(() => { if (evidenceHydrated) AsyncStorage.setItem(evidenceKey, JSON.stringify(evidence)).catch(() => undefined); }, [evidence, evidenceHydrated]);
@@ -520,14 +534,14 @@ function useAppStore() {
 
   const startPresence = (company: Company, guideDepth: GuideDepth, shared?: SharedCapsuleState, transport?: TransportMode) => {
     const isNew = activeSession?.experienceId !== selected.id;
-    setActiveSession({ experienceId: selected.id, experienceSnapshot: selected, stage: 'presence', stepIndex: isNew ? 0 : activeSession?.stepIndex ?? 0, origin, company, transport, guideDepth, shared, updatedAt: new Date().toISOString() });
+    setActiveSession({ experienceId: selected.id, experienceSnapshot: selected, stage: 'presence', stepIndex: isNew ? 0 : activeSession?.stepIndex ?? 0, adaptiveGuide: isNew ? undefined : activeSession?.adaptiveGuide, origin, company, transport, guideDepth, shared, updatedAt: new Date().toISOString() });
     if (isNew) setEvidence((current) => ({ ...current, started: current.started + 1, lastUpdated: new Date().toISOString() }));
   };
 
   const savePreparation = (company: Company, guideDepth: GuideDepth, shared?: SharedCapsuleState, transport?: TransportMode) => {
     setSharedDraft(shared ?? null);
     setActiveSession((current) => {
-      return { experienceId: selected.id, experienceSnapshot: selected, stage: 'prepare', stepIndex: current?.experienceId === selected.id ? current.stepIndex : 0, origin, company, transport, guideDepth, shared, updatedAt: new Date().toISOString() };
+      return { experienceId: selected.id, experienceSnapshot: selected, stage: 'prepare', stepIndex: current?.experienceId === selected.id ? current.stepIndex : 0, adaptiveGuide: current?.experienceId === selected.id ? current.adaptiveGuide : undefined, origin, company, transport, guideDepth, shared, updatedAt: new Date().toISOString() };
     });
   };
 
@@ -628,7 +642,22 @@ function useAppStore() {
   };
 
   const updatePresenceStep = (stepIndex: number) => {
-    setActiveSession((current) => current && current.experienceId === selected.id ? { ...current, stage: 'presence', stepIndex, updatedAt: new Date().toISOString() } : current);
+    setActiveSession((current) => current && current.experienceId === selected.id ? { ...current, stage: 'presence', stepIndex,
+      adaptiveGuide: current.adaptiveGuide ? { ...restoreAdaptiveGuide(selected, current.adaptiveGuide, stepIndex), chapterId: chapterIds(selected)[stepIndex] ?? '' } : undefined,
+      updatedAt: current.stepIndex === stepIndex ? current.updatedAt : new Date().toISOString() } : current);
+  };
+
+  const updateGuideMode = (mode: GuideMode) => {
+    setActiveSession((current) => current && current.experienceId === selected.id ? { ...current,
+      adaptiveGuide: { ...restoreAdaptiveGuide(selected, current.adaptiveGuide, current.stepIndex), mode } } : current);
+  };
+
+  const toggleCurrentGuideTask = () => {
+    setActiveSession((current) => {
+      if (!current || current.experienceId !== selected.id) return current;
+      const guide = restoreAdaptiveGuide(selected, current.adaptiveGuide, current.stepIndex);
+      return { ...current, adaptiveGuide: toggleGuideTask(guide, guide.chapterId) };
+    });
   };
 
   const applyFeedback = (item: Experience, outcome: LearningOutcome) => {
@@ -677,6 +706,7 @@ function useAppStore() {
     personalProfile,
     setPersonalProfile,
     activeSession,
+    sessionSaveError,
     setActiveSession,
     completedSession,
     incomingInvite,
@@ -722,6 +752,8 @@ function useAppStore() {
     finishOnboarding,
     presenceBack,
     updatePresenceStep,
+    updateGuideMode,
+    toggleCurrentGuideTask,
     applyFeedback,
     setEnergyCheckin,
     discardSession,

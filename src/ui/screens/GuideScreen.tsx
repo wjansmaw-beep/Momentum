@@ -1,3 +1,4 @@
+import { ImageCredit } from '../ImageCredit';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ImageStyle,
@@ -33,6 +34,8 @@ import {
   loadLivingWorldBriefing,
 } from '../../liveworld/livingWorldBriefing';
 import { briefingSourceLine } from '../../liveworld/briefingFacts';
+import { chapterIds, restoreAdaptiveGuide, supportsAdaptiveGuide } from '../../guidance/adaptiveGuide';
+import { DiscoverChapter, GuideModeBar, GuideModeScene } from '../guide/AdaptiveGuide';
 
 // DE GIDS — het enige onderweg-scherm (vervolg op ADR-067, fase R4). De
 // vroegere drie vormen van begeleiding — het Presence-scherm, de
@@ -55,12 +58,14 @@ import { briefingSourceLine } from '../../liveworld/briefingFacts';
 // direct op de opgeslagen stap; de oude hervatkaart-GuideScreen is verdwenen.
 
 export function GuideScreen() {
-  const { selected: experience, personalProfile: personal, activeSession, updatePresenceStep, presenceBack, finishPresence, discardSession, liveWorld, prototypeContext } = useApp();
+  const { selected: experience, personalProfile: personal, activeSession, sessionSaveError, updatePresenceStep, updateGuideMode, toggleCurrentGuideTask, presenceBack, finishPresence, discardSession, liveWorld, prototypeContext } = useApp();
+  const adaptive = supportsAdaptiveGuide(experience);
+  const adaptiveState = restoreAdaptiveGuide(experience, activeSession?.experienceId === experience.id ? activeSession.adaptiveGuide : undefined, activeSession?.stepIndex ?? 0);
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const company = activeSession?.company ?? personal.defaultCompany;
   const guideDepth = activeSession?.guideDepth ?? 'guide';
   const shared = activeSession?.shared;
-  const initialStep = activeSession?.experienceId === experience.id ? activeSession.stepIndex : 0;
+  const initialStep = adaptive ? Math.max(0, chapterIds(experience).indexOf(adaptiveState.chapterId)) : activeSession?.experienceId === experience.id ? activeSession.stepIndex : 0;
   const onStepChange = (stepIndex: number) => updatePresenceStep(stepIndex);
   const onFinish = () => {
     // Het moment is bewust afgerond: de reset in Remember (bewaren → Boek,
@@ -130,7 +135,7 @@ export function GuideScreen() {
       setHandoffStatus(check.detail);
     }
     const source = plan?.source ? `${plan.source.latitude},${plan.source.longitude}` : undefined;
-    const destination = plan?.destination ? `${plan.destination.latitude},${plan.destination.longitude}` : plan?.destinationName ?? experience.title;
+    const destination = experience.visitPlace?.address ?? (plan?.destination ? `${plan.destination.latitude},${plan.destination.longitude}` : plan?.destinationName ?? experience.title);
     const params = new URLSearchParams({ destination, mode: plan?.mode ?? 'walking' });
     if (source) params.set('source', source);
     const url = `https://maps.apple.com/directions?${params.toString()}`;
@@ -140,7 +145,10 @@ export function GuideScreen() {
   // hulp bij de stap, geen poort ervoor; wie door wil, bladert rustig door.
   const next = () => {
     if (isLast) onFinish();
-    else { impactLight(); setStepIndex((value) => value + 1); }
+    else {
+      impactLight(); setStepIndex((value) => value + 1);
+      if (adaptive && current.editorial) updateGuideMode('navigate');
+    }
   };
   const formatTime = (seconds: number) => `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
 
@@ -173,7 +181,7 @@ export function GuideScreen() {
   const [guideBriefing, setGuideBriefing] = useState<{ state: 'loading' } | { state: 'live'; value: LivingWorldBriefing } | null>(null);
   const currentStepTitle = current.title;
   useEffect(() => {
-    if (experience.kind !== 'outside' || !liveWorld) { setGuideBriefing(null); return; }
+    if (experience.referenceVisit || experience.kind !== 'outside' || !liveWorld) { setGuideBriefing(null); return; }
     let active = true;
     setGuideBriefing({ state: 'loading' });
     loadLivingWorldBriefing({ experience, snapshot: liveWorld, dayPart: prototypeContext.dayPart, step: { index: stepIndex, title: currentStepTitle }, interests: briefingInterests(personal) })
@@ -186,10 +194,24 @@ export function GuideScreen() {
   }, [experience.id, stepIndex, currentStepTitle, liveWorld?.retrievedAt]);
 
   if (phoneAway) return <FlowFrame statusBar="light"><PhoneAwayView experience={experience} cue={current.title} seconds={current.seconds} remaining={remaining} formatTime={formatTime} shared={shared} onReopen={() => setPhoneAway(false)} /></FlowFrame>;
+  if (adaptive && adaptiveState.mode !== 'discover') return <FlowFrame statusBar="light">
+    <View style={styles.flowScreen}>
+      {!!sessionSaveError && <Text accessibilityRole="alert" style={gd.caution}>{sessionSaveError}</Text>}
+      {!!current.seconds && <Pressable accessibilityRole="button" accessibilityLabel={timerRunning ? 'Pauzeer timer' : 'Start timer'}
+        accessibilityState={{ disabled: remaining === 0 }} disabled={remaining === 0} onPress={() => setTimerRunning(!timerRunning)} style={gd.timerRow}>
+        <Text style={gd.timerValue}>{formatTime(remaining)}</Text><Text style={gd.rowTitle}>{remaining === 0 ? 'Timer afgerond' : timerRunning ? 'Pauzeer' : 'Start timer'}</Text>
+      </Pressable>}
+      <GuideModeScene mode={adaptiveState.mode} experience={experience} step={current} index={stepIndex}
+        onDiscover={() => updateGuideMode('discover')} onQuiet={() => setPhoneAway(true)} onRoute={openHandoff}
+        onBack={onBack} onFinish={onFinish} routeStatus={handoffStatus} />
+      <GuideModeBar mode={adaptiveState.mode} onChange={updateGuideMode} />
+    </View>
+  </FlowFrame>;
   return (
     <FlowFrame statusBar="light">
     <View style={styles.flowScreen}>
     <ScrollView contentContainerStyle={[styles.flowScroll, gd.scroll]} showsVerticalScrollIndicator={false}>
+      {!!sessionSaveError && <Text accessibilityRole="alert" style={gd.caution}>{sessionSaveError}</Text>}
       {/* Kop: terug naar Voorpret, naam "Gids", kaart-handoff (de routeapp
           blijft route-eigenaar; de in-app kaart woont alleen in Voorpret). */}
       <View style={gd.head}>
@@ -200,9 +222,9 @@ export function GuideScreen() {
           <Text style={gd.headTitle}>Gids</Text>
           <Text style={gd.headSub} numberOfLines={1}>{experience.duration} min · {company === 'solo' ? 'alleen' : company === 'family' ? 'met gezin' : 'samen'}</Text>
         </View>
-        <Pressable accessibilityRole="button" accessibilityLabel="Open route in Kaarten" onPress={openHandoff} style={gd.iconbtn}>
+        {(!adaptive || experience.routePlan) && <Pressable accessibilityRole="button" accessibilityLabel="Open route in Kaarten" onPress={openHandoff} style={gd.iconbtn}>
           <Feather name="map-pin" size={16} color={gd.inkSolid as string} />
-        </Pressable>
+        </Pressable>}
       </View>
 
       {/* De cover draagt de beleving: beeld, serif-titel en voortgang uit
@@ -212,15 +234,15 @@ export function GuideScreen() {
         <ImageShade />
         <View style={gd.coverCopy}>
           <Text style={[gd.coverTitle, styles.onImageText]}>{experience.title}</Text>
-          <View style={gd.coverProgressRow}>
+          {adaptive ? <Text style={gd.coverProgressSuffix}>Hoofdstuk {stepIndex + 1} van {experience.steps.length}</Text> : <View style={gd.coverProgressRow}>
             <Text style={[gd.coverProgressValue, styles.onImageText]}>{progress.headline} <Text style={gd.coverProgressSuffix}>{progress.suffix}</Text></Text>
             <Text style={gd.coverProgressSub}>{progress.sub}</Text>
-          </View>
+          </View>}
           <View style={gd.coverBarTrack}>
-            <View style={[gd.coverBarFill, { width: `${Math.round(progress.fraction * 100)}%` }]} />
+            <View style={[gd.coverBarFill, { width: `${Math.round((adaptive ? (stepIndex + 1) / experience.steps.length : progress.fraction) * 100)}%` }]} />
           </View>
         </View>
-      </CoverImage>
+      </CoverImage><ImageCredit uri={experience.image} />
 
       {/* De huidige stap — de enige plek waar de staptekst staat. */}
       <View style={gd.card}>
@@ -233,6 +255,8 @@ export function GuideScreen() {
           <View style={gd.togetherAvatars}>{shared.participants.filter((participant) => participant.status === 'ready').map((participant) => <View key={participant.id} style={gd.togetherAvatar}><Text style={styles.participantAvatarText}>{participant.name.slice(0, 1).toUpperCase()}</Text></View>)}</View>
           <View style={styles.flex}><Text style={gd.rowTitle}>Eén gedeelde ervaring</Text><Text style={gd.rowSub}>{shared.coordination === 'meet-there' ? 'Jullie ontmoetten elkaar bij het begin.' : 'Jullie begonnen samen.'} Deze gids loopt alleen op dit toestel.</Text></View>
         </View>}
+        {adaptive ? <DiscoverChapter key={adaptiveState.chapterId} step={current} index={stepIndex} total={experience.steps.length}
+          completed={adaptiveState.completedTaskIds.includes(adaptiveState.chapterId)} onToggle={toggleCurrentGuideTask} showInsight={Boolean(insightVisible)} /> : <>
         <Text style={gd.stepTitle}>{current.title}</Text>
         {current.meta && <View style={gd.stepMetaPill}><Text style={gd.stepMetaText}>{current.meta}</Text></View>}
         <Text style={gd.stepCue}>{current.instruction}</Text>
@@ -242,6 +266,7 @@ export function GuideScreen() {
           <Text style={gd.insightBody}>{current.insight?.body}</Text>
           {current.insight?.sourceUrl ? <Pressable accessibilityRole="link" onPress={() => Linking.openURL(current.insight!.sourceUrl!).catch(() => undefined)}><Text style={[gd.insightSource, { color: gd.accentSolid as string }]}>{current.insight.sourceLabel} · Bekijk bron <Ionicons name="open-outline" size={11} color={gd.accentSolid as string} /></Text></Pressable> : <Text style={gd.insightSource}>{current.insight?.sourceKind === 'live' ? 'Actuele bron' : current.insight?.sourceKind === 'curator' ? 'Plaatskennis' : 'Redactioneel'} · {current.insight?.sourceLabel}</Text>}
         </View>}
+        </>}
         {current.seconds ? (
           <View style={gd.timerRow}>
             <View style={styles.flex}>
@@ -266,6 +291,7 @@ export function GuideScreen() {
           </Pressable>
         </View>
         <View style={gd.stepToolsRow}>
+          {adaptive && <Pressable accessibilityRole="button" onPress={() => updateGuideMode('immerse')} style={gd.quietAction}><Feather name="headphones" size={18} color={gd.accentSolid as string} /><Text style={gd.quietActionText}>Beleef dit verhaal</Text></Pressable>}
           <Pressable accessibilityRole="button" accessibilityLabel={deepOpen ? 'Sluit de verdieping' : 'Open de verdieping'} accessibilityState={{ expanded: deepOpen }} onPress={() => { impactLight(); setDeepOpen((value) => !value); }} style={gd.quietAction}><Feather name="book-open" size={13} color={gd.accentSolid as string} /><Text style={gd.quietActionText}>Verdieping</Text></Pressable>
           <Pressable accessibilityRole="button" accessibilityLabel="Leg de telefoon weg" onPress={() => { impactLight(); setPhoneAway(true); }} style={gd.quietAction}><Feather name="smartphone" size={13} color={gd.accentSolid as string} /><Text style={gd.quietActionText}>Telefoon weg</Text></Pressable>
         </View>
@@ -370,6 +396,7 @@ export function GuideScreen() {
         <Text style={gd.discardText}>Sluit deze ervaring rustig af</Text>
       </Pressable>
     </ScrollView>
+    {adaptive && <GuideModeBar mode="discover" onChange={updateGuideMode} />}
     </View>
     </FlowFrame>
   );

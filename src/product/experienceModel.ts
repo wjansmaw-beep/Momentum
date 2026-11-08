@@ -11,6 +11,13 @@ export type GuidedInsight = {
   sourceUrl?: string;
 };
 export type CapsuleStep = {
+  editorial?: {
+    id: string;
+    version: number;
+    observation: string;
+    depth?: string;
+    reviewedAt: string;
+  };
   title: string;
   instruction: string;
   meta?: string;
@@ -58,6 +65,16 @@ export type RoutePlan = {
 };
 
 export type Experience = {
+  referenceVisit?: boolean;
+  visitPlace?: {
+    name: string;
+    address: string;
+    latitude: number;
+    longitude: number;
+    sourceUrl: string;
+    coordinateSourceUrl: string;
+    note: string;
+  };
   id: string;
   kind: ExperienceKind;
   title: string;

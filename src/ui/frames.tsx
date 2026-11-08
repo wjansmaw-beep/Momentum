@@ -17,7 +17,7 @@ import { NowTabBar } from './NowTabBar';
 function Frame({ statusBar, withNav, children }: { statusBar: StatusBarStyle; withNav: boolean; children: React.ReactNode }) {
   const { height } = useWindowDimensions();
   return (
-    <View style={[styles.root, { minHeight: height }]}>
+    <View style={[styles.root, { minHeight: height }, Platform.OS === 'web' && { height, overflow: 'hidden' }]}>
       <StatusBar style={statusBar} />
       <AmbientBlobs />
       <SafeAreaView style={styles.safe}>

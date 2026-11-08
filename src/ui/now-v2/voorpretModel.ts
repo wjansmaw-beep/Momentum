@@ -57,7 +57,7 @@ export function journeySegments(experience: Experience, transport: TransportMode
     return [{
       icon: 'clock',
       title: `${experience.duration} minuten · ${experience.effort.toLowerCase()}`,
-      sub: experience.timeWindow ? `het mooiste venster is ${experience.timeWindow}` : 'binnen handbereik van huis',
+      sub: experience.referenceVisit ? 'ontdektijd · reistijd en toegang zelf controleren' : experience.timeWindow ? `het mooiste venster is ${experience.timeWindow}` : 'binnen handbereik van huis',
     }];
   }
   const way = transportLabels[transport].toLowerCase();

@@ -9,6 +9,12 @@ Run Momentum on a real device with the native capabilities required for Stage 1,
 
 ## Prepared configuration
 
+2026-11-08 / ADR-070: the internal `preview` profile no longer embeds a developer-specific LAN generator URL. With no endpoint configured, native generation uses the existing on-device synthesis fallback. Inspect Expo environment variables before building too: a remotely configured endpoint may still override that default. No external generator deployment is implied.
+
+Local readiness evidence: TypeScript and 8 guide tests pass; `expo export --platform ios --output-dir dist-ios` produced a Hermes bundle. This is **not** a signed `.ipa`, installation, or physical-device test. Interactive orientation uses the existing native map provider and always retains the destination text plus external navigation. Tile availability, provider attribution, gestures, large text and VoiceOver require real-device checks.
+
+The first export encountered a Windows temporary-directory permission error. Retrying with process-local `TEMP` and `TMP` set to a writable workspace directory succeeded; no system setting was changed.
+
 - `expo-dev-client` provides the development runtime.
 - `eas.json` contains an internal physical-device profile and a separate iOS Simulator profile.
 - The existing Expo config remains the source for app identity, native plugins and permission text.

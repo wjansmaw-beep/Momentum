@@ -1,3 +1,4 @@
+import { ImageCredit } from '../ImageCredit';
 import React, { useState } from 'react';
 import { ImageStyle, Pressable, ScrollView, Share, Text, TextStyle, View, ViewStyle } from 'react-native';
 import { Feather, Ionicons } from '@expo/vector-icons';
@@ -73,7 +74,7 @@ export function LifeBookScreen() {
           <View style={bk.photoWrap}>
             <CoverImage uri={featured.image} style={bk.photo} imageStyle={bk.photoImage}>
               <ImageShade />
-            </CoverImage>
+            </CoverImage><ImageCredit uri={featured.image} />
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={saved ? 'Bewaard als favoriet' : 'Bewaar als favoriet'}

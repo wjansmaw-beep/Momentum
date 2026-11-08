@@ -3,7 +3,11 @@
 Status: Active  
 Version: 2.0
 
-## Application-code boundary: approved through ADR-066
+## Application-code boundary: approved through ADR-070
+
+2026-11-08: ADR-070 extends the accepted scope to completing the combined Adaptive Guide brief for iPhone testing, including interactive orientation, typed chapters, reference packs, real listening and device distribution preparation. Work is in progress; no installed iPhone build has yet been verified. This supersedes the later-slices limitation of ADR-069 below.
+
+2026-11-08: ADR-068 already governs the implemented live-world briefing. ADR-069 records the Founder's accepted earlier-concept direction and authorizes the first Adaptive Guide slice: shared modes, editorial Discover, local voluntary task state and honest route/audio fallbacks. Clear decisions no longer require repeated approval. Interactive maps, actual audio and broader AI questions remain later slices. This entry supersedes earlier boundary summaries below.
 
 This file is the single source of truth for the current application-code boundary. Every AI coding agent must read it at the start of each session, before proposing or implementing any change. Only the Founder can extend the boundary, through an ADR.
 

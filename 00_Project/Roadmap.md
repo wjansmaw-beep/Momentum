@@ -1,5 +1,11 @@
 # Momentum Product Roadmap
 
+## Current delivery update — 2026-11-08
+
+ADR-070 extends the accepted scope to completing the combined brief for iPhone testing. Sequence: native orientation, typed renderer and two reviewed reference packs, real listening, accessibility/regressions, distribution and device checks. Orientation implementation and iOS JavaScript bundling now pass local checks; installation and map behavior on a physical phone remain unverified. The limitations in the ADR-069 entry below describe the earlier slice, not the current authorization.
+
+ADR-069 advances the reviewed earlier-concept design from phase 4 into a first phase 6 implementation: shared Guide modes, editorial Discover and locally saved voluntary tasks. Existing capsule execution remains intact. Interactive mapping, real audio and broader grounded questions follow separately. The historical phase notes below do not reinstate an approval gate for already clear Founder decisions.
+
 Status: Operational  
 Version: 1.0
 

@@ -1,5 +1,24 @@
 # Device Testing Runbook
 
+## Adaptive Guide test build — 2026-11-08
+
+An internal physical-iPhone build was submitted using existing remote signing and the already registered iPhone:
+
+EAS status rechecked: **FINISHED**, completed 2026-11-08 12:24:56 UTC, no build error. This proves the signed cloud build completed; installation and on-device behavior still need the Founder test. Local imagery/credit and web-frame improvements made after submission are not part of build 2.
+
+- Build ID: `d1ac0105-69fa-4c2d-9e0c-225e109a4d88`
+- Build status page: https://expo.dev/accounts/wjansmaw/projects/momentum/builds/d1ac0105-69fa-4c2d-9e0c-225e109a4d88
+- Profile: `adaptive-preview`, channel: `adaptive-guide-preview`, app/runtime version: `0.2.0`, build number: `2`.
+- EAS reported no remote preview environment variables; only the local debug flag is supplied. Native local synthesis remains available without a LAN generator.
+- Includes Expo Audio, so a new binary is required; do not deliver its JavaScript to earlier 0.1.x runtimes.
+- EAS reused the existing certificate and ad-hoc profile. Apple-server validation was skipped in non-interactive mode; installation remains a real-device gate.
+
+### Pending follow-up update
+
+The current local source additionally contains credited location imagery, the verified Moddergat visit address/building point, reference-specific preparation and a web viewport correction. Typecheck, the full existing test suite, 13 guide/content/audio tests, and iOS/web exports pass (the final added orientation test was also run separately). An attempted OTA publication to `adaptive-guide-preview` was rejected by automatic approval review before execution: authorization for a build was not accepted as authorization for this separate external publication. Explicit Founder permission is pending. No OTA update was uploaded. Do not retry via another route or start a replacement build to evade that publication decision.
+
+Submission is not proof of a finished build or installation. Check this build ID before retrying; never start a duplicate because a polling command is slow. Once finished, open its install page in Safari on the registered iPhone. Test Jij → Privacy & geleerde signalen → Momentum Lab → Moddergat, then Lauwersmeer. Retain existing app data; no uninstall/reset is required by this procedure.
+
 Status: Approved procedure (ADR-062; generator section amended by ADR-063)  
 Version: 1.1  
 Date: 2026-07-24

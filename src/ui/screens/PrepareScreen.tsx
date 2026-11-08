@@ -126,7 +126,7 @@ export function PrepareScreen() {
     const timer = setInterval(() => setNow(new Date()), 30000);
     return () => clearInterval(timer);
   }, []);
-  const weather = liveWorld?.weather;
+  const weather = experience.referenceVisit ? undefined : liveWorld?.weather;
   const sun = useMemo(
     () => resolveSunTimes(weather, liveWorld?.coordinates ?? defaultRegion.coordinates, now),
     // Zontijden veranderen per dag, niet per klok-tick — memo op datum + bron.
@@ -145,7 +145,7 @@ export function PrepareScreen() {
   // bestaande scènes blijven exact wat ze waren — nooit een kapot scherm).
   const [briefing, setBriefing] = useState<{ state: 'loading' | 'live'; value: LivingWorldBriefing } | { state: 'loading' } | null>(null);
   useEffect(() => {
-    if (experience.kind !== 'outside' || !liveWorld) { setBriefing(null); return; }
+    if (experience.referenceVisit || experience.kind !== 'outside' || !liveWorld) { setBriefing(null); return; }
     let active = true;
     setBriefing({ state: 'loading' });
     loadLivingWorldBriefing({ experience, snapshot: liveWorld, dayPart: prototypeContext.dayPart, interests: briefingInterests(personal) })
@@ -186,7 +186,7 @@ export function PrepareScreen() {
 
       {/* Aftelkaart: vertrektijd uit hetzelfde startmodel als de Nu-CTA;
           voortgang over het venster van één uur voor vertrek. */}
-      <LinearGradient
+      {!experience.referenceVisit && <LinearGradient
         colors={[vp.gradientStart as string, vp.gradientEnd as string]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -204,7 +204,7 @@ export function PrepareScreen() {
           <Text style={vp.countBarLabel}>nu · {formatClock(now)}</Text>
           <Text style={vp.countBarLabel}>{departure.end.getTime() > sun.sunset.getTime() ? `zon onder ${formatClock(sun.sunset)}` : `gouden uur ${formatClock(goldenWindow(sun).peak)}`}</Text>
         </View>
-      </LinearGradient>
+      </LinearGradient>}
 
       {/* Scène: zo ga je — routesegmenten uit het plan, eerlijk zonder plan. */}
       <View style={vp.card}>
@@ -230,7 +230,7 @@ export function PrepareScreen() {
       <View style={vp.card}>
         <View style={vp.cardHead}>
           <Feather name="list" size={15} color={vp.accentSolid as string} />
-          <Text style={vp.cardTitle}>De route van dit moment</Text>
+          <Text style={vp.cardTitle}>{experience.referenceVisit ? 'De hoofdstukken' : 'De route van dit moment'}</Text>
         </View>
         {experience.steps.map((step, index) => (
           <View key={`${step.title}-${index}`} style={[vp.row, index > 0 && vp.rowBorder]}>
@@ -248,7 +248,7 @@ export function PrepareScreen() {
       <View style={vp.card}>
         <View style={vp.cardHead}>
           <Feather name="check" size={15} color={vp.accentSolid as string} />
-          <Text style={vp.cardTitle}>Neem mee</Text>
+          <Text style={vp.cardTitle}>{experience.referenceVisit ? 'Goed om te weten' : 'Neem mee'}</Text>
         </View>
         {packing.map((row, index) => (
           <View key={`${row.title}-${index}`} style={[vp.row, index > 0 && vp.rowBorder]}>
@@ -267,9 +267,9 @@ export function PrepareScreen() {
       <View style={vp.card}>
         <View style={vp.cardHead}>
           <Feather name="sun" size={15} color={vp.accentSolid as string} />
-          <Text style={vp.cardTitle}>Weer onderweg</Text>
+          <Text style={vp.cardTitle}>{experience.referenceVisit ? 'Ter plaatse' : 'Weer onderweg'}</Text>{experience.referenceVisit && <Text style={vp.rowSub}>Controleer zelf het weer en de toegang op de plek van je bezoek.</Text>}
         </View>
-        {weatherList.map((row, index) => (
+        {(experience.referenceVisit ? [] : weatherList).map((row, index) => (
           <View key={`${row.title}-${index}`} style={[vp.row, index > 0 && vp.rowBorder]}>
             <View style={vp.rowIcon}><Feather name={row.icon} size={15} color={vp.accentSolid as string} /></View>
             <View style={styles.flex}>
@@ -380,13 +380,13 @@ export function PrepareScreen() {
     <View style={styles.stickyActionBar}>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`${company === 'solo' ? 'Ik ga nu' : 'Wij gaan beginnen'} — ${ctaSubline(guideDepth, departure.end)}`}
+        accessibilityLabel={`${company === 'solo' ? 'Ik ga nu' : 'Wij gaan beginnen'} — ${(experience.referenceVisit ? 'ontdek op je eigen tempo · exclusief reistijd' : ctaSubline(guideDepth, departure.end))}`}
         onPress={() => { impactMedium(); onStart(company, guideDepth, shared ? { ...shared, coordination } : undefined, transport); }}
         style={({ pressed }) => [vp.cta, pressed && vp.pressed]}
       >
         <View>
           <Text style={vp.ctaTitle}>{company === 'solo' ? 'Ik ga nu' : 'Wij gaan beginnen'}</Text>
-          <Text style={vp.ctaSub}>{ctaSubline(guideDepth, departure.end)}</Text>
+          <Text style={vp.ctaSub}>{(experience.referenceVisit ? 'ontdek op je eigen tempo · exclusief reistijd' : ctaSubline(guideDepth, departure.end))}</Text>
         </View>
         <Feather name="arrow-right" size={20} color={vp.accentInkSolid as string} />
       </Pressable>

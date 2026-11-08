@@ -20,11 +20,20 @@
       "distribution": "internal",
       "channel": "preview",
       "env": {
-        "EXPO_PUBLIC_MOMENTUM_GENERATOR_URL": "http://192.168.1.228:8787/v1/experience-drafts"
+        "EXPO_PUBLIC_MOMENTUM_DEBUG": "1"
       }
     },
     "production": {
       "channel": "production"
+    },
+    "adaptive-preview": {
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_MOMENTUM_DEBUG": "1"
+      },
+      "environment": "preview",
+      "channel": "adaptive-guide-preview",
+      "extends": "preview"
     }
   }
 }
