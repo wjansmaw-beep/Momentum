@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { ImageStyle, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
+import { ImageStyle, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 import Reanimated from 'react-native-reanimated';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { schemeStyles } from '../design/theme';
+import { colors, schemeStyles } from '../design/theme';
 
 // Echte beeldlaag (ADR-057, Horizon A): expo-image met cover-fit, fade-transition
 // en schijfcache. De placeholder is een zacht theme-kleurveld; bij een mislukte
@@ -12,6 +12,7 @@ import { schemeStyles } from '../design/theme';
 // het beeld (Ken Burns / beeldcontinuïteit), zonder de tekstlagen mee te schalen.
 
 type CoverImageProps = {
+  alt?: string;
   uri?: string;
   style?: StyleProp<ViewStyle>;
   /** Randradius/opacity van de afbeelding zelf (zoals ImageBackground imageStyle). */
@@ -21,7 +22,7 @@ type CoverImageProps = {
   children?: React.ReactNode;
 };
 
-export function CoverImage({ uri, style, imageStyle, imageContainerStyle, children }: CoverImageProps) {
+export function CoverImage({ uri, alt, style, imageStyle, imageContainerStyle, children }: CoverImageProps) {
   const [failed, setFailed] = useState(false);
   useEffect(() => setFailed(false), [uri]);
   return (
@@ -33,13 +34,15 @@ export function CoverImage({ uri, style, imageStyle, imageContainerStyle, childr
             source={{ uri }}
             style={[StyleSheet.absoluteFill, imageStyle]}
             contentFit="cover"
-            transition={300}
+            transition={0}
+            accessibilityLabel={alt}
             cachePolicy="memory-disk"
             onError={() => setFailed(true)}
             accessibilityIgnoresInvertColors
           />
         </Reanimated.View>
       ) : null}
+      {alt && (!uri || failed) && <View style={[StyleSheet.absoluteFill, { justifyContent: 'center', padding: 20 }]}><Text style={{ color: colors.muted, fontSize: 16, lineHeight: 24 }}>{failed ? 'Foto niet beschikbaar. De ervaring blijft leesbaar.' : alt}</Text></View>}
       {children}
     </View>
   );

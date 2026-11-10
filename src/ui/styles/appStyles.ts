@@ -201,8 +201,9 @@ function buildAppStyles(colors: ColorTokens, phase: PhaseTokens) {
   });
 }
 
-const styleSheets: { light: AppStyles; dark: AppStyles } = {
+const styleSheets: { light: AppStyles; dark: AppStyles; editorial: AppStyles } = {
   light: buildAppStyles(palettes.light.colors, palettes.light.phase),
+  editorial: buildAppStyles(palettes.editorial.colors, palettes.editorial.phase),
   dark: buildAppStyles(palettes.dark.colors, palettes.dark.phase),
 };
 
@@ -211,4 +212,4 @@ export type AppStyles = ReturnType<typeof buildAppStyles>;
 // Scheme-aware export (ADR-064): reads forward to the stylesheet of the active
 // appearance. Both sheets are built once at module load; the root re-render
 // triggered by useAppearance() makes every component follow the device.
-export const styles: AppStyles = schemeProxy(styleSheets.light, styleSheets.dark);
+export const styles: AppStyles = schemeProxy(styleSheets.light, styleSheets.dark, styleSheets.editorial);

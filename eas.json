@@ -34,6 +34,18 @@
       "environment": "preview",
       "channel": "adaptive-guide-preview",
       "extends": "preview"
+    },
+    "fresh-concept-preview": {
+      "extends": "preview",
+      "channel": "fresh-concept-preview",
+      "environment": "preview",
+      "autoIncrement": true
+    },
+    "minimal4-preview": {
+      "extends": "preview",
+      "channel": "minimal4-preview",
+      "environment": "preview",
+      "autoIncrement": true
     }
   }
 }

@@ -1,3 +1,8 @@
+import { useReducedMotion } from '../../design/motion';
+import { MinimalNowScreen } from '../screens/MinimalNowScreen';
+import { PlansScreen } from '../screens/PlansScreen';
+import { MinimalProfileScreen } from '../screens/MinimalProfileScreen';
+import { FreshExperienceScreen } from '../screens/FreshExperienceScreen';
 import React, { useMemo } from 'react';
 import { View } from 'react-native';
 import { DefaultTheme, NavigationContainer, Theme } from '@react-navigation/native';
@@ -17,30 +22,20 @@ import { PrepareScreen } from '../screens/PrepareScreen';
 import { RememberScreen } from '../screens/RememberScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
 
-// Navigatie-fundering (ADR-058): één native-stack als enige navigatiemechanisme.
-// ADR-067 (fase R1): het skelet is vijf tabs — NU · DAG · GIDS · BOEK · JIJ —
-// waarvan de tabbalk (ui/NowTabBar) via replace zonder animatie wisselt.
-// - Guide is de GIDS-tab én het onderweg-scherm in één: de samengevoegde
-//   opvolger van het oude Presence-scherm, de gids-sheet en de hervatkaart.
-// - Profiel (JIJ) is geen modal meer maar een surface in het skelet.
-// - Ontdekken is opgeruimd: R2 (Dag) neemt ontdekking op in de redactionele
-//   daglijn; er is geen Discover-scherm of -route meer.
-// - Flow-stages (Prepare→Guide→Remember) zijn push met platform-standaard
-//   transities en Android-back via de navigator.
-// - Onboarding en de uitnodigingsschermen zijn eerste-run-schermen op de stack.
-// - Guide en Remember hebben de swipe-pop uit: hun beforeRemove-logica (gids
-//   terug naar Voorpret, reflectietelling) moet altijd lopen.
+// ADR-058/071: one native stack. The fresh journey is the default entry.
+// Legacy routes remain reachable for existing functions and invitation links.
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export function RootNavigator() {
-  const { personalHydrated, displayFontsLoaded, personalProfile, incomingInvite, inviteIssue, inviteGuestMode } = useApp();
-  // ADR-064: the navigator chrome follows the device appearance; the token
+  const reducedMotion = useReducedMotion();
+  const { personalHydrated, displayFontsLoaded, memoriesHydrated, sessionHydrated, incomingInvite, inviteIssue } = useApp();
+  // ADR-071: navigator chrome follows the saved light/dark/system choice; token
   // reads inside the memo resolve through the scheme-aware proxy.
   const scheme = useAppearance();
   const navigationTheme = useMemo<Theme>(() => ({
     ...DefaultTheme,
-    dark: scheme === 'dark',
+    dark: scheme !== 'light',
     colors: {
       ...DefaultTheme.colors,
       primary: colors.accent,
@@ -51,17 +46,14 @@ export function RootNavigator() {
     },
   }), [scheme]);
 
-  // Laadpoort ongewijzigd: wacht op profiel-hydratatie en de display-serif
-  // voordat er een scherm verschijnt.
-  if (!personalHydrated || !displayFontsLoaded) return <View style={styles.root} />;
+  // Restore profile, memories and session before showing the first screen.
+  if (!personalHydrated || !displayFontsLoaded || !memoriesHydrated || !sessionHydrated) return <View style={styles.root} />;
 
-  // Eerste scherm: een uitnodiging in de start-URL gaat voor; daarna de
-  // eerste-run-flow (tenzij een uitgenodigde gast zojuist heeft geaccepteerd).
+  // Explicit incoming invitations take priority over the fresh home.
   const initialRouteName: keyof RootStackParamList =
     inviteIssue === 'invalid' ? 'InvalidInvite'
       : incomingInvite ? 'IncomingInvite'
-        : !personalProfile.onboardingComplete && !inviteGuestMode ? 'Onboarding'
-          : 'Now';
+        : 'Now';
 
   return (
     <NavigationContainer linking={linking} theme={navigationTheme}>
@@ -69,14 +61,20 @@ export function RootNavigator() {
         initialRouteName={initialRouteName}
         screenOptions={{
           headerShown: false,
+          animation: reducedMotion ? 'none' : 'default',
           contentStyle: { backgroundColor: colors.backdrop },
         }}
       >
-        <Stack.Screen name="Now" component={NowScreen} options={{ animation: 'none' }} />
+        {(['FreshHome', 'FreshPreview', 'FreshGuide', 'FreshQuestion', 'FreshFinish', 'FreshBook', 'FreshOptions'] as const).map(name =>
+          <Stack.Screen key={name} name={name} component={FreshExperienceScreen} />)}
+        <Stack.Screen name="Now" component={MinimalNowScreen} options={{ animation: 'none' }} />
+        <Stack.Screen name="Plans" component={PlansScreen} options={{ animation: 'none' }} />
+        <Stack.Screen name="NowDetails" component={NowScreen} />
+        <Stack.Screen name="ProfileDetails" component={ProfileScreen} />
         <Stack.Screen name="Today" component={TodayScreen} options={{ animation: 'none' }} />
         <Stack.Screen name="Guide" component={GuideScreen} options={{ gestureEnabled: false }} />
         <Stack.Screen name="LifeBook" component={LifeBookScreen} options={{ animation: 'none' }} />
-        <Stack.Screen name="Profile" component={ProfileScreen} options={{ animation: 'none' }} />
+        <Stack.Screen name="Profile" component={MinimalProfileScreen} options={{ animation: 'none' }} />
         <Stack.Screen name="Onboarding" component={OnboardingScreen} options={{ animation: 'fade' }} />
         <Stack.Screen name="IncomingInvite" component={IncomingInviteScreen} options={{ animation: 'fade' }} />
         <Stack.Screen name="InvalidInvite" component={InvalidInviteScreen} options={{ animation: 'fade' }} />

@@ -1,3 +1,15 @@
+## Minimal 4.0 — 2026-11-10
+
+ADR-073 is Founder-approved for the first milestone only: four tabs, three themes, temporary intelligent refinement, saved ideas and existing preparation/Guide. Day/trip planning and broad renderer expansion remain deferred. This supersedes older conflicting entry/navigation summaries below. Physical iPhone verification of this milestone remains outstanding.
+
+## Internal iPhone build - 2026-11-09
+
+Founder explicitly authorized internal distribution. Expo build `6b50c923-0ff3-40ff-8595-8e91d88b3a2f` finished successfully: version 0.3.0 (3), fresh-concept-preview, existing registered iPhone. No App Store publication or old-channel OTA. Physical installation and behavior remain unverified.
+
+## Fresh start approved — ADR-071
+
+The Founder explicitly approved the new main journey and its native build proposal. ADR-071 supersedes the five-tab/Guide-only boundary below for the new entry. Preserve existing data and runners; implement the full reviewed journey with light/dark/system. Work in progress, not device-verified.
+
 # Momentum Project Status
 
 Status: Active  

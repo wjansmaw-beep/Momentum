@@ -1,4 +1,12 @@
+## Minimal 4.0 — 2026-11-10
+
+ADR-073 is Founder-approved for the first milestone only: four tabs, three themes, temporary intelligent refinement, saved ideas and existing preparation/Guide. Day/trip planning and broad renderer expansion remain deferred. This supersedes older conflicting entry/navigation summaries below. Physical iPhone verification of this milestone remains outstanding.
+
 # Open Questions
+
+## Fresh experience - 2026-11-09
+
+Resolved by ADR-071: fresh main journey, no mandatory old onboarding, light/dark/system choice, preserved legacy functions and optional neutral memories. Still open: a verified multi-stop Moddergat walk, broader source-grounded AI answers, physical iPhone validation and separately authorized external distribution.
 
 ## iPhone completion — 2026-11-08
 

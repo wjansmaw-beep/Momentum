@@ -1,3 +1,4 @@
+import { schemeStyles } from '../../design/theme';
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import MapView, { Marker, PROVIDER_DEFAULT, Region } from 'react-native-maps';
@@ -33,9 +34,9 @@ export function GuideOrientationMap({ destination }: { destination: GuideDestina
   </View>;
 }
 
-const s = StyleSheet.create({
-  panel: { padding: 16, borderRadius: 20, backgroundColor: '#243832', gap: 12 },
-  label: { color: '#F4F0E7', fontSize: 16, lineHeight: 23 }, copy: { color: '#F4F0E7', fontSize: 14, lineHeight: 21 },
+const s = schemeStyles(({ colors: c }) => StyleSheet.create({
+  panel: { padding: 16, borderRadius: 20, backgroundColor: c.panelRaised, gap: 12 },
+  label: { color: c.bone, fontSize: 16, lineHeight: 23 }, copy: { color: c.bone, fontSize: 14, lineHeight: 21 },
   map: { height: 300, width: '100%' }, controls: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  button: { minHeight: 48, minWidth: 48, padding: 12, borderRadius: 16, backgroundColor: '#3D554B', justifyContent: 'center', alignItems: 'center' },
-});
+  button: { minHeight: 48, minWidth: 48, padding: 12, borderRadius: 16, backgroundColor: c.panel, justifyContent: 'center', alignItems: 'center' },
+}));

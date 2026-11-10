@@ -1,3 +1,4 @@
+import { ed, ResumeExperience } from '../editorial';
 import { ImageCredit } from '../ImageCredit';
 import React, { useState } from 'react';
 import { ImageStyle, Pressable, ScrollView, Share, Text, TextStyle, View, ViewStyle } from 'react-native';
@@ -58,14 +59,13 @@ export function LifeBookScreen() {
   return (
     <SurfaceFrame>
     <ScrollView contentContainerStyle={styles.screenScroll} showsVerticalScrollIndicator={false}>
+      <View style={{ paddingHorizontal: 20 }}><ResumeExperience /></View>
       {memories.length === 0 || !featured ? (
         <>
           <View style={bk.head}>
-            <Text style={bk.headTitle}>Boek</Text>
+            <Text accessibilityRole="header" style={ed.title}>Boek</Text>
           </View>
-          <QuietCanvas eyebrow="NOG GEEN BEWAARDE MOMENTEN" title="Hier komen je beleefde momenten samen.">
-            <Text style={styles.screenSubtitle}>Je herinneringen blijven alleen op dit apparaat.</Text>
-          </QuietCanvas>
+          <View style={{ padding: 22, gap: 16 }}><Text style={ed.heading}>Hier komen je beleefde momenten samen.</Text><Text style={ed.body}>Je herinneringen blijven alleen op dit apparaat.</Text></View>
         </>
       ) : (
         <>
@@ -161,22 +161,22 @@ const bk = schemeStyles(({ colors: schemeColors }) => {
   const evening = schemeColors === palettes.dark.colors;
   const palette = evening
     ? {
-        ink: '#F5F4F0',
-        ink2: 'rgba(245,244,240,0.62)',
-        ink3: 'rgba(245,244,240,0.55)',
-        accent: '#34C772',
-        glass: 'rgba(245,244,240,0.07)',
-        line: 'rgba(245,244,240,0.12)',
+        ink: schemeColors.bone,
+        ink2: schemeColors.muted,
+        ink3: schemeColors.muted,
+        accent: schemeColors.accent,
+        glass: schemeColors.panel,
+        line: schemeColors.line,
         badgeBg: 'rgba(10,12,18,0.42)',
         likeBorder: 'rgba(245,244,240,0.22)',
       }
     : {
-        ink: schemeColors.ink,
-        ink2: 'rgba(34,37,45,0.66)',
-        ink3: 'rgba(34,37,45,0.68)',
+        ink: schemeColors.bone,
+        ink2: schemeColors.muted,
+        ink3: schemeColors.muted,
         accent: schemeColors.accent,
-        glass: 'rgba(34,37,45,0.05)',
-        line: 'rgba(34,37,45,0.12)',
+        glass: schemeColors.panel,
+        line: schemeColors.line,
         badgeBg: 'rgba(255,255,255,0.72)',
         likeBorder: 'rgba(255,255,255,0.5)',
       };

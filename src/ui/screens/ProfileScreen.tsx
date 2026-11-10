@@ -330,30 +330,30 @@ const yj = schemeStyles(({ colors: schemeColors }) => {
   const evening = schemeColors === palettes.dark.colors;
   const palette = evening
     ? {
-        ink: '#F5F4F0',
-        ink2: 'rgba(245,244,240,0.62)',
-        ink3: 'rgba(245,244,240,0.55)',
-        accent: '#34C772',
-        accentInk: '#06130C',
-        glass: 'rgba(245,244,240,0.07)',
-        glass2: 'rgba(245,244,240,0.09)',
-        line: 'rgba(245,244,240,0.12)',
-        iconTile: 'rgba(52,199,114,0.14)',
-        bar: 'rgba(245,244,240,0.14)',
-        glow: 'rgba(52,199,114,0.5)',
-      }
-    : {
-        ink: schemeColors.ink,
-        ink2: 'rgba(34,37,45,0.66)',
-        ink3: 'rgba(34,37,45,0.68)',
+        ink: schemeColors.bone,
+        ink2: schemeColors.muted,
+        ink3: schemeColors.muted,
         accent: schemeColors.accent,
         accentInk: schemeColors.onAccent,
-        glass: 'rgba(34,37,45,0.05)',
+        glass: schemeColors.panel,
+        glass2: 'rgba(245,244,240,0.09)',
+        line: schemeColors.line,
+        iconTile: schemeColors.panelRaised,
+        bar: 'rgba(245,244,240,0.14)',
+        glow: schemeColors.line,
+      }
+    : {
+        ink: schemeColors.bone,
+        ink2: schemeColors.muted,
+        ink3: schemeColors.muted,
+        accent: schemeColors.accent,
+        accentInk: schemeColors.onAccent,
+        glass: schemeColors.panel,
         glass2: 'rgba(34,37,45,0.07)',
-        line: 'rgba(34,37,45,0.12)',
-        iconTile: 'rgba(32,128,73,0.10)',
+        line: schemeColors.line,
+        iconTile: schemeColors.panelRaised,
         bar: 'rgba(34,37,45,0.14)',
-        glow: 'rgba(32,128,73,0.35)',
+        glow: schemeColors.line,
       };
   type YouStyles = {
     accentSolid: string;

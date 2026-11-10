@@ -1,3 +1,6 @@
+import { useSavedExperiences } from './savedExperiences';
+import type { MomentRefinement } from '../product/momentRefinement';
+import { freshMemory } from '../product/freshMemory';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
 import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
@@ -136,6 +139,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 }
 
 function useAppStore() {
+  const [momentRefinement, setMomentRefinement] = useState<MomentRefinement>('open');
+  const [momentMinutes, setMomentMinutes] = useState<number | undefined>();
+  const [momentReference, setMomentReference] = useState<string | undefined>();
+  const saved = useSavedExperiences();
+  const [preparationCompany, setPreparationCompany] = useState<Company | undefined>();
   const [displayFontsLoaded] = useFonts({ Fraunces_500Medium, Fraunces_500Medium_Italic, Fraunces_600SemiBold });
   // De uitnodiging in de start-URL is synchroon bekend (web) en bepaalt mede de
   // initiële route van de navigator; vandaar een luie initializer in plaats van
@@ -167,6 +175,10 @@ function useAppStore() {
   const [calendarContext, setCalendarContext] = useState<CalendarContextSnapshot>(emptyCalendarContext);
   const [calendarLoading, setCalendarLoading] = useState(false);
   const [memories, setMemories] = useState<Memory[]>([]);
+  const [memoriesHydrated, setMemoriesHydrated] = useState(false);
+  const [memorySaveError, setMemorySaveError] = useState('');
+  const memoryWritesAllowed = useRef(false);
+  const memoryWrites = useRef<Promise<void>>(Promise.resolve());
   // ADR-059: bij openen kan een kleine kandidaat-set (2–3 concepten) arriveren
   // i.p.v. één concept. De hele set concurreert via de bestaande poort en
   // ranking; de hero-stabiliteit (pending-pill) werkt op setniveau.
@@ -190,8 +202,13 @@ function useAppStore() {
 
   useEffect(() => {
     AsyncStorage.getItem(memoryKey).then((value) => {
-      if (value) setMemories(JSON.parse(value));
-    }).catch(() => undefined);
+      if (value) {
+        const parsed = JSON.parse(value);
+        if (!Array.isArray(parsed)) throw new Error('Invalid memories');
+        setMemories(parsed);
+      }
+      memoryWritesAllowed.current = true;
+    }).catch(() => setMemorySaveError('Je herinneringen konden niet worden geladen. De bestaande opslag is niet overschreven.')).finally(() => setMemoriesHydrated(true));
     AsyncStorage.getItem(contextKey).then((value) => {
       if (value) setPrototypeContext({ ...defaultPrototypeContext(), ...JSON.parse(value) });
     }).catch(() => undefined).finally(() => setContextHydrated(true));
@@ -238,8 +255,11 @@ function useAppStore() {
   }, []);
 
   useEffect(() => {
-    AsyncStorage.setItem(memoryKey, JSON.stringify(memories)).catch(() => undefined);
-  }, [memories]);
+    if (!memoriesHydrated || !memoryWritesAllowed.current) return;
+    const snapshot = JSON.stringify(memories);
+    memoryWrites.current = memoryWrites.current.then(() => AsyncStorage.setItem(memoryKey, snapshot))
+      .then(() => setMemorySaveError('')).catch(() => setMemorySaveError('Je herinnering kon niet op dit toestel worden bewaard. Houd de app open en probeer opnieuw.'));
+  }, [memories, memoriesHydrated]);
 
   useEffect(() => {
     if (!contextHydrated) return;
@@ -296,6 +316,11 @@ function useAppStore() {
   ), [contextualSet, liveWorld, personalProfile, selectionLocationConfirmed]);
   const compositionAudit = useMemo(() => auditCandidatePool([...contextualPrepared, ...baseCandidatePool]), [baseCandidatePool, contextualPrepared]);
   const candidatePool = compositionAudit.accepted.length ? compositionAudit.accepted : baseCandidatePool;
+  // Keep the complete reviewed catalogue available for conscious refinements,
+  // even when the initial contextual composer produced only one domain.
+  const momentCandidatePool = useMemo(() => auditCandidatePool(
+    [...new Map([...guidedCatalogExperiences, ...candidatePool].map(e => [e.id, e])).values()]
+  ).accepted, [guidedCatalogExperiences, candidatePool]);
   const learningContext = useMemo<PersonalLearningContext>(() => ({
     kindAffinity: personalProfile.kindAffinity,
     blockedExperienceIds: personalProfile.blockedExperienceIds,
@@ -443,7 +468,8 @@ function useAppStore() {
   // Opent een ervaring vanuit een surface: selecteert de kaart en legt de
   // herkomst vast. Het scherm dat deze actie aanroept pusht daarna zelf
   // 'Prepare' op de navigatie-stack (voorheen: setFlowStage('prepare')).
-  const openExperience = (experience: Experience, from: Surface) => {
+  const openExperience = (experience: Experience, from: Surface, momentCompany?: Company) => {
+    setPreparationCompany(momentCompany);
     setSelected(experience);
     setOrigin(from);
     setSharedDraft(null);
@@ -590,7 +616,7 @@ function useAppStore() {
       title: selected.title,
       date: 'Vandaag',
       image: selected.image,
-      note: input.note || 'Een moment dat de moeite waard was.',
+      note: input.note?.trim() ?? '',
       sharedWith: completedSession?.shared?.participants.filter((participant) => participant.status === 'ready' && participant.role !== completedSession.shared?.role).map((participant) => participant.name),
       meaning: selected.meaningThread?.label,
       experienceSnapshot: selected,
@@ -598,7 +624,7 @@ function useAppStore() {
       // expliciete gebruikersactie) en verlaten het apparaat nooit.
       photos: photos.length ? photos.slice(0, 8) : undefined,
     };
-    setMemories((current) => [memory, ...current.filter((item) => item.id !== selected.id)].slice(0, 12));
+    setMemories((current) => [memory, ...current.filter((item) => item.id !== memory.id)]);
     setPersonalProfile((current) => applyReflection(current, selected, input));
     setEvidence((current) => ({
       ...current,
@@ -695,7 +721,28 @@ function useAppStore() {
   const clearLiveCache = () => { clearLiveWorldCache().catch(() => undefined); setLiveMessage('Regionale live cache gewist'); };
 
   return {
+    ...saved,
+    momentRefinement,
+    setMomentRefinement,
+    momentMinutes,
+    momentReference,
+    setMomentReference,
+    setMomentMinutes,
+    momentCandidatePool,
+    preparationCompany,
     // hydration
+    memoriesHydrated,
+    sessionHydrated,
+    memorySaveError,
+    saveFreshMemory: (note: string, photos: string[] = []) => {
+      if (!memoryWritesAllowed.current) return false;
+      setMemories(current => [freshMemory(selected, note, new Date(), photos), ...current]);
+      setCompletedSession(null); setActiveSession(null);
+      return true;
+    },
+    removeFreshMemory: (id: string) => { if (!memoryWritesAllowed.current) return false; setMemories(current => current.filter(memory => memory.id !== id)); return true; },
+    editFreshMemory: (id: string, note: string) => { if (!memoryWritesAllowed.current) return false; setMemories(current => current.map(memory => memory.id === id ? { ...memory, note: note.trim() } : memory)); return true; },
+    retryMemorySave: () => setMemories(current => [...current]),
     displayFontsLoaded,
     personalHydrated,
     // core state

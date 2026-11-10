@@ -1,3 +1,4 @@
+import { ed, EditorialPhoto } from '../editorial';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Linking,
@@ -63,10 +64,10 @@ import {
 // blijven als rustige verdieping onder de v2-scènes bestaan.
 
 export function PrepareScreen() {
-  const { selected: experience, personalProfile: personal, activeSession, sharedDraft, savePreparation, startPresence, liveWorld, selectionLocationConfirmed, prototypeContext } = useApp();
+  const { preparationCompany, selected: experience, personalProfile: personal, activeSession, sharedDraft, savePreparation, startPresence, liveWorld, selectionLocationConfirmed, prototypeContext } = useApp();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const hostName = personal.firstName || 'Iemand';
-  const initialCompany: Company = (activeSession?.experienceId === experience.id ? activeSession.company : sharedDraft ? 'together' : personal.defaultCompany) ?? 'solo';
+  const initialCompany: Company = (activeSession?.experienceId === experience.id ? activeSession.company : sharedDraft ? 'together' : preparationCompany ?? personal.defaultCompany) ?? 'solo';
   const initialGuideDepth = activeSession?.experienceId === experience.id ? activeSession.guideDepth : undefined;
   const initialShared = activeSession?.experienceId === experience.id ? activeSession.shared : sharedDraft ?? undefined;
   const onBack = () => navigation.goBack();
@@ -182,6 +183,12 @@ export function PrepareScreen() {
           <Text style={vp.headTitle}>Voorpret</Text>
           <Text style={vp.headSub} numberOfLines={1}>{experience.title}</Text>
         </View>
+      </View>
+
+      <View style={{ paddingHorizontal: 20, gap: 16, marginBottom: 16 }}>
+        <Text accessibilityRole="header" style={ed.title}>{experience.title}</Text>
+        <Text style={ed.body}>{experience.promise}</Text>
+        <EditorialPhoto experience={experience} />
       </View>
 
       {/* Aftelkaart: vertrektijd uit hetzelfde startmodel als de Nu-CTA;
@@ -405,34 +412,34 @@ const vp = schemeStyles(({ colors: schemeColors }) => {
   const evening = schemeColors === palettes.dark.colors;
   const palette = evening
     ? {
-        ink: '#F5F4F0',
-        ink2: 'rgba(245,244,240,0.62)',
-        accent: '#34C772',
-        accentInk: '#06130C',
-        glass: 'rgba(245,244,240,0.07)',
-        line: 'rgba(245,244,240,0.12)',
-        track: 'rgba(245,244,240,0.1)',
-        rowLine: 'rgba(245,244,240,0.07)',
-        iconTile: 'rgba(52,199,114,0.12)',
-        gradientStart: 'rgba(52,199,114,0.16)',
-        gradientEnd: 'rgba(52,199,114,0.05)',
-        countBorder: 'rgba(52,199,114,0.35)',
-        glow: 'rgba(52,199,114,0.5)',
-      }
-    : {
-        ink: schemeColors.ink,
-        ink2: 'rgba(34,37,45,0.66)',
+        ink: schemeColors.bone,
+        ink2: schemeColors.muted,
         accent: schemeColors.accent,
         accentInk: schemeColors.onAccent,
-        glass: 'rgba(34,37,45,0.05)',
-        line: 'rgba(34,37,45,0.12)',
-        track: 'rgba(34,37,45,0.14)',
-        rowLine: 'rgba(34,37,45,0.08)',
-        iconTile: 'rgba(32,128,73,0.10)',
-        gradientStart: 'rgba(32,128,73,0.14)',
-        gradientEnd: 'rgba(32,128,73,0.05)',
-        countBorder: 'rgba(32,128,73,0.30)',
-        glow: 'rgba(32,128,73,0.35)',
+        glass: schemeColors.panel,
+        line: schemeColors.line,
+        track: schemeColors.panelRaised,
+        rowLine: schemeColors.line,
+        iconTile: schemeColors.panelRaised,
+        gradientStart: schemeColors.ink,
+        gradientEnd: schemeColors.ink,
+        countBorder: schemeColors.line,
+        glow: schemeColors.line,
+      }
+    : {
+        ink: schemeColors.bone,
+        ink2: schemeColors.muted,
+        accent: schemeColors.accent,
+        accentInk: schemeColors.onAccent,
+        glass: schemeColors.panel,
+        line: schemeColors.line,
+        track: schemeColors.panelRaised,
+        rowLine: schemeColors.line,
+        iconTile: schemeColors.panelRaised,
+        gradientStart: schemeColors.ink,
+        gradientEnd: schemeColors.ink,
+        countBorder: schemeColors.line,
+        glow: schemeColors.line,
       };
   type VoorpretStyles = {
     inkSolid: string;
@@ -482,15 +489,15 @@ const vp = schemeStyles(({ colors: schemeColors }) => {
     gradientEnd: palette.gradientEnd,
     head: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 22, paddingTop: 10, paddingBottom: 12 },
     back: {
-      width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center',
-      backgroundColor: palette.glass, borderWidth: 1, borderColor: palette.line,
+      width: 44, height: 44, borderRadius: 19, alignItems: 'center', justifyContent: 'center',
+      backgroundColor: palette.glass, borderTopWidth: 1, borderTopColor: palette.line,
     },
     headTitle: { fontSize: 14.5, fontWeight: '600', color: palette.ink },
     headSub: { fontSize: 11.5, color: palette.ink2, marginTop: 1 },
     count: {
       marginHorizontal: 12, borderRadius: 26, padding: 18,
       borderWidth: 1, borderColor: palette.countBorder,
-      shadowColor: '#000000', shadowOpacity: 0.4, shadowRadius: 30, shadowOffset: { width: 0, height: 16 }, elevation: 7,
+      shadowColor: '#000000', shadowOpacity: 0, shadowRadius: 30, shadowOffset: { width: 0, height: 16 }, elevation: 0,
     },
     countLabel: { fontSize: 10.5, letterSpacing: 2.1, fontWeight: '700', color: palette.accent, textTransform: 'uppercase' },
     countBigRow: { flexDirection: 'row', alignItems: 'baseline', gap: 10, marginTop: 6, flexWrap: 'wrap' },
@@ -498,7 +505,7 @@ const vp = schemeStyles(({ colors: schemeColors }) => {
       fontFamily: typography.displayFamilyMedium, fontWeight: '400', fontSize: 44,
       letterSpacing: -0.9, color: palette.ink,
     },
-    countMeta: { fontSize: 13, fontWeight: '600', color: palette.ink2 },
+    countMeta: { fontSize: 16, fontWeight: '600', color: palette.ink2 },
     countBarTrack: { marginTop: 12, height: 5, borderRadius: 999, backgroundColor: palette.track, overflow: 'hidden' },
     countBarFill: {
       height: '100%', borderRadius: 999, backgroundColor: palette.accent,
@@ -507,8 +514,8 @@ const vp = schemeStyles(({ colors: schemeColors }) => {
     countBarLabels: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
     countBarLabel: { fontSize: 10, color: palette.ink2, fontWeight: '500' },
     card: {
-      marginHorizontal: 12, marginTop: 10, borderRadius: 22, paddingHorizontal: 15, paddingVertical: 14,
-      backgroundColor: palette.glass, borderWidth: 1, borderColor: palette.line,
+      marginHorizontal: 20, marginTop: 24, borderRadius: 0, paddingHorizontal: 0, paddingVertical: 14,
+      backgroundColor: palette.glass, borderTopWidth: 1, borderTopColor: palette.line,
     },
     cardHead: { flexDirection: 'row', alignItems: 'center', gap: 9, marginBottom: 10 },
     cardTitle: { fontSize: 11, letterSpacing: 1.6, fontWeight: '700', color: palette.ink2, textTransform: 'uppercase' },
@@ -524,8 +531,8 @@ const vp = schemeStyles(({ colors: schemeColors }) => {
       alignItems: 'center', justifyContent: 'center',
     },
     stepNoText: { fontSize: 10.5, fontWeight: '700', color: palette.accent },
-    rowTitle: { fontSize: 13, fontWeight: '600', color: palette.ink },
-    rowSub: { fontSize: 11, color: palette.ink2, marginTop: 1 },
+    rowTitle: { fontSize: 16, fontWeight: '600', color: palette.ink },
+    rowSub: { fontSize: 14, color: palette.ink2, marginTop: 1 },
     rowTrailing: { fontSize: 11.5, fontWeight: '600', color: palette.ink2 },
     briefingLoading: { fontSize: 12, color: palette.ink2, fontWeight: '500', paddingVertical: 4 },
     briefingRow: { paddingVertical: 7, gap: 3 },

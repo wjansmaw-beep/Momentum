@@ -10,7 +10,17 @@
 // met drie toestanden (stap, verdieping, telefoon-weg). Profiel (JIJ) is
 // geen modal meer maar een surface in het skelet.
 export type RootStackParamList = {
+  FreshHome: undefined;
+  FreshPreview: undefined;
+  FreshGuide: undefined;
+  FreshQuestion: undefined;
+  FreshFinish: undefined;
+  FreshBook: undefined;
+  FreshOptions: undefined;
   Now: undefined;
+  NowDetails: undefined;
+  Plans: undefined;
+  ProfileDetails: undefined;
   Today: undefined;
   Guide: undefined;
   LifeBook: undefined;
@@ -22,25 +32,10 @@ export type RootStackParamList = {
   Remember: undefined;
 };
 
-export type TabId = 'nu' | 'dag' | 'gids' | 'boek' | 'jij';
-
-/** De vijf tabroutes in skeletvolgorde (ADR-067 §3). De gids-route wordt door
- * de tabbalk en Nu niet rechtstreeks vervangen maar via resumeSession naar de
- * passende sessiestage (Guide bij presence, Prepare bij prepare) geleid. */
+export type TabId = 'nu' | 'plannen' | 'boek' | 'jij';
 export const tabRoutes: Record<TabId, keyof RootStackParamList> = {
-  nu: 'Now',
-  dag: 'Today',
-  gids: 'Guide',
-  boek: 'LifeBook',
-  jij: 'Profile',
+ nu: 'Now', plannen: 'Plans', boek: 'LifeBook', jij: 'Profile',
 };
-
-/** Welke route welke tab activeert. Guide ís de GIDS-tab; schermen buiten
- * het skelet (flow-stages) activeren geen tab. */
 export const routeTabs: Partial<Record<keyof RootStackParamList, TabId>> = {
-  Now: 'nu',
-  Today: 'dag',
-  Guide: 'gids',
-  LifeBook: 'boek',
-  Profile: 'jij',
+ Now: 'nu', Plans: 'plannen', Today: 'plannen', LifeBook: 'boek', Profile: 'jij', ProfileDetails: 'jij', NowDetails: 'nu',
 };

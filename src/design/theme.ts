@@ -1,3 +1,4 @@
+import { useAppearancePreference } from './appearancePreference';
 import { Platform, useColorScheme } from 'react-native';
 
 // Color language (ADR-061, point 1 — amends ADR-053): cool light canvas
@@ -11,10 +12,10 @@ import { Platform, useColorScheme } from 'react-native';
 // Same roles and tokens, tuned for evening use — deep blue-charcoal surfaces
 // (no pure #000 chrome), cards slightly lighter than the canvas, the primary
 // action slightly brighter green with a deep on-accent ink for AA, and phase
-// accents muted but recognizable. The appearance follows the device via
-// useColorScheme(); there is deliberately no in-app toggle.
+// accents muted but recognizable. ADR-071 adds a persisted light/dark override
+// alongside following the device via useColorScheme().
 
-export type AppearanceScheme = 'light' | 'dark';
+export type AppearanceScheme = 'light' | 'dark' | 'editorial';
 
 export type ColorTokens = {
   ink: string;
@@ -299,6 +300,25 @@ const eveningPhase: PhaseTokens = {
   },
 };
 
+// ADR-073: semantic palette aliases preserve existing consumers while new surfaces
+// use the same tokens. Editorial is a theme, not a different component tree.
+function minimalColors(base: ColorTokens, bg: string, text: string, surface: string, muted: string, line: string, action: string, onAction: string): ColorTokens {
+  return { ...base, ink: bg, backdrop: bg, panel: bg, panelRaised: surface,
+    bone: text, muted, mutedSoft: muted, line, softLine: line, accent: action,
+    accentText: text, gold: action, onAccent: onAction, placeholder: surface,
+    accentSoft: surface, accentLine: line, shadow: bg, chipInset: surface,
+    veilStrong: bg, veilSoft: surface, glassNav: bg, glassSheet: surface,
+    ambientPrimary: 'transparent', ambientSecondary: 'transparent',
+    noticeLine: line, noticeSoft: surface, quietGradient: [bg, bg, bg] };
+}
+const minimalLight = minimalColors(lightColors, '#FFFFFF', '#111111', '#F5F5F4', '#666666', '#E5E5E5', '#111111', '#FFFFFF');
+const minimalDark = minimalColors(eveningColors, '#101010', '#FFFFFF', '#242424', '#B5B5B5', '#3B3B3B', '#FFFFFF', '#101010');
+const minimalEditorial = minimalColors(eveningColors, '#172522', '#F4F0E7', '#30443B', '#D8C8A8', '#52675C', '#D8C8A8', '#172522');
+function minimalPhase(c: ColorTokens): PhaseTokens {
+ const common = { accent: c.accent, text: c.bone, soft: c.panelRaised, line: c.line };
+ return { now: common, prepare: { ...common, halo: 'transparent' }, remember: common, lifebook: common,
+ presence: { accent: c.accent, surface: c.ink, onSurface: c.bone, mutedOnSurface: c.muted, line: c.line, hairline: c.line, track: c.panelRaised } };
+}
 // ---------------------------------------------------------------------------
 // Appearance mechanism (ADR-064, documented choice)
 //
@@ -321,8 +341,8 @@ export function getAppearanceScheme(): AppearanceScheme {
 }
 
 /** Idempotently sync the active palette with the device appearance. */
-export function syncAppearance(scheme: 'light' | 'dark' | null | undefined): AppearanceScheme {
-  activeScheme = scheme === 'dark' ? 'dark' : 'light';
+export function syncAppearance(scheme: AppearanceScheme | null | undefined): AppearanceScheme {
+  activeScheme = scheme === 'editorial' ? 'editorial' : scheme === 'dark' ? 'dark' : 'light';
   return activeScheme;
 }
 
@@ -333,13 +353,14 @@ export function syncAppearance(scheme: 'light' | 'dark' | null | undefined): App
  */
 export function useAppearance(): AppearanceScheme {
   const scheme = useColorScheme();
-  return syncAppearance(scheme === 'unspecified' ? undefined : scheme);
+  const preference = useAppearancePreference();
+  return syncAppearance(preference === 'system' ? (scheme === 'unspecified' ? undefined : scheme) : preference);
 }
 
 /** Proxy that forwards every property read to the palette of the active scheme. */
-export function schemeProxy<T extends object>(light: T, dark: T): T {
+export function schemeProxy<T extends object>(light: T, dark: T, editorial: T = dark): T {
   return new Proxy(light, {
-    get: (_target, property) => Reflect.get(activeScheme === 'dark' ? dark : light, property),
+    get: (_target, property) => Reflect.get(activeScheme === 'editorial' ? editorial : activeScheme === 'dark' ? dark : light, property),
   });
 }
 
@@ -350,16 +371,17 @@ export function schemeProxy<T extends object>(light: T, dark: T): T {
  * the active appearance after the root re-renders via `useAppearance()`.
  */
 export function schemeStyles<T extends object>(build: (palette: { colors: ColorTokens; phase: PhaseTokens }) => T): T {
-  return schemeProxy(build(palettes.light), build(palettes.dark));
+  return schemeProxy(build(palettes.light), build(palettes.dark), build(palettes.editorial));
 }
 
-export const colors: ColorTokens = schemeProxy(lightColors, eveningColors);
-export const phase: PhaseTokens = schemeProxy(lightPhase, eveningPhase);
+export const colors: ColorTokens = schemeProxy(minimalLight, minimalDark, minimalEditorial);
+export const phase: PhaseTokens = schemeProxy(minimalPhase(minimalLight), minimalPhase(minimalDark), minimalPhase(minimalEditorial));
 
 /** Raw palettes for callers that build per-scheme artifacts (StyleSheets). */
 export const palettes: Record<AppearanceScheme, { colors: ColorTokens; phase: PhaseTokens }> = {
-  light: { colors: lightColors, phase: lightPhase },
-  dark: { colors: eveningColors, phase: eveningPhase },
+  light: { colors: minimalLight, phase: minimalPhase(minimalLight) },
+  dark: { colors: minimalDark, phase: minimalPhase(minimalDark) },
+  editorial: { colors: minimalEditorial, phase: minimalPhase(minimalEditorial) },
 };
 
 export const typography = {

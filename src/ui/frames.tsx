@@ -1,5 +1,8 @@
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RootStackParamList } from './navigation/types';
 import React from 'react';
-import { Platform, SafeAreaView, useWindowDimensions, View } from 'react-native';
+import { Pressable, Text, Platform, SafeAreaView, useWindowDimensions, View } from 'react-native';
 import { StatusBar, StatusBarStyle } from 'expo-status-bar';
 import { useAppearance } from '../design/theme';
 import { styles } from './styles/appStyles';
@@ -16,12 +19,14 @@ import { NowTabBar } from './NowTabBar';
 
 function Frame({ statusBar, withNav, children }: { statusBar: StatusBarStyle; withNav: boolean; children: React.ReactNode }) {
   const { height } = useWindowDimensions();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   return (
     <View style={[styles.root, { minHeight: height }, Platform.OS === 'web' && { height, overflow: 'hidden' }]}>
       <StatusBar style={statusBar} />
-      <AmbientBlobs />
+
       <SafeAreaView style={styles.safe}>
         <View style={[styles.appFrame, Platform.OS === 'web' && styles.webAppFrame]}>
+
           {children}
           {withNav ? <NowTabBar /> : null}
         </View>
@@ -31,7 +36,7 @@ function Frame({ statusBar, withNav, children }: { statusBar: StatusBarStyle; wi
 }
 
 function useDefaultBarStyle(): StatusBarStyle {
-  return useAppearance() === 'dark' ? 'light' : 'dark';
+  return useAppearance() === 'light' ? 'dark' : 'light';
 }
 
 export function SurfaceFrame({ children }: { children: React.ReactNode }) {

@@ -1,6 +1,18 @@
+## Minimal 4.0 — 2026-11-10
+
+ADR-073 is Founder-approved for the first milestone only: four tabs, three themes, temporary intelligent refinement, saved ideas and existing preparation/Guide. Day/trip planning and broad renderer expansion remain deferred. This supersedes older conflicting entry/navigation summaries below. Physical iPhone verification of this milestone remains outstanding.
+
 # Momentum Product Roadmap
 
-## Current delivery update — 2026-11-08
+## Fresh experience - 2026-11-09
+
+ADR-071 replaces the Guide-only main journey with the approved complete prototype: direct invitation, preview, contextual guidance, optional memory and light/dark/system choice. Native verification is underway; physical iPhone validation and distribution remain outstanding. Existing runners remain accessible.
+
+## Fresh experience — 2026-11-09
+
+ADR-071 supersedes the Guide-only delivery sequence as the main experience. The Founder approved the complete prototype and native build proposal: direct invitation, preview, contextual guidance, optional memory and light/dark/system choice. The native implementation is under local verification; physical iPhone validation and distribution remain outstanding. Existing runners remain accessible.
+
+## Current delivery update â€” 2026-11-08
 
 ADR-070 extends the accepted scope to completing the combined brief for iPhone testing. Sequence: native orientation, typed renderer and two reviewed reference packs, real listening, accessibility/regressions, distribution and device checks. Orientation implementation and iOS JavaScript bundling now pass local checks; installation and map behavior on a physical phone remain unverified. The limitations in the ADR-069 entry below describe the earlier slice, not the current authorization.
 
@@ -15,7 +27,7 @@ This roadmap orders product learning. It is not a release-date promise. Each pha
 
 The four continuous tracks are Philosophy, Experience, Understanding, and Trust. Design and Technology implement them only after their current questions are clear.
 
-## Phase 1 — Constitution
+## Phase 1 â€” Constitution
 
 **Goal:** establish why Momentum exists and what must remain true.
 
@@ -34,7 +46,7 @@ The four continuous tracks are Philosophy, Experience, Understanding, and Trust.
 
 **Current state:** drafted; awaiting explicit Founder approval.
 
-## Phase 2 — Experience
+## Phase 2 â€” Experience
 
 **Goal:** define how relevance becomes desire, action, Presence, and Memory.
 
@@ -56,7 +68,7 @@ The four continuous tracks are Philosophy, Experience, Understanding, and Trust.
 - the first 30 seconds and the transition out of the app are coherent;
 - accessibility and low-context states are covered.
 
-## Phase 3 — Understanding
+## Phase 3 â€” Understanding
 
 **Goal:** specify how Momentum selects, explains, abstains, and learns.
 
@@ -90,7 +102,7 @@ The four continuous tracks are Philosophy, Experience, Understanding, and Trust.
 
 **Implementation note (2026-07-12):** a first device-local personal model now influences Now, Today, and Discover through explicit onboarding choices, reversible feedback, repetition control, and diversity-aware ranking. ADR-018 defines its trust boundary.
 
-## Phase 4 — Design
+## Phase 4 â€” Design
 
 **Goal:** translate the approved experience language into a coherent, testable interface.
 
@@ -120,7 +132,7 @@ The four continuous tracks are Philosophy, Experience, Understanding, and Trust.
 
 **Implementation note (2026-07-18):** the premium-coherence pass removes evaluation language from consumer hierarchy, turns Today into an editorial rhythm, simplifies active intent, makes Life Book memory-led, validates Meaning Threads before display, aligns timed guidance, and keeps the consultable guide inside perceptual Presence continuity; see ADR-054.
 
-## Phase 5 — Engineering
+## Phase 5 â€” Engineering
 
 **Goal:** choose the smallest technical foundation that can test the core experience.
 
@@ -144,7 +156,7 @@ The four continuous tracks are Philosophy, Experience, Understanding, and Trust.
 
 **Implementation note (2026-07-12):** the first private Apple context slice is implemented with `expo-calendar`: progressive permission, local free-window calculation, no event-content retention, manual fallback, and development-build boundary. See ADR-019.
 
-## Phase 6 — First Product / MVP
+## Phase 6 â€” First Product / MVP
 
 **Goal:** prove that one contextual promise can move real users into a worthwhile experience.
 
@@ -169,7 +181,7 @@ The four continuous tracks are Philosophy, Experience, Understanding, and Trust.
 
 **Implementation note (2026-07-14):** the permission-light prototype now persists and resumes an active Capsule, preserves step progress across reloads and platform handoffs, abstains into clarification at low ranking confidence, keeps reflection optional, and exposes clearable local proof counts for starts, completions, reflections, and skips. Real user evidence is still required. See ADR-027.
 
-## Phase 7 — Learning System
+## Phase 7 â€” Learning System
 
 **Goal:** improve relevance without surveillance or opaque identity judgments.
 
@@ -193,7 +205,7 @@ The four continuous tracks are Philosophy, Experience, Understanding, and Trust.
 
 **Implementation note (2026-07-14):** directions can now be paused without deletion, and guidance feedback distinguishes one experience from a whole insight topic. See ADR-027.
 
-## Phase 8 — Living World
+## Phase 8 â€” Living World
 
 **Goal:** responsibly expand timely, local opportunities.
 
@@ -224,11 +236,11 @@ The four continuous tracks are Philosophy, Experience, Understanding, and Trust.
 
 **Implementation note (2026-07-17):** the Place Knowledge Lens can now enrich suitable editorial, deterministic, and generated Capsules near the connected environment without creating a destination or changing feasibility. One credited story remains optional in Prepare and the consultable guide. See ADR-045.
 
-**Implementation note (2026-07-17):** the global OpenStreetMap adapter now admits a bounded set of public outdoor anchor leads—parks, viewpoints, public art, monuments, and memorials—without pretending they have verified access. Known restrictions, current outside conditions, route budget, local signs, and source attribution remain hard boundaries. See ADR-046.
+**Implementation note (2026-07-17):** the global OpenStreetMap adapter now admits a bounded set of public outdoor anchor leadsâ€”parks, viewpoints, public art, monuments, and memorialsâ€”without pretending they have verified access. Known restrictions, current outside conditions, route budget, local signs, and source attribution remain hard boundaries. See ADR-046.
 
 **Implementation note (2026-07-17):** `Now` now exposes a bounded Momentmaker evaluation action and visible generator runtime status. Demonstration fixture synthesis, server-side AI synthesis, local synthesis, and an unavailable service are labelled separately; one generated candidate opens directly as a complete Capsule for Founder review. See ADR-047.
 
-## Phase 9 — Premium Living Guide
+## Phase 9 â€” Premium Living Guide
 
 **Goal:** make Momentum feel like a continuously changing, personal guide to the world rather than a collection of activity cards.
 
@@ -249,7 +261,7 @@ The four continuous tracks are Philosophy, Experience, Understanding, and Trust.
 - the guide is useful at the point of experience and can disappear without becoming inaccessible;
 - local depth is source-grounded and global fallback remains complete;
 - sharing never exposes private ranking context;
-- new breadth continues to serve Understanding → Wonder → Momentum → Presence → Memory.
+- new breadth continues to serve Understanding â†’ Wonder â†’ Momentum â†’ Presence â†’ Memory.
 
 **Implementation note (2026-07-14):** the first prototype now precomputes a finite Now suggestion set, keeps one card visible, adds richer expectation-first preparation, company and system sharing, three guide-depth choices, and a reversible phone-away Presence state. Synchronized participation and deep links remain future work. See ADR-028.
 

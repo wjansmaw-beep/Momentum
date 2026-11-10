@@ -4,7 +4,7 @@ import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-na
 import { Feather } from '@expo/vector-icons';
 import type { CapsuleStep, Experience } from '../../product/experienceModel';
 import type { GuideMode } from '../../guidance/adaptiveGuide';
-import { typography } from '../../design/theme';
+import { colors, schemeStyles, typography } from '../../design/theme';
 import { CoverImage, ImageShade } from '../CoverImage';
 import { guideDestination } from '../../guidance/guideDestination';
 import { GuideOrientationMap } from './GuideOrientationMap';
@@ -12,7 +12,7 @@ import { renderableBlocks } from '../../guidance/experienceRenderer';
 import { NarrationPlayer } from './NarrationPlayer';
 import { referenceAudio } from './referenceAudio';
 
-const forest = '#172522', ivory = '#F4F0E7', sand = '#D8C8A8', copper = '#88452B';
+
 
 export function GuideModeBar({ mode, onChange }: { mode: GuideMode; onChange: (mode: GuideMode) => void }) {
   const modes = [{ id: 'navigate', title: 'Navigate', label: 'Kaart en bestemming', icon: 'navigation' },
@@ -22,7 +22,7 @@ export function GuideModeBar({ mode, onChange }: { mode: GuideMode; onChange: (m
     {modes.map((item) => <Pressable key={item.id} accessibilityRole="tab" accessibilityLabel={item.label}
       aria-selected={mode === item.id} accessibilityState={{ selected: mode === item.id }} onPress={() => onChange(item.id)}
       style={[s.tab, mode === item.id && s.activeTab]}>
-      <Feather name={item.icon} size={22} color={mode === item.id ? forest : ivory} />
+      <Feather name={item.icon} size={22} color={mode === item.id ? colors.onAccent : colors.bone} />
       <Text style={[s.tabText, mode === item.id && s.activeText]}>{item.title}</Text>
     </Pressable>)}
   </View>;
@@ -47,25 +47,25 @@ export function DiscoverChapter({ step, index, total, completed, onToggle, showI
     {step.meta && <Text style={s.meta}>{step.meta}</Text>}
     <View style={s.task}>
       <Pressable accessibilityRole="button" aria-expanded={taskOpen} accessibilityState={{ expanded: taskOpen }} onPress={() => setTaskOpen(!taskOpen)} style={s.disclosure}>
-        <Feather name="compass" size={22} color={copper} /><Text style={s.disclosureText}>Jouw ontdekkingsopdracht</Text>
-        <Feather name={taskOpen ? 'chevron-up' : 'chevron-down'} size={18} color={forest} />
+        <Feather name="compass" size={22} color={colors.bone} /><Text style={s.disclosureText}>Jouw ontdekkingsopdracht</Text>
+        <Feather name={taskOpen ? 'chevron-up' : 'chevron-down'} size={18} color={colors.bone} />
       </Pressable>
       <Text style={s.body}>{taskOpen ? step.instruction : step.instruction.split(/(?<=[.!?])\s/)[0]}</Text>
       {taskOpen && <Pressable accessibilityRole="checkbox" aria-checked={completed} accessibilityState={{ checked: completed }}
         onPress={onToggle} style={s.disclosure}>
-        <Feather name={completed ? 'check-square' : 'square'} size={23} color={forest} />
+        <Feather name={completed ? 'check-square' : 'square'} size={23} color={colors.bone} />
         <Text style={s.body}>Dit heb ik gedaan</Text>
       </Pressable>}
     </View>
     {depth && <>
       <Pressable accessibilityRole="button" aria-expanded={depthOpen} accessibilityState={{ expanded: depthOpen }} onPress={() => setDepthOpen(!depthOpen)} style={s.disclosure}>
-        <Text style={s.disclosureText}>Vertel me meer</Text><Feather name={depthOpen ? 'chevron-up' : 'chevron-down'} size={18} color={forest} />
+        <Text style={s.disclosureText}>Vertel me meer</Text><Feather name={depthOpen ? 'chevron-up' : 'chevron-down'} size={18} color={colors.bone} />
       </Pressable>
       {depthOpen && <Text style={s.body}>{depth.text}</Text>}
     </>}
     {insight && evidence && <>
       <Pressable accessibilityRole="button" aria-expanded={sourceOpen} accessibilityState={{ expanded: sourceOpen }} onPress={() => setSourceOpen(!sourceOpen)} style={s.disclosure}>
-        <Feather name="file-text" size={19} color={copper} /><Text style={s.source}>Verhaal en bron · {insight.sourceLabel}</Text>
+        <Feather name="file-text" size={19} color={colors.bone} /><Text style={s.source}>Verhaal en bron · {insight.sourceLabel}</Text>
       </Pressable>
       {sourceOpen && <View>
         <Text style={s.source}>{evidence.provenance} · {evidence.label}{evidence.reviewedAt ? ` · nagekeken ${evidence.reviewedAt}` : ''}</Text>
@@ -91,8 +91,8 @@ export function GuideModeScene({ mode, experience, step, index, onDiscover, onQu
   return <ScrollView contentContainerStyle={s.sceneScroll}>
     <CoverImage uri={experience.image} style={s.hero}>
       <ImageShade />
-      <View style={s.heroHead}><Pressable accessibilityRole="button" accessibilityLabel="Terug naar de voorbereiding" onPress={onBack} style={s.circle}><Feather name="arrow-left" size={22} color={ivory} /></Pressable>
-        <Text style={s.brand}>MOMENTUM</Text><Pressable accessibilityRole="button" accessibilityLabel="Ervaring afronden" onPress={onFinish} style={s.circle}><Feather name="check" size={22} color={ivory} /></Pressable></View>
+      <View style={s.heroHead}><Pressable accessibilityRole="button" accessibilityLabel="Terug naar de voorbereiding" onPress={onBack} style={s.circle}><Feather name="arrow-left" size={22} color={colors.bone} /></Pressable>
+        <Text style={s.brand}>MOMENTUM</Text><Pressable accessibilityRole="button" accessibilityLabel="Ervaring afronden" onPress={onFinish} style={s.circle}><Feather name="check" size={22} color={colors.bone} /></Pressable></View>
       <View style={s.heroCopy}><Text style={s.heroMeta}>Hoofdstuk {index + 1} van {experience.steps.length}</Text><Text style={s.heroTitle}>{experience.title}</Text></View>
     </CoverImage><ImageCredit uri={experience.image} />
     <View style={s.sceneBody}>
@@ -121,29 +121,29 @@ export function GuideModeScene({ mode, experience, step, index, onDiscover, onQu
 }
 
 function Action({ title, onPress }: { title: string; onPress: () => void }) {
-  return <Pressable accessibilityRole="button" onPress={onPress} style={s.action}><Text style={s.actionText}>{title}</Text><Feather name="arrow-right" size={20} color={forest} /></Pressable>;
+  return <Pressable accessibilityRole="button" onPress={onPress} style={s.action}><Text style={s.actionText}>{title}</Text><Feather name="arrow-right" size={20} color={colors.onAccent} /></Pressable>;
 }
 
-const s = StyleSheet.create({
-  bar: { flexDirection: 'row', backgroundColor: forest, padding: 10, gap: 6 },
+const s = schemeStyles(({ colors: c }) => StyleSheet.create({
+  bar: { flexDirection: 'row', backgroundColor: c.ink, padding: 10, gap: 6 },
   tab: { flex: 1, minHeight: 64, padding: 10, alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 24 },
-  activeTab: { backgroundColor: sand }, activeText: { color: forest }, tabText: { color: ivory, fontSize: 13 },
-  read: { backgroundColor: ivory, borderRadius: 26, padding: 20, gap: 12 },
-  kicker: { color: copper, fontSize: 12, letterSpacing: 2 }, title: { color: forest, fontSize: 30, lineHeight: 37, fontFamily: typography.displayFamily },
-  body: { color: forest, fontSize: 17, lineHeight: 27, flexShrink: 1 }, meta: { color: '#4E5C55', fontSize: 14 },
-  task: { backgroundColor: '#E9DECB', borderRadius: 18, padding: 15, gap: 8 },
+  activeTab: { backgroundColor: c.accent }, activeText: { color: c.onAccent }, tabText: { color: c.bone, fontSize: 13 },
+  read: { backgroundColor: c.ink, borderRadius: 26, padding: 20, gap: 12 },
+  kicker: { color: c.muted, fontSize: 12, letterSpacing: 2 }, title: { color: c.bone, fontSize: 30, lineHeight: 37, fontFamily: typography.displayFamily },
+  body: { color: c.bone, fontSize: 17, lineHeight: 27, flexShrink: 1 }, meta: { color: c.muted, fontSize: 14 },
+  task: { backgroundColor: c.panelRaised, borderRadius: 18, padding: 15, gap: 8 },
   disclosure: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 10 },
-  disclosureText: { fontFamily: typography.displayFamily, fontSize: 19, color: forest, flex: 1 },
-  source: { color: '#4E5C55', fontSize: 13, lineHeight: 20, flexShrink: 1 }, link: { color: copper, fontSize: 15, textDecorationLine: 'underline' },
-  sceneScroll: { flexGrow: 1, backgroundColor: forest }, hero: { minHeight: 310, justifyContent: 'space-between' },
+  disclosureText: { fontFamily: typography.displayFamily, fontSize: 19, color: c.bone, flex: 1 },
+  source: { color: c.muted, fontSize: 13, lineHeight: 20, flexShrink: 1 }, link: { color: c.muted, fontSize: 15, textDecorationLine: 'underline' },
+  sceneScroll: { flexGrow: 1, backgroundColor: c.ink }, hero: { minHeight: 310, justifyContent: 'space-between' },
   heroHead: { padding: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  circle: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#172522', alignItems: 'center', justifyContent: 'center' },
-  brand: { fontFamily: typography.displayFamily, color: ivory, fontSize: 17, letterSpacing: 2 },
-  heroCopy: { padding: 22, backgroundColor: '#172522CC', gap: 10 }, heroMeta: { color: ivory, fontSize: 13, letterSpacing: 1 },
-  heroTitle: { fontFamily: typography.displayFamily, color: ivory, fontSize: 32, lineHeight: 39 },
-  sceneBody: { padding: 22, gap: 17 }, sceneTitle: { color: ivory, fontFamily: typography.displayFamily, fontSize: 28, lineHeight: 35 },
-  sceneText: { color: ivory, fontSize: 16, lineHeight: 25 },
-  action: { minHeight: 52, borderRadius: 28, backgroundColor: sand, padding: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
-  actionText: { color: forest, fontSize: 16, flexShrink: 1 }, segments: { flexDirection: 'row', gap: 5 },
+  circle: { width: 48, height: 48, borderRadius: 24, backgroundColor: c.ink, alignItems: 'center', justifyContent: 'center' },
+  brand: { fontFamily: typography.displayFamily, color: c.onImage, fontSize: 17, letterSpacing: 2 },
+  heroCopy: { padding: 22, backgroundColor: c.ink, gap: 10 }, heroMeta: { color: c.bone, fontSize: 13, letterSpacing: 1 },
+  heroTitle: { fontFamily: typography.displayFamily, color: c.bone, fontSize: 32, lineHeight: 39 },
+  sceneBody: { padding: 22, gap: 17 }, sceneTitle: { color: c.bone, fontFamily: typography.displayFamily, fontSize: 28, lineHeight: 35 },
+  sceneText: { color: c.bone, fontSize: 16, lineHeight: 25 },
+  action: { minHeight: 52, borderRadius: 28, backgroundColor: c.accent, padding: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  actionText: { color: c.onAccent, fontSize: 16, flexShrink: 1 }, segments: { flexDirection: 'row', gap: 5 },
   segment: { flex: 1, minHeight: 48, borderRadius: 24, padding: 12, alignItems: 'center', justifyContent: 'center' },
-});
+}));

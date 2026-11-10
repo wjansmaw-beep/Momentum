@@ -1,3 +1,4 @@
+import { schemeStyles } from '../../design/theme';
 import React, { useEffect, useRef, useState } from 'react';
 import { AppState, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
@@ -59,10 +60,10 @@ export function NarrationPlayer({ source, transcript }: { source: number; transc
   </View>;
 }
 
-const s = StyleSheet.create({
-  panel: { gap: 14 }, text: { color: '#F4F0E7', fontSize: 17, lineHeight: 26 },
-  time: { color: '#D8C8A8', fontSize: 22, fontVariant: ['tabular-nums'] },
-  small: { color: '#F4F0E7', fontSize: 14, lineHeight: 21 }, row: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  button: { minHeight: 48, minWidth: 48, backgroundColor: '#D8C8A8', padding: 14, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
-  ink: { color: '#172522', fontSize: 16 },
-});
+const s = schemeStyles(({ colors: c }) => StyleSheet.create({
+  panel: { gap: 14 }, text: { color: c.bone, fontSize: 17, lineHeight: 26 },
+  time: { color: c.muted, fontSize: 22, fontVariant: ['tabular-nums'] },
+  small: { color: c.bone, fontSize: 14, lineHeight: 21 }, row: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  button: { minHeight: 48, minWidth: 48, backgroundColor: c.accent, padding: 14, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
+  ink: { color: c.onAccent, fontSize: 16 },
+}));
