@@ -64,3 +64,12 @@ Expo project. Isolated minimal4-preview channel, same bundle identifier and
 local data. No App Store release, old-channel OTA, or planner expansion.
 Record source in Git and deliver installation/test instructions. Physical
 device results must remain explicitly unverified until actually tested.
+
+## Internal build delivered — 2026-11-10
+
+EAS build `07bfd5e9-65da-46d3-a892-3fd96bc9ba2b` finished successfully:
+0.4.0 (4), internal, minimal4-preview, source `89721ce`, same bundle identity.
+Source is preserved on the existing GitHub feature branch. Typecheck and all
+app suites passed again before upload. Installation/test instructions are in
+the task outputs. This completes the first implementation/build handoff,
+not physical-device acceptance or approval of later phases.

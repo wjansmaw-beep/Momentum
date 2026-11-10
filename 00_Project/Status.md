@@ -1,3 +1,7 @@
+## Minimal 4.0 delivery — 2026-11-10
+
+The approved first milestone is delivered for Founder device testing. EAS iOS build `07bfd5e9-65da-46d3-a892-3fd96bc9ba2b` is FINISHED: version 0.4.0 (4), internal distribution, minimal4-preview, source commit `89721ce`. Source is on `feat/adaptive-guide-first-slice`; main was not changed. Typecheck and all 117 counted tests plus existing scenarios pass. Browser verification covers themes, saved ideas, preparation, Guide and restoration. Physical installation, VoiceOver, Dynamic Type, Reduced Motion, denied GPS and offline cold start remain unverified. No day/trip planner or broad renderer expansion was included. Older delivery entries below are historical.
+
 ## Minimal 4.0 — 2026-11-10
 
 ADR-073 is Founder-approved for the first milestone only: four tabs, three themes, temporary intelligent refinement, saved ideas and existing preparation/Guide. Day/trip planning and broad renderer expansion remain deferred. This supersedes older conflicting entry/navigation summaries below. Physical iPhone verification of this milestone remains outstanding.

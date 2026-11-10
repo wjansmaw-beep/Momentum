@@ -1,3 +1,7 @@
+## Minimal 4.0 milestone delivered — 2026-11-10
+
+First approved milestone completed for device review: internal iPhone build 0.4.0 (4), EAS `07bfd5e9-65da-46d3-a892-3fd96bc9ba2b`, FINISHED. Local tests and browser flow checks passed. Next step is Founder installation and physical-device validation; no further planner or renderer work starts automatically. Historical entries below do not describe the current delivery status.
+
 ## Minimal 4.0 — 2026-11-10
 
 ADR-073 is Founder-approved for the first milestone only: four tabs, three themes, temporary intelligent refinement, saved ideas and existing preparation/Guide. Day/trip planning and broad renderer expansion remain deferred. This supersedes older conflicting entry/navigation summaries below. Physical iPhone verification of this milestone remains outstanding.
