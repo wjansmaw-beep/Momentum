@@ -1,4 +1,4 @@
-import { ed, ResumeExperience } from '../editorial';
+import { ed, OpenExperience, ResumeExperience, SaveExperience } from '../editorial';
 import { ImageCredit } from '../ImageCredit';
 import React, { useState } from 'react';
 import { ImageStyle, Pressable, ScrollView, Share, Text, TextStyle, View, ViewStyle } from 'react-native';
@@ -31,13 +31,7 @@ export function LifeBookScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [featuredId, setFeaturedId] = useState<string | undefined>(memories[0]?.id);
   const featured = memories.find((memory) => memory.id === featuredId) ?? memories[0];
-  const experience = featured ? featured.experienceSnapshot ?? experiences.find((item) => item.title === featured.title) ?? byId('wadden-light') : undefined;
-  const onOpen = () => {
-    if (!featured || !experience) return;
-    applyFeedback(experience, 'repeat');
-    openExperience(experience, 'lifebook');
-    navigation.navigate('Prepare');
-  };
+  const experience = featured ? featured.experienceSnapshot ?? experiences.find((item) => item.title === featured.title) : undefined;
   const addPhotosTo = async (memoryId: string) => {
     const picked = await pickMemoryPhotos(4);
     if (picked.length) addMemoryPhotos(memoryId, picked);
@@ -59,12 +53,10 @@ export function LifeBookScreen() {
   return (
     <SurfaceFrame>
     <ScrollView contentContainerStyle={styles.screenScroll} showsVerticalScrollIndicator={false}>
+      <View style={bk.head}><Text accessibilityRole="header" style={ed.title}>Boek</Text></View>
       <View style={{ paddingHorizontal: 20 }}><ResumeExperience /></View>
       {memories.length === 0 || !featured ? (
         <>
-          <View style={bk.head}>
-            <Text accessibilityRole="header" style={ed.title}>Boek</Text>
-          </View>
           <View style={{ padding: 22, gap: 16 }}><Text style={ed.heading}>Hier komen je beleefde momenten samen.</Text><Text style={ed.body}>Je herinneringen blijven alleen op dit apparaat.</Text></View>
         </>
       ) : (
@@ -77,11 +69,11 @@ export function LifeBookScreen() {
             </CoverImage><ImageCredit uri={featured.image} />
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={saved ? 'Bewaard als favoriet' : 'Bewaar als favoriet'}
+              accessibilityLabel={saved ? 'Voorkeur: vaker voorstellen' : 'Stel deze ervaring vaker voor (onthouden)'}
               onPress={onToggleSave}
               style={bk.like}
             >
-              <Ionicons name={saved ? 'heart' : 'heart-outline'} size={16} color={saved ? '#FF6B81' : '#F5F4F0'} />
+              <Ionicons name={saved ? 'heart' : 'heart-outline'} size={20} color={bk.inkSolid as string} />
             </Pressable>
           </View>
           <View style={bk.titleBlock}>
@@ -143,9 +135,8 @@ export function LifeBookScreen() {
             <Feather name="share" size={15} color={bk.inkSolid as string} />
             <Text style={bk.ghostText}>Deel dit moment</Text>
           </Pressable>
-          <Pressable accessibilityRole="button" onPress={onOpen} style={bk.reopen}>
-            <Text style={bk.reopenText}>Open dit moment opnieuw</Text>
-          </Pressable>
+          {experience ? <View style={{ padding: 20, gap: 16 }}><OpenExperience experience={experience} from="lifebook" /><SaveExperience experience={experience} /></View>
+            : <Text style={ed.small}>De oorspronkelijke ervaring is niet meer beschikbaar. Je herinnering blijft bewaard.</Text>}
         </>
       )}
     </ScrollView>
@@ -231,9 +222,9 @@ const bk = schemeStyles(({ colors: schemeColors }) => {
     photo: { height: 300 },
     photoImage: { borderRadius: 26 },
     like: {
-      position: 'absolute', top: 14, right: 14, width: 34, height: 34, borderRadius: 17,
+      position: 'absolute', top: 14, right: 14, width: 44, height: 44, borderRadius: 22,
       alignItems: 'center', justifyContent: 'center',
-      backgroundColor: palette.badgeBg, borderWidth: 1, borderColor: palette.likeBorder,
+      backgroundColor: palette.glass, borderWidth: 1, borderColor: palette.line,
     },
     titleBlock: { marginTop: 14, marginHorizontal: 22 },
     title: { fontFamily: typography.displayFamilyMedium, fontWeight: '400', fontSize: 26, letterSpacing: -0.3, color: palette.ink },
@@ -241,20 +232,19 @@ const bk = schemeStyles(({ colors: schemeColors }) => {
     fact: { fontSize: 12, color: palette.ink2, fontWeight: '500' },
     factDot: { width: 3, height: 3, borderRadius: 1.5, backgroundColor: palette.ink3 },
     observ: {
-      marginTop: 14, marginHorizontal: 12, borderRadius: 22, paddingVertical: 15, paddingHorizontal: 16,
-      backgroundColor: palette.glass, borderWidth: 1, borderColor: palette.line, borderLeftWidth: 3, borderLeftColor: palette.accent,
+      marginTop: 24, marginHorizontal: 20, paddingVertical: 16,
+      borderTopWidth: 0.5, borderBottomWidth: 0.5, borderColor: palette.line,
     },
     observLabel: { fontSize: 10, letterSpacing: 1.8, fontWeight: '700', color: palette.accent, textTransform: 'uppercase' },
-    observText: { marginTop: 7, fontSize: 13.5, lineHeight: 21, color: palette.ink },
-    observAction: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 9, alignSelf: 'flex-start' },
+    observText: { marginTop: 7, fontSize: 17, lineHeight: 26, color: palette.ink },
+    observAction: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 9, minHeight: 44, alignSelf: 'flex-start' },
     observActionText: { fontSize: 12, fontWeight: '600', color: palette.accent },
     stats: { flexDirection: 'row', gap: 8, marginTop: 12, marginHorizontal: 12 },
     stat: {
-      flex: 1, borderRadius: 16, paddingVertical: 11, paddingHorizontal: 10, alignItems: 'center',
-      backgroundColor: palette.glass, borderWidth: 1, borderColor: palette.line,
+      flex: 1, paddingVertical: 12, paddingHorizontal: 8, alignItems: 'center',
     },
     statValue: { fontFamily: typography.displayFamilyMedium, fontWeight: '400', fontSize: 19, color: palette.ink },
-    statLabel: { fontSize: 9.5, color: palette.ink2, letterSpacing: 0.6, marginTop: 3, fontWeight: '500', textAlign: 'center' },
+    statLabel: { fontSize: 13, color: palette.ink2, marginTop: 4, textAlign: 'center' },
     month: { marginTop: 16, marginHorizontal: 12 },
     monthHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', paddingHorizontal: 10 },
     monthTitle: { fontSize: 10.5, letterSpacing: 2, fontWeight: '700', color: palette.ink2, textTransform: 'uppercase' },

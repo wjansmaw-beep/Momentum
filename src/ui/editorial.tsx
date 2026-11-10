@@ -46,10 +46,10 @@ export function ResumeExperience() {
 }
 // Opening preparation may persist its state. Require an explicit choice before
 // replacing a different active experience, including a restored snapshot.
-export function OpenExperience({ experience, family = false }: { experience: Experience; family?: boolean }) {
+export function OpenExperience({ experience, family = false, from = 'now' }: { experience: Experience; family?: boolean; from?: 'now' | 'today' | 'lifebook' }) {
   const app = useApp(); const [confirm, setConfirm] = useState(false);
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const open = () => { app.openExperience(experience, 'now', family ? 'family' : undefined); nav.navigate('Prepare'); };
+  const open = () => { app.openExperience(experience, from, family ? 'family' : undefined); nav.navigate('Prepare'); };
   const same = app.activeSession?.experienceId === experience.id;
   return <View style={{ gap: 12 }}><EditorialAction primary title={same ? 'Hervat deze ervaring' : 'Ontdek deze ervaring'} onPress={() => {
     if (same) { const stage = app.resumeSession(); if (stage) nav.navigate(stage === 'presence' ? 'Guide' : 'Prepare'); }

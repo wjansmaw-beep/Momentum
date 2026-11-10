@@ -4,6 +4,18 @@ import { experiences } from '../src/product/experienceModel.ts';
 import { referenceExperiences } from '../src/product/referenceExperiences.ts';
 import { refinedRecommendation } from '../src/product/momentRefinement.ts';
 import { parseSaved, serializeSaved, toggleSaved } from '../src/product/savedExperiences.ts';
+import { packingRows } from '../src/ui/now-v2/voorpretModel.ts';
+
+test('indoor recipes and runners do not inherit outdoor weather packing', () => {
+ const coldRain = { temperature: -1, windSpeed: 35, weatherCode: 63 };
+ for (const kind of ['food', 'movement', 'restore']) {
+   const experience = experiences.find(e => e.kind === kind && !e.routePlan);
+   assert.ok(experience);
+   assert.deepEqual(packingRows(experience, coldRain).map(row => row.title), experience.prepare);
+ }
+ const outside = experiences.find(e => e.kind === 'outside');
+ assert.ok(packingRows(outside, coldRain).some(row => row.title === 'Regenlaag'));
+});
 
 const context = { dayPart: 'morning', profile: 'balanced', company: 'solo', availableMinutes: 120, hasKettlebell: false };
 const learning = { kindAffinity: {}, blockedExperienceIds: [], favoriteExperienceIds: [], recentExperienceIds: [], directionTerms: [], durationBiasMinutes: 0, intensityBalance: 0, maxTravelMinutes: 40, travelBiasMinutes: 0 };

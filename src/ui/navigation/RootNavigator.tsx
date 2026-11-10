@@ -12,7 +12,6 @@ import { styles } from '../styles/appStyles';
 import { useApp } from '../../app/store';
 import { linking } from './linking';
 import { RootStackParamList } from './types';
-import { NowScreen } from '../screens/NowScreen';
 import { TodayScreen } from '../screens/TodayScreen';
 import { GuideScreen } from '../screens/GuideScreen';
 import { LifeBookScreen } from '../screens/LifeBookScreen';
@@ -69,7 +68,7 @@ export function RootNavigator() {
           <Stack.Screen key={name} name={name} component={FreshExperienceScreen} />)}
         <Stack.Screen name="Now" component={MinimalNowScreen} options={{ animation: 'none' }} />
         <Stack.Screen name="Plans" component={PlansScreen} options={{ animation: 'none' }} />
-        <Stack.Screen name="NowDetails" component={NowScreen} />
+        <Stack.Screen name="NowDetails" component={MinimalNowScreen} />
         <Stack.Screen name="ProfileDetails" component={ProfileScreen} />
         <Stack.Screen name="Today" component={TodayScreen} options={{ animation: 'none' }} />
         <Stack.Screen name="Guide" component={GuideScreen} options={{ gestureEnabled: false }} />

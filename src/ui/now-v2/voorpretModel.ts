@@ -103,7 +103,7 @@ export function packingRows(experience: Experience, weather: WeatherSignal | und
   const totalMinutes = experience.routePlan
     ? experience.routePlan.outboundMinutes + experience.routePlan.experienceMinutes + experience.routePlan.returnMinutes
     : experience.duration;
-  if (!weather) {
+  if (!weather || (experience.kind !== 'outside' && !experience.routePlan)) {
     return experience.prepare.map((item) => ({ icon: 'check' as const, title: item }));
   }
   const rows: PackingRow[] = [];

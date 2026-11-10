@@ -52,7 +52,11 @@ export function MinimalNowScreen() {
         <EditorialAction title="Terug naar mijn context" onPress={() => app.setMomentReference(undefined)} />
       </EditorialDisclosure>
       <EditorialAction title="Tijd, omgeving en persoonlijke voorkeuren" onPress={() => nav.navigate('ProfileDetails')} />
-      <EditorialAction title="Bestaande ontdek- en momentfuncties" onPress={() => nav.navigate('NowDetails')} />
+      {experience && <EditorialDisclosure title="Wat past bij mij?">
+        <Text style={ed.small}>Deze keuzes worden onthouden en sturen toekomstige voorstellen. Alleen bewaren in Plannen verandert je voorkeuren niet.</Text>
+        <EditorialAction title="Stel deze ervaring vaker voor" onPress={() => app.applyFeedback(experience, 'repeat')} />
+        <EditorialAction title="Deze ervaring past niet bij mij" onPress={() => app.applyFeedback(experience, 'not-for-me')} />
+      </EditorialDisclosure>}
       {(app.pendingContextual?.length ?? 0) > 0 && <EditorialAction title="Neem nieuwe suggesties mee" onPress={app.showPendingContextual} />}
     </EditorialDisclosure>
   </ScrollView></SurfaceFrame>;

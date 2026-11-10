@@ -55,8 +55,8 @@ export function guideProgress(now: Date, experience: Experience, session: Active
     headline: `${elapsedMinutes}`,
     suffix: `van ${experience.duration} min`,
     sub: stepCount > 1
-      ? `${elapsedMinutes} min onderweg · stap ${stepIndex + 1} van ${stepCount}`
-      : `${elapsedMinutes} min onderweg`,
+      ? `${elapsedMinutes} min bezig · stap ${stepIndex + 1} van ${stepCount}`
+      : `${elapsedMinutes} min bezig`,
     fraction: clamp(elapsedSeconds / totalSeconds, 0, 1),
   };
 }

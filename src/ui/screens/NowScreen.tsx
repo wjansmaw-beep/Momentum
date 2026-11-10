@@ -83,6 +83,10 @@ export function NowScreen() {
     showPendingContextual,
     openExperience,
     applyFeedback,
+    savedExperiences,
+    toggleSavedExperience,
+    canSave,
+    savedError,
     activeSession,
     resumableExperience,
     resumeSession,
@@ -123,7 +127,7 @@ export function NowScreen() {
   const curve = lightCurveModel(now, sun);
   const start = suggestedStart(now, experience.duration, sun);
   const facts = heroFacts(experience, weather, here);
-  const saved = personalProfile.favoriteExperienceIds.includes(experience.id);
+  const saved = savedExperiences.some(item => item.id === experience.id);
   const others = nowSuggestions.filter((_, index) => index !== leadIndex).slice(0, 4);
   const thumbs = others.slice(0, 3);
   const hiddenCount = others.length - thumbs.length;
@@ -144,9 +148,9 @@ export function NowScreen() {
     navigation.navigate('Prepare');
   };
   const onSave = () => {
-    if (saved) return;
+    if (!canSave) return;
     impactLight();
-    applyFeedback(experience, 'repeat');
+    toggleSavedExperience(experience);
   };
   const onNotForMe = () => {
     impactLight();
@@ -221,8 +225,9 @@ export function NowScreen() {
               </View>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={saved ? 'Bewaard als de moeite waard' : 'Bewaar dit moment'}
-                accessibilityState={{ selected: saved }}
+                accessibilityLabel={saved ? 'Verwijder uit Plannen' : 'Bewaar in Plannen'}
+                accessibilityState={{ selected: saved, disabled: !canSave }}
+                disabled={!canSave}
                 onPress={onSave}
                 style={s.saveBtn}
               >
@@ -247,6 +252,7 @@ export function NowScreen() {
           </View>
         </Animated.View>
 
+        {!!savedError && <Text accessibilityRole="alert" style={{ color: s.ink2Solid as string }}>{savedError}</Text>}
         {/* ——— Glaspaneel "Waarom nu" ——— */}
         <Animated.View style={entrance[2]}>
           <View style={s.panelWrap}>

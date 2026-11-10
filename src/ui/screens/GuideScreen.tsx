@@ -36,6 +36,7 @@ import {
 import { briefingSourceLine } from '../../liveworld/briefingFacts';
 import { chapterIds, restoreAdaptiveGuide, supportsAdaptiveGuide } from '../../guidance/adaptiveGuide';
 import { DiscoverChapter, GuideModeBar, GuideModeScene } from '../guide/AdaptiveGuide';
+import { guideDestination } from '../../guidance/guideDestination';
 
 // DE GIDS — het enige onderweg-scherm (vervolg op ADR-067, fase R4). De
 // vroegere drie vormen van begeleiding — het Presence-scherm, de
@@ -60,6 +61,8 @@ import { DiscoverChapter, GuideModeBar, GuideModeScene } from '../guide/Adaptive
 export function GuideScreen() {
   const { selected: experience, personalProfile: personal, activeSession, sessionSaveError, updatePresenceStep, updateGuideMode, toggleCurrentGuideTask, presenceBack, finishPresence, discardSession, liveWorld, prototypeContext } = useApp();
   const adaptive = supportsAdaptiveGuide(experience);
+  const routePoint = guideDestination(experience.routePlan);
+  const routeTarget = experience.visitPlace?.address ?? (routePoint ? `${routePoint.latitude},${routePoint.longitude}` : undefined);
   const adaptiveState = restoreAdaptiveGuide(experience, activeSession?.experienceId === experience.id ? activeSession.adaptiveGuide : undefined, activeSession?.stepIndex ?? 0);
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const company = activeSession?.company ?? personal.defaultCompany;
@@ -120,8 +123,9 @@ export function GuideScreen() {
   }), [navigation, phoneAway]);
 
   const openHandoff = async () => {
+    if (!routeTarget) { setHandoffStatus('Er is geen gecontroleerde bestemming voor deze ervaring.'); return; }
     const plan = experience.routePlan;
-    if (plan?.expiresAt && Date.parse(plan.expiresAt) <= Date.now()) {
+    if (plan?.expiresAt && (!Number.isFinite(Date.parse(plan.expiresAt)) || Date.parse(plan.expiresAt) <= Date.now())) {
       setHandoffStatus('Deze actuele kans is verlopen. Ga terug en vernieuw de Living World-bronnen voordat je vertrekt.');
       return;
     }
@@ -135,7 +139,7 @@ export function GuideScreen() {
       setHandoffStatus(check.detail);
     }
     const source = plan?.source ? `${plan.source.latitude},${plan.source.longitude}` : undefined;
-    const destination = experience.visitPlace?.address ?? (plan?.destination ? `${plan.destination.latitude},${plan.destination.longitude}` : plan?.destinationName ?? experience.title);
+    const destination = routeTarget;
     const params = new URLSearchParams({ destination, mode: plan?.mode ?? 'walking' });
     if (source) params.set('source', source);
     const url = `https://maps.apple.com/directions?${params.toString()}`;
@@ -194,7 +198,7 @@ export function GuideScreen() {
   }, [experience.id, stepIndex, currentStepTitle, liveWorld?.retrievedAt]);
 
   if (phoneAway) return <FlowFrame statusBar="light"><PhoneAwayView experience={experience} cue={current.title} seconds={current.seconds} remaining={remaining} formatTime={formatTime} shared={shared} onReopen={() => setPhoneAway(false)} /></FlowFrame>;
-  if (adaptive && adaptiveState.mode !== 'discover') return <FlowFrame statusBar="light">
+  if (adaptive && adaptiveState.mode !== 'discover') return <FlowFrame>
     <View style={styles.flowScreen}>
       {!!sessionSaveError && <Text accessibilityRole="alert" style={gd.caution}>{sessionSaveError}</Text>}
       {!!current.seconds && <Pressable accessibilityRole="button" accessibilityLabel={timerRunning ? 'Pauzeer timer' : 'Start timer'}
@@ -208,7 +212,7 @@ export function GuideScreen() {
     </View>
   </FlowFrame>;
   return (
-    <FlowFrame statusBar="light">
+    <FlowFrame>
     <View style={styles.flowScreen}>
     <ScrollView contentContainerStyle={[styles.flowScroll, gd.scroll]} showsVerticalScrollIndicator={false}>
       {!!sessionSaveError && <Text accessibilityRole="alert" style={gd.caution}>{sessionSaveError}</Text>}
@@ -222,7 +226,7 @@ export function GuideScreen() {
           <Text style={gd.headTitle}>Gids</Text>
           <Text style={gd.headSub} numberOfLines={1}>{experience.duration} min · {company === 'solo' ? 'alleen' : company === 'family' ? 'met gezin' : 'samen'}</Text>
         </View>
-        {(!adaptive || experience.routePlan) && <Pressable accessibilityRole="button" accessibilityLabel="Open route in Kaarten" onPress={openHandoff} style={gd.iconbtn}>
+        {!!routeTarget && <Pressable accessibilityRole="button" accessibilityLabel="Open route in Kaarten" onPress={openHandoff} style={gd.iconbtn}>
           <Feather name="map-pin" size={16} color={gd.inkSolid as string} />
         </Pressable>}
       </View>
@@ -278,7 +282,7 @@ export function GuideScreen() {
             </Pressable>
           </View>
         ) : null}
-        {experience.presenceMode === 'handoff' && stepIndex === 0 && <Pressable accessibilityRole="button" onPress={openHandoff} style={gd.quietAction}><Feather name="navigation" size={13} color={gd.accentSolid as string} /><Text style={gd.quietActionText}>Open route in Kaarten</Text></Pressable>}
+        {!!routeTarget && experience.presenceMode === 'handoff' && stepIndex === 0 && <Pressable accessibilityRole="button" onPress={openHandoff} style={gd.quietAction}><Feather name="navigation" size={13} color={gd.accentSolid as string} /><Text style={gd.quietActionText}>Open route in Kaarten</Text></Pressable>}
         {handoffStatus ? <Text style={gd.handoffStatus}>{handoffStatus}</Text> : null}
         <View style={gd.stepNavRow}>
           {stepIndex > 0 && <Pressable accessibilityRole="button" onPress={() => { impactLight(); setStepIndex((value) => Math.max(0, value - 1)); }} style={gd.stepNavButton}><Text style={gd.stepNavText}>Vorige</Text></Pressable>}

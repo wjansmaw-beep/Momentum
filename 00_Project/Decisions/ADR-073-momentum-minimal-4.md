@@ -73,3 +73,14 @@ Source is preserved on the existing GitHub feature branch. Typecheck and all
 app suites passed again before upload. Installation/test instructions are in
 the task outputs. This completes the first implementation/build handoff,
 not physical-device acceptance or approval of later phases.
+
+## M1 refinement — 2026-11-10
+
+Founder requested refinement of overlap with old versions, explicitly within M1.
+Consolidate consumer entry points into the existing Minimal 4 presentation,
+retaining existing controls, day selection, insights and memory data. Old route
+names may resolve to the same current surface. This is presentation repair,
+not a new navigator, renderer, planner or data architecture. Correct misleading
+outdoor UI on indoor experiences and use the shared session guard from optional
+day and memory entry points. Saving an idea and explicit preference learning
+must remain distinct. Device acceptance is still separate from browser evidence.

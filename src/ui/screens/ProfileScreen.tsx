@@ -36,6 +36,9 @@ import { styles } from '../styles/appStyles';
 import { defaultRegion, MOMENTUM_DEBUG, timeOptions, useApp } from '../../app/store';
 import { RootStackParamList } from '../navigation/types';
 import { identityLine, preferenceChips, weekRhythm, youInsights } from '../now-v2/youModel';
+import { ed, EditorialAction, EditorialDisclosure, ResumeExperience } from '../editorial';
+import { setAppearancePreference, useAppearancePreference, useAppearanceSaveError, type AppearancePreference } from '../../design/appearancePreference';
+import { useAppearance } from '../../design/theme';
 
 // Jij-scherm volgens concept v2 (ADR-067, fase R5b — herbouw van Profiel uit
 // ADR-058). De v2-scènes leiden: identiteitskaart (naam uit het profiel;
@@ -55,6 +58,9 @@ const WEEKDAY_LABELS = ['ma', 'di', 'wo', 'do', 'vr', 'za', 'zo'];
 type RegieSection = 'gegevens' | 'richting' | 'privacy';
 
 export function ProfileScreen() {
+  useAppearance();
+  const appearancePreference = useAppearancePreference();
+  const appearanceError = useAppearanceSaveError();
   const {
     personalProfile: personal,
     evidence,
@@ -94,9 +100,6 @@ export function ProfileScreen() {
     navigation.dispatch(CommonActions.reset({ index: 0, routes: [{ name: 'Onboarding' }] }));
   };
   const onRefresh = () => { refreshLiveWorld().catch(() => undefined); };
-  // JIJ is een tab in het vijf-tab skelet (ADR-067, R1): "Klaar" keert terug
-  // naar Nu via dezelfde rustige replace als de tabwissels.
-  const onClose = () => navigation.dispatch(StackActions.replace('Now'));
   const [labOpen, setLabOpen] = useState(false);
   const [regieOpen, setRegieOpen] = useState<RegieSection | undefined>(undefined);
   const toggleRegie = (section: RegieSection) => { impactLight(); setRegieOpen((current) => current === section ? undefined : section); };
@@ -121,11 +124,20 @@ export function ProfileScreen() {
   const chips = preferenceChips(personal);
   const guidanceLabel = personal.guidanceBalance <= -0.2 ? 'Zo weinig mogelijk uitleg' : personal.guidanceBalance >= 0.2 ? 'Graag wat meer context' : 'In balans';
 
-  return <SurfaceFrame><ScrollView contentContainerStyle={styles.screenScroll} showsVerticalScrollIndicator={false}>
+  return <SurfaceFrame><ScrollView contentContainerStyle={ed.scroll} showsVerticalScrollIndicator={false}>
+    <Text accessibilityRole="header" style={ed.title}>Jij</Text>
+    <Text style={ed.body}>Jouw voorkeuren. Op jouw manier.</Text>
+    <ResumeExperience />
+    <EditorialDisclosure title="Weergave">
+      {([['system', 'Volg het systeem'], ['light', 'Light'], ['dark', 'Dark'], ['editorial', 'Editorial']] as [AppearancePreference, string][]).map(([value, label]) =>
+        <EditorialAction key={value} title={label} selected={value === appearancePreference} onPress={() => setAppearancePreference(value)} />)}
+      <Text style={ed.small}>Systeem wisselt tussen Light en Dark. Editorial kies je zelf.</Text>
+      {!!appearanceError && <Text accessibilityRole="alert" style={ed.small}>{appearanceError}</Text>}
+    </EditorialDisclosure>
+    <EditorialDisclosure title="Inzichten en interesses">
     {/* Identiteitskaart: naam uit het profiel; de regel eronder is eerlijk
         (regio + bewaarde momenten, geen verzonnen lidmaatschap). */}
     <View style={yj.head}>
-      <View style={yj.avatar}><Text style={yj.avatarInitial}>{identity.initial}</Text></View>
       <Text style={yj.name}>{identity.name}</Text>
       <Text style={yj.since}>{identity.sub}</Text>
     </View>
@@ -173,6 +185,7 @@ export function ProfileScreen() {
       </View>
     </View>}
 
+    </EditorialDisclosure>
     {/* Instellingen in mensentaal: drie rijen die elk hun echte sectie openen.
         Geen rijen zonder functie. */}
     <View style={yj.panel}>
@@ -317,8 +330,7 @@ export function ProfileScreen() {
       </>}
     </>}
 
-    <View style={styles.learningCard}><Text style={styles.learningTitle}>Transparante lokale selectie</Text><Text style={styles.learningBody}>Momentum filtert eerst op tijd, gezelschap en materiaal. Daarna wegen moment, jouw eigen woorden, bevestigde voorkeuren, actuele bronnen en voldoende afwisseling mee.</Text></View>
-    <PrimaryButton label={MOMENTUM_DEBUG ? 'Gebruik deze proefcontext' : 'Klaar'} onPress={onClose} />
+    <EditorialDisclosure title="Hoe Momentum kiest"><Text style={ed.body}>Momentum filtert eerst op tijd, gezelschap en materiaal. Daarna wegen moment, jouw eigen woorden, bevestigde voorkeuren, actuele bronnen en voldoende afwisseling mee.</Text></EditorialDisclosure>
   </ScrollView></SurfaceFrame>;
 }
 
@@ -388,51 +400,48 @@ const yj = schemeStyles(({ colors: schemeColors }) => {
   const stylesDef: YouStyles = {
     accentSolid: palette.accent,
     ink3Solid: palette.ink3,
-    head: { alignItems: 'center', paddingHorizontal: 22, paddingTop: 8, paddingBottom: 4 },
+    head: { alignItems: 'flex-start', paddingVertical: 8 },
     avatar: {
       width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center',
       backgroundColor: palette.iconTile, borderWidth: 1, borderColor: palette.line,
     },
     avatarInitial: { fontFamily: typography.displayFamilyMedium, fontSize: 24, color: palette.accent },
     name: { fontFamily: typography.displayFamilyMedium, fontWeight: '400', fontSize: 22, color: palette.ink, marginTop: 8 },
-    since: { fontSize: 11.5, color: palette.ink3, marginTop: 2, fontWeight: '500' },
-    seclblWrap: { marginTop: 10, marginHorizontal: 22 },
-    seclbl: { fontSize: 10.5, letterSpacing: 2.1, fontWeight: '700', color: palette.ink2, textTransform: 'uppercase' },
+    since: { fontSize: 14, lineHeight: 21, color: palette.ink3, marginTop: 4 },
+    seclblWrap: { marginTop: 16 },
+    seclbl: { fontSize: 14, fontWeight: '600', color: palette.ink2 },
     insight: {
-      marginTop: 10, marginHorizontal: 12, borderRadius: 22, paddingVertical: 11, paddingHorizontal: 14,
-      backgroundColor: palette.glass2, borderWidth: 1, borderColor: palette.line,
+      paddingVertical: 16, borderBottomWidth: 0.5, borderColor: palette.line,
       flexDirection: 'row', gap: 12, alignItems: 'center',
     },
     insightIcon: {
-      width: 36, height: 36, borderRadius: 13, backgroundColor: palette.iconTile,
+      width: 28, height: 36,
       alignItems: 'center', justifyContent: 'center',
     },
-    insightTitle: { fontSize: 13.5, fontWeight: '600', color: palette.ink },
-    insightSub: { fontSize: 11, color: palette.ink2, marginTop: 2, lineHeight: 15 },
+    insightTitle: { fontSize: 17, fontWeight: '600', color: palette.ink },
+    insightSub: { fontSize: 14, color: palette.ink2, marginTop: 4, lineHeight: 21 },
     panel: {
-      marginTop: 12, marginHorizontal: 12, borderRadius: 22, paddingVertical: 14, paddingHorizontal: 15,
-      backgroundColor: palette.glass, borderWidth: 1, borderColor: palette.line,
+      paddingVertical: 16, borderTopWidth: 0.5, borderColor: palette.line,
     },
-    panelLabel: { fontSize: 10.5, letterSpacing: 2.1, fontWeight: '700', color: palette.ink2, textTransform: 'uppercase' },
-    panelNote: { fontSize: 11, color: palette.ink3, marginTop: 10, lineHeight: 16 },
+    panelLabel: { fontSize: 17, fontWeight: '600', color: palette.ink },
+    panelNote: { fontSize: 14, color: palette.ink3, marginTop: 10, lineHeight: 21 },
     bars: { flexDirection: 'row', alignItems: 'flex-end', gap: 9, height: 60, marginTop: 10, paddingHorizontal: 4 },
     barCol: { flex: 1, height: '100%', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', gap: 6 },
     bar: { width: '100%', borderRadius: 6, backgroundColor: palette.bar },
     barHot: {
       backgroundColor: palette.accent,
-      shadowColor: palette.glow, shadowOpacity: 0.9, shadowRadius: 7, shadowOffset: { width: 0, height: 0 },
     },
-    barLabel: { fontSize: 9, color: palette.ink3, fontWeight: '600' },
+    barLabel: { fontSize: 13, color: palette.ink3, fontWeight: '600' },
     prefchips: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: 8 },
     prefchip: {
       borderRadius: 999, paddingVertical: 6, paddingHorizontal: 11,
       backgroundColor: palette.glass2, borderWidth: 1, borderColor: palette.line,
     },
     prefchipText: { fontSize: 11.5, fontWeight: '500', color: palette.ink },
-    setrow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10 },
+    setrow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 16, minHeight: 52, flexWrap: 'wrap' },
     setrowBorder: { borderTopWidth: 1, borderTopColor: palette.line },
-    setrowTitle: { fontSize: 13.5, fontWeight: '600', color: palette.ink },
-    setrowSub: { flex: 1, fontSize: 11, color: palette.ink2, textAlign: 'right', marginRight: 2, flexShrink: 1 },
+    setrowTitle: { flex: 1, fontSize: 17, color: palette.ink },
+    setrowSub: { fontSize: 14, color: palette.ink2, marginRight: 2, flexShrink: 1 },
   };
   return stylesDef;
 });

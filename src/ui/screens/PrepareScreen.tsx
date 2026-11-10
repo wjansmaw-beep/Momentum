@@ -12,7 +12,7 @@ import {
   ViewStyle,
 } from 'react-native';
 import { Feather, Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
+
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Company, TransportMode, transportLabels } from '../../product/localIntelligence';
@@ -33,7 +33,7 @@ import { FlowFrame } from '../frames';
 import { styles } from '../styles/appStyles';
 import { defaultRegion, useApp } from '../../app/store';
 import { RootStackParamList } from '../navigation/types';
-import { formatClock, goldenWindow, resolveSunTimes } from '../now-v2/nowModel';
+import { resolveSunTimes } from '../now-v2/nowModel';
 import {
   BriefingSentence,
   LivingWorldBriefing,
@@ -41,7 +41,7 @@ import {
   loadLivingWorldBriefing,
 } from '../../liveworld/livingWorldBriefing';
 import {
-  ctaSubline,
+
   departureModel,
   journeySegments,
   packingRows,
@@ -127,7 +127,9 @@ export function PrepareScreen() {
     const timer = setInterval(() => setNow(new Date()), 30000);
     return () => clearInterval(timer);
   }, []);
-  const weather = experience.referenceVisit ? undefined : liveWorld?.weather;
+  const outdoor = experience.kind === 'outside' || !!experience.routePlan;
+  const hasJourney = outdoor || !!experience.visitPlace;
+  const weather = outdoor && selectionLocationConfirmed && !experience.referenceVisit ? liveWorld?.weather : undefined;
   const sun = useMemo(
     () => resolveSunTimes(weather, liveWorld?.coordinates ?? defaultRegion.coordinates, now),
     // Zontijden veranderen per dag, niet per klok-tick — memo op datum + bron.
@@ -170,6 +172,8 @@ export function PrepareScreen() {
 
   const companyLabel = company === 'solo' ? 'Alleen' : company === 'family' ? 'Met gezin' : 'Samen';
   const guideDepthLabel = guideDepth === 'quiet' ? 'rustige begeleiding' : guideDepth === 'deep' ? 'verdiepende gids' : 'gids op het juiste moment';
+  const startLabel = company === 'solo' ? 'Begin deze ervaring' : 'Samen beginnen';
+  const startDetail = experience.referenceVisit ? 'Op je eigen tempo · exclusief reistijd' : `${experience.duration} minuten · ${guideDepthLabel}`;
   return (
     <FlowFrame>
     <View style={styles.flowScreen}>
@@ -191,30 +195,8 @@ export function PrepareScreen() {
         <EditorialPhoto experience={experience} />
       </View>
 
-      {/* Aftelkaart: vertrektijd uit hetzelfde startmodel als de Nu-CTA;
-          voortgang over het venster van één uur voor vertrek. */}
-      {!experience.referenceVisit && <LinearGradient
-        colors={[vp.gradientStart as string, vp.gradientEnd as string]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={vp.count}
-      >
-        <Text style={vp.countLabel}>Vertrek over</Text>
-        <View style={vp.countBigRow}>
-          <Text style={vp.countBig}>{departure.countdown}</Text>
-          <Text style={vp.countMeta}>{departure.meta}</Text>
-        </View>
-        <View style={vp.countBarTrack}>
-          <View style={[vp.countBarFill, { width: `${Math.round(departure.progress * 100)}%` }]} />
-        </View>
-        <View style={vp.countBarLabels}>
-          <Text style={vp.countBarLabel}>nu · {formatClock(now)}</Text>
-          <Text style={vp.countBarLabel}>{departure.end.getTime() > sun.sunset.getTime() ? `zon onder ${formatClock(sun.sunset)}` : `gouden uur ${formatClock(goldenWindow(sun).peak)}`}</Text>
-        </View>
-      </LinearGradient>}
-
       {/* Scène: zo ga je — routesegmenten uit het plan, eerlijk zonder plan. */}
-      <View style={vp.card}>
+      {hasJourney && <View style={vp.card}>
         <View style={vp.cardHead}>
           <Feather name="map" size={15} color={vp.accentSolid as string} />
           <Text style={vp.cardTitle}>Zo ga je</Text>
@@ -229,7 +211,7 @@ export function PrepareScreen() {
             {segment.trailing ? <Text style={vp.rowTrailing}>{segment.trailing}</Text> : null}
           </View>
         ))}
-      </View>
+      </View>}
 
       {/* Strook: de route van dit moment — staptitels in volgorde, zodat de
           gids onderweg nooit een verrassing is. De routekaart zelf blijft
@@ -237,7 +219,7 @@ export function PrepareScreen() {
       <View style={vp.card}>
         <View style={vp.cardHead}>
           <Feather name="list" size={15} color={vp.accentSolid as string} />
-          <Text style={vp.cardTitle}>{experience.referenceVisit ? 'De hoofdstukken' : 'De route van dit moment'}</Text>
+          <Text style={vp.cardTitle}>{experience.referenceVisit ? 'De hoofdstukken' : hasJourney ? 'De route van dit moment' : 'Zo gaat het'}</Text>
         </View>
         {experience.steps.map((step, index) => (
           <View key={`${step.title}-${index}`} style={[vp.row, index > 0 && vp.rowBorder]}>
@@ -255,7 +237,7 @@ export function PrepareScreen() {
       <View style={vp.card}>
         <View style={vp.cardHead}>
           <Feather name="check" size={15} color={vp.accentSolid as string} />
-          <Text style={vp.cardTitle}>{experience.referenceVisit ? 'Goed om te weten' : 'Neem mee'}</Text>
+          <Text style={vp.cardTitle}>{experience.referenceVisit ? 'Goed om te weten' : hasJourney ? 'Neem mee' : 'Dit heb je nodig'}</Text>
         </View>
         {packing.map((row, index) => (
           <View key={`${row.title}-${index}`} style={[vp.row, index > 0 && vp.rowBorder]}>
@@ -271,7 +253,7 @@ export function PrepareScreen() {
 
       {/* Scène: weer onderweg — huidige meting en zonmodel; geen verzonnen
           uur-voor-uur-verwachting. */}
-      <View style={vp.card}>
+      {(experience.referenceVisit || weather) && <View style={vp.card}>
         <View style={vp.cardHead}>
           <Feather name="sun" size={15} color={vp.accentSolid as string} />
           <Text style={vp.cardTitle}>{experience.referenceVisit ? 'Ter plaatse' : 'Weer onderweg'}</Text>{experience.referenceVisit && <Text style={vp.rowSub}>Controleer zelf het weer en de toegang op de plek van je bezoek.</Text>}
@@ -286,7 +268,7 @@ export function PrepareScreen() {
             {row.trailing ? <Text style={vp.rowTrailing}>{row.trailing}</Text> : null}
           </View>
         ))}
-      </View>
+      </View>}
 
       {/* ADR-068 · Waarom nu echt: redactionele zinnen bovenop echte feiten,
           elke zin met zichtbare bron-labels. Alleen voor outside; bij laden
@@ -387,13 +369,13 @@ export function PrepareScreen() {
     <View style={styles.stickyActionBar}>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`${company === 'solo' ? 'Ik ga nu' : 'Wij gaan beginnen'} — ${(experience.referenceVisit ? 'ontdek op je eigen tempo · exclusief reistijd' : ctaSubline(guideDepth, departure.end))}`}
+        accessibilityLabel={`${startLabel} — ${startDetail}`}
         onPress={() => { impactMedium(); onStart(company, guideDepth, shared ? { ...shared, coordination } : undefined, transport); }}
         style={({ pressed }) => [vp.cta, pressed && vp.pressed]}
       >
         <View>
-          <Text style={vp.ctaTitle}>{company === 'solo' ? 'Ik ga nu' : 'Wij gaan beginnen'}</Text>
-          <Text style={vp.ctaSub}>{(experience.referenceVisit ? 'ontdek op je eigen tempo · exclusief reistijd' : ctaSubline(guideDepth, departure.end))}</Text>
+          <Text style={vp.ctaTitle}>{startLabel}</Text>
+          <Text style={vp.ctaSub}>{startDetail}</Text>
         </View>
         <Feather name="arrow-right" size={20} color={vp.accentInkSolid as string} />
       </Pressable>
