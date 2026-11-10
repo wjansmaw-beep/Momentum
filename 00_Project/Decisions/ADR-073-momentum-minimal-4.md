@@ -84,3 +84,9 @@ not a new navigator, renderer, planner or data architecture. Correct misleading
 outdoor UI on indoor experiences and use the shared session guard from optional
 day and memory entry points. Saving an idea and explicit preference learning
 must remain distinct. Device acceptance is still separate from browser evidence.
+
+Refinement evidence: source `1c49164`, all 118 counted tests plus scenarios pass.
+EAS `dcfbbd41-c379-4da1-a175-3e8ea316b0e7` FINISHED: 0.4.0 (5), internal,
+minimal4-preview, same app identity. Updated browser screenshots and M1 audit
+record changes, regression checks and device limitations. No M2 authorization
+is inferred from this delivery.

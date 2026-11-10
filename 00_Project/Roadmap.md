@@ -1,3 +1,7 @@
+## M1 refinement delivered — 2026-11-10
+
+The requested legacy-overlap refinement is delivered within ADR-073 in internal iPhone build 0.4.0 (5), EAS `dcfbbd41-c379-4da1-a175-3e8ea316b0e7` FINISHED. Four tabs and existing session/intelligence infrastructure remain. Consolidated Nu/Jij presentation, restrained optional day context, context-correct preparation and guarded memory/day entry. 118 tests plus scenarios and current browser checks pass. Founder physical-device acceptance remains next; M2 requires explicit direction and is not started.
+
 ## Minimal 4.0 milestone delivered — 2026-11-10
 
 First approved milestone completed for device review: internal iPhone build 0.4.0 (4), EAS `07bfd5e9-65da-46d3-a892-3fd96bc9ba2b`, FINISHED. Local tests and browser flow checks passed. Next step is Founder installation and physical-device validation; no further planner or renderer work starts automatically. Historical entries below do not describe the current delivery status.
