@@ -1,3 +1,7 @@
+## Founder device feedback — 2026-11-10
+
+Founder confirms after the build (6) correction that the app works well and asks to proceed to the next goal. This records general device acceptance of M1, not separate verification of VoiceOver, large Dynamic Type, denied GPS or offline edge cases. The exact next milestone (optional day planning versus Living Interface expansion) is being clarified; no additional application scope is assumed.
+
 ## M1 iPhone layout correction — 2026-11-10
 
 Founder reports the app works and provided an iPhone screenshot showing the Guide phone-away action overflowing. The existing Guide action row now wraps; button and label widths are bounded and touch height is at least 44 pt. No behavior or data model changed. Typecheck and all 118 existing tests pass; browser verification at 320 pt confirms the action stays within its container. EAS `fc2e4a00-a2f7-483c-bc45-0c28b6703c85` FINISHED, version 0.4.0 (6), source `6c4c6e2`, replaces build (5). Physical-device verification of this fix, including larger system text, remains open. M2 has not started.

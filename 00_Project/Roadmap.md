@@ -1,3 +1,7 @@
+## Founder device feedback — 2026-11-10
+
+Founder confirms after the build (6) correction that the app works well and asks to proceed to the next goal. This records general device acceptance of M1, not separate verification of VoiceOver, large Dynamic Type, denied GPS or offline edge cases. The exact next milestone (optional day planning versus Living Interface expansion) is being clarified; no additional application scope is assumed.
+
 ## M1 refinement delivered — 2026-11-10
 
 The requested legacy-overlap refinement is delivered within ADR-073 in internal iPhone build 0.4.0 (5), EAS `dcfbbd41-c379-4da1-a175-3e8ea316b0e7` FINISHED. Four tabs and existing session/intelligence infrastructure remain. Consolidated Nu/Jij presentation, restrained optional day context, context-correct preparation and guarded memory/day entry. 118 tests plus scenarios and current browser checks pass. Founder physical-device acceptance remains next; M2 requires explicit direction and is not started.
