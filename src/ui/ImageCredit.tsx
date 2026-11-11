@@ -3,14 +3,14 @@ import React, { useState } from 'react';
 import { Linking, Pressable, Text, View } from 'react-native';
 import { referenceImageCredit } from '../product/referenceImages';
 
-export function ImageCredit({ uri }: { uri?: string }) {
+export function ImageCredit({ uri, original = false }: { uri?: string; original?: boolean }) {
   const credit = referenceImageCredit(uri);
   const [error, setError] = useState(false);
   if (!credit) return null;
   const open = (url: string) => { setError(false); Linking.openURL(url).catch(() => setError(true)); };
   return <View style={{ paddingHorizontal: 16, backgroundColor: colors.ink, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 12 }}>
     <Pressable accessibilityRole="link" onPress={() => open(credit.source)} style={{ minHeight: 48, flexShrink: 1, justifyContent: 'center' }}>
-      <Text style={{ color: colors.bone, fontSize: 12, lineHeight: 18 }}>{credit.label} · beelduitsnede ↗</Text>
+      <Text style={{ color: colors.bone, fontSize: 12, lineHeight: 18 }}>{credit.label} · {original ? 'origineel beeld' : 'beelduitsnede'} ↗</Text>
     </Pressable>
     <Pressable accessibilityRole="link" onPress={() => open(credit.license)} style={{ minHeight: 48, flexShrink: 1, justifyContent: 'center' }}>
       <Text style={{ color: colors.muted, fontSize: 12, lineHeight: 18 }}>Licentie ↗</Text>

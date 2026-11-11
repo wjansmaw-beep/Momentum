@@ -12,6 +12,8 @@ export type GuidedInsight = {
 };
 export type CapsuleStep = {
   editorial?: {
+    composition?: 'editorial-place';
+    introduction?: { title: string; promise: string; outside: string };
     id: string;
     version: number;
     observation: string;

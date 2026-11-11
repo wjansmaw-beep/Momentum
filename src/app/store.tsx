@@ -757,6 +757,7 @@ function useAppStore() {
     setPersonalProfile,
     activeSession,
     sessionSaveError,
+    retrySessionSave: () => setActiveSession(current => current ? { ...current } : current),
     setActiveSession,
     completedSession,
     incomingInvite,

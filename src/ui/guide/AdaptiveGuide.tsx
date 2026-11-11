@@ -1,6 +1,6 @@
 import { ImageCredit } from '../ImageCredit';
 import React, { useState } from 'react';
-import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import type { CapsuleStep, Experience } from '../../product/experienceModel';
 import type { GuideMode } from '../../guidance/adaptiveGuide';
@@ -11,6 +11,9 @@ import { GuideOrientationMap } from './GuideOrientationMap';
 import { renderableBlocks } from '../../guidance/experienceRenderer';
 import { NarrationPlayer } from './NarrationPlayer';
 import { referenceAudio } from './referenceAudio';
+import { referenceImages } from '../../product/referenceImages';
+declare function require(path: string): number;
+const museumPhoto = require('../../../assets/images/moddergat-fiskershuske-bouwe-brouwer-2007.jpg');
 
 
 
@@ -28,41 +31,55 @@ export function GuideModeBar({ mode, onChange }: { mode: GuideMode; onChange: (m
   </View>;
 }
 
-export function DiscoverChapter({ step, index, total, completed, onToggle, showInsight }: {
-  step: CapsuleStep; index: number; total: number; completed: boolean; onToggle: () => void; showInsight: boolean;
+export function DiscoverChapter({ step, index, total, completed, onToggle, showInsight, onObserve }: {
+  step: CapsuleStep; index: number; total: number; completed: boolean; onToggle: () => void; showInsight: boolean; onObserve?: () => void;
 }) {
   const [taskOpen, setTaskOpen] = useState(true);
   const [sourceOpen, setSourceOpen] = useState(false);
   const [sourceError, setSourceError] = useState('');
   const [depthOpen, setDepthOpen] = useState(false);
+  const [outsideOpen, setOutsideOpen] = useState(false);
+  const [photoFailed, setPhotoFailed] = useState(false);
+  const editorial = step.editorial?.composition === 'editorial-place';
+  const intro = editorial ? step.editorial?.introduction : undefined;
   const insight = showInsight ? step.insight : undefined;
   const blocks = renderableBlocks(step, showInsight);
   const story = blocks.find(block => block.kind === 'story');
   const depth = blocks.find(block => block.kind === 'depth');
   const evidence = blocks.find(block => block.kind === 'evidence');
-  return <View style={s.read}>
+  const depthSection = depth && <View style={editorial ? s.rule : undefined}>
+    <Pressable accessibilityRole="button" aria-expanded={depthOpen} accessibilityState={{ expanded: depthOpen }} onPress={() => setDepthOpen(!depthOpen)} style={s.disclosure}>
+      <Text style={s.disclosureText}>{editorial ? 'Waarom twee tijdlagen?' : 'Vertel me meer'}</Text><Feather name={depthOpen ? 'chevron-up' : 'chevron-down'} size={18} color={colors.bone} />
+    </Pressable>{depthOpen && <><Text style={s.body}>{depth.text}</Text>{editorial && <Text style={s.source}>Redactionele duiding · geen persoonlijke getuigenis</Text>}</>}
+  </View>;
+  return <View style={[s.read, editorial && s.editorialRead]}>
     <Text style={s.kicker}>DISCOVER · {index + 1} VAN {total}</Text>
+    {intro && <>
+      <Text accessibilityRole="header" style={s.heroTitle}>{intro.title}</Text><Text style={s.body}>{intro.promise}</Text>
+      {!photoFailed ? <View style={s.documentaryPhoto}><Image source={museumPhoto} resizeMode="contain" accessibilityLabel="Museumhuisje ’t Fiskershúske, foto uit 2007" style={{ width: '100%', height: '100%' }} onError={() => setPhotoFailed(true)} /></View> : <Text style={s.source}>Foto niet beschikbaar. Je kunt verder lezen en ter plaatse kijken.</Text>}
+      <Text style={s.source}>Museumhuisje ’t Fiskershúske · opname uit 2007, geen actuele situatie.</Text>
+      <ImageCredit uri={referenceImages.moddergat.uri} original />
+    </>}
     <Text accessibilityRole="header" style={s.title}>{story?.title ?? step.title}</Text>
     {story && <Text style={s.body}>{story.text}</Text>}
+    {editorial && story && <Text style={s.source}>Brongebonden verhaal · {step.insight?.sourceLabel}</Text>}
     {step.meta && <Text style={s.meta}>{step.meta}</Text>}
-    <View style={s.task}>
+    {editorial && depthSection}
+    <View style={[s.task, editorial && s.editorialTask]}>
       <Pressable accessibilityRole="button" aria-expanded={taskOpen} accessibilityState={{ expanded: taskOpen }} onPress={() => setTaskOpen(!taskOpen)} style={s.disclosure}>
-        <Feather name="compass" size={22} color={colors.bone} /><Text style={s.disclosureText}>Jouw ontdekkingsopdracht</Text>
+        {!editorial && <Feather name="compass" size={22} color={colors.bone} />}<Text style={s.disclosureText}>{editorial ? 'Kies één detail' : 'Jouw ontdekkingsopdracht'}</Text>
         <Feather name={taskOpen ? 'chevron-up' : 'chevron-down'} size={18} color={colors.bone} />
       </Pressable>
       <Text style={s.body}>{taskOpen ? step.instruction : step.instruction.split(/(?<=[.!?])\s/)[0]}</Text>
+      {taskOpen && intro && <><Pressable accessibilityRole="button" aria-expanded={outsideOpen} accessibilityState={{ expanded: outsideOpen }} style={s.disclosure} onPress={() => setOutsideOpen(!outsideOpen)}><Text style={s.source}>Buiten of thuis? {outsideOpen ? '−' : '+'}</Text></Pressable>{outsideOpen && <Text style={s.body}>{intro.outside}</Text>}</>}
       {taskOpen && <Pressable accessibilityRole="checkbox" aria-checked={completed} accessibilityState={{ checked: completed }}
         onPress={onToggle} style={s.disclosure}>
         <Feather name={completed ? 'check-square' : 'square'} size={23} color={colors.bone} />
-        <Text style={s.body}>Dit heb ik gedaan</Text>
+        <Text style={s.body}>{editorial ? 'Dit heb ik bekeken' : 'Dit heb ik gedaan'}</Text>
       </Pressable>}
     </View>
-    {depth && <>
-      <Pressable accessibilityRole="button" aria-expanded={depthOpen} accessibilityState={{ expanded: depthOpen }} onPress={() => setDepthOpen(!depthOpen)} style={s.disclosure}>
-        <Text style={s.disclosureText}>Vertel me meer</Text><Feather name={depthOpen ? 'chevron-up' : 'chevron-down'} size={18} color={colors.bone} />
-      </Pressable>
-      {depthOpen && <Text style={s.body}>{depth.text}</Text>}
-    </>}
+    {editorial && <Text style={s.source}>Vrijwillig en omkeerbaar. Je kunt altijd verder.</Text>}
+    {!editorial && depthSection}
     {insight && evidence && <>
       <Pressable accessibilityRole="button" aria-expanded={sourceOpen} accessibilityState={{ expanded: sourceOpen }} onPress={() => setSourceOpen(!sourceOpen)} style={s.disclosure}>
         <Feather name="file-text" size={19} color={colors.bone} /><Text style={s.source}>Verhaal en bron · {insight.sourceLabel}</Text>
@@ -75,6 +92,7 @@ export function DiscoverChapter({ step, index, total, completed, onToggle, showI
         {!!sourceError && <Text accessibilityLiveRegion="polite" style={s.source}>{sourceError}</Text>}
       </View>}
     </>}
+    {editorial && onObserve && <Action title="Kijk nog even zonder uitleg" onPress={onObserve} />}
   </View>;
 }
 
@@ -82,19 +100,20 @@ export function GuideModeScene({ mode, experience, step, index, onDiscover, onQu
   mode: 'navigate' | 'immerse'; experience: Experience; step: CapsuleStep; index: number;
   onDiscover: () => void; onQuiet: () => void; onRoute: () => void; onBack: () => void; onFinish: () => void; routeStatus: string;
 }) {
-  const [observing, setObserving] = useState(false);
+  const editorial = step.editorial?.composition === 'editorial-place';
+  const [observing, setObserving] = useState(editorial);
   const place = experience.visitPlace;
   const hasRoute = Boolean(place || experience.routePlan?.destination || experience.routePlan?.destinationName);
   const destination = place ? guideDestination({ destination: place, destinationName: place.name }) : guideDestination(experience.routePlan);
   const [placeError, setPlaceError] = useState(false);
   const narration = referenceAudio(experience.id, step);
   return <ScrollView contentContainerStyle={s.sceneScroll}>
-    <CoverImage uri={experience.image} style={s.hero}>
+    {editorial ? <View style={s.sceneBody}><Pressable accessibilityRole="button" accessibilityLabel="Terug naar de voorbereiding" style={s.disclosure} onPress={onBack}><Feather name="arrow-left" size={22} color={colors.bone} /><Text style={s.body}>Voorpret</Text></Pressable><Text style={s.source}>Hoofdstuk {index + 1} van {experience.steps.length} · {step.editorial?.introduction?.title}</Text><Pressable accessibilityRole="button" style={s.disclosure} onPress={onFinish}><Text style={s.source}>Ervaring afronden</Text></Pressable></View> : <><CoverImage uri={experience.image} style={s.hero}>
       <ImageShade />
       <View style={s.heroHead}><Pressable accessibilityRole="button" accessibilityLabel="Terug naar de voorbereiding" onPress={onBack} style={s.circle}><Feather name="arrow-left" size={22} color={colors.bone} /></Pressable>
         <Text style={s.brand}>MOMENTUM</Text><Pressable accessibilityRole="button" accessibilityLabel="Ervaring afronden" onPress={onFinish} style={s.circle}><Feather name="check" size={22} color={colors.bone} /></Pressable></View>
       <View style={s.heroCopy}><Text style={s.heroMeta}>Hoofdstuk {index + 1} van {experience.steps.length}</Text><Text style={s.heroTitle}>{experience.title}</Text></View>
-    </CoverImage><ImageCredit uri={experience.image} />
+    </CoverImage><ImageCredit uri={experience.image} /></>}
     <View style={s.sceneBody}>
       <Text style={s.heroMeta}>{mode === 'navigate' ? 'NAVIGATE' : 'IMMERSE'}</Text>
       <Text accessibilityRole="header" style={s.sceneTitle}>{mode === 'navigate' ? place?.name ?? experience.routePlan?.destinationName ?? step.title : observing ? 'Geef de plek even de ruimte' : 'Het verhaal om je heen'}</Text>
@@ -125,6 +144,10 @@ function Action({ title, onPress }: { title: string; onPress: () => void }) {
 }
 
 const s = schemeStyles(({ colors: c }) => StyleSheet.create({
+  editorialRead: { padding: 0, borderRadius: 0, gap: 20 },
+  editorialTask: { backgroundColor: c.ink, borderRadius: 0, padding: 0, paddingTop: 16, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line },
+  rule: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line, paddingTop: 12, gap: 8 },
+  documentaryPhoto: { width: '100%', aspectRatio: 4 / 3 },
   bar: { flexDirection: 'row', backgroundColor: c.ink, padding: 10, gap: 6 },
   tab: { flex: 1, minHeight: 64, padding: 10, alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 24 },
   activeTab: { backgroundColor: c.accent }, activeText: { color: c.onAccent }, tabText: { color: c.bone, fontSize: 13 },

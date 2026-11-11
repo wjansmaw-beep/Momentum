@@ -35,3 +35,9 @@ Before code, Founder reviews task outputs Momentum_M3_Ontwerpcontract.txt and Mo
 ## Approval
 
 Founder approved the presented design and scoped implementation ('akkoord') on 2026-11-11. Implementation may proceed; existing data and old snapshots remain protected.
+
+## Implementation evidence — 2026-11-11
+
+First chapter uses optional editorial-place composition inside the existing DiscoverChapter and GuideModeScene. The factual story, narration transcript and task meaning remain unchanged, so existing bundled audio and chapter/task version 1 remain valid. The new editorial introduction is visual text, not an additional narrated claim. Photo ships locally as the unmodified Commons original with attribution. Old saved/session snapshots are not rewritten.
+
+Typecheck and all 129 app tests pass (80 generator, 13 affirmation, 36 guide/persistence/media), plus scenario checks. Web export passes. Browser checks cover the new composition, disclosures, task persistence after reload, mode restoration and completed 16-second audio playback. Native accessibility, interruptions and on-location usefulness require iPhone/field acceptance. No claim of those tests yet.

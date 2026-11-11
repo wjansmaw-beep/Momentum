@@ -59,7 +59,7 @@ import { guideDestination } from '../../guidance/guideDestination';
 // direct op de opgeslagen stap; de oude hervatkaart-GuideScreen is verdwenen.
 
 export function GuideScreen() {
-  const { selected: experience, personalProfile: personal, activeSession, sessionSaveError, updatePresenceStep, updateGuideMode, toggleCurrentGuideTask, presenceBack, finishPresence, discardSession, liveWorld, prototypeContext } = useApp();
+  const { selected: experience, personalProfile: personal, activeSession, sessionSaveError, retrySessionSave, updatePresenceStep, updateGuideMode, toggleCurrentGuideTask, presenceBack, finishPresence, discardSession, liveWorld, prototypeContext } = useApp();
   const adaptive = supportsAdaptiveGuide(experience);
   const routePoint = guideDestination(experience.routePlan);
   const routeTarget = experience.visitPlace?.address ?? (routePoint ? `${routePoint.latitude},${routePoint.longitude}` : undefined);
@@ -91,6 +91,7 @@ export function GuideScreen() {
   const [factsOpen, setFactsOpen] = useState(false);
   const [handoffStatus, setHandoffStatus] = useState('');
   const current = experience.steps[stepIndex] ?? { title: experience.presenceTitle, instruction: experience.presenceCue };
+  const editorialComposition = current.editorial?.composition === 'editorial-place';
   const insightVisible = guideDepth !== 'quiet' && current.insight && (guideDepth === 'deep' || personal.guidanceBalance > -0.2) && !personal.mutedInsightTopics.includes(current.insight.topic) && !personal.mutedInsightExperienceIds.includes(experience.id);
   const isLast = stepIndex >= experience.steps.length - 1;
   const unfilteredGuide = buildExperienceGuide(experience, stepIndex);
@@ -200,7 +201,7 @@ export function GuideScreen() {
   if (phoneAway) return <FlowFrame statusBar="light"><PhoneAwayView experience={experience} cue={current.title} seconds={current.seconds} remaining={remaining} formatTime={formatTime} shared={shared} onReopen={() => setPhoneAway(false)} /></FlowFrame>;
   if (adaptive && adaptiveState.mode !== 'discover') return <FlowFrame>
     <View style={styles.flowScreen}>
-      {!!sessionSaveError && <Text accessibilityRole="alert" style={gd.caution}>{sessionSaveError}</Text>}
+      {!!sessionSaveError && <View><Text accessibilityRole="alert" style={gd.caution}>{sessionSaveError}</Text><Pressable accessibilityRole="button" onPress={retrySessionSave} style={gd.quietAction}><Text style={gd.quietActionText}>Voortgang opnieuw opslaan</Text></Pressable></View>}
       {!!current.seconds && <Pressable accessibilityRole="button" accessibilityLabel={timerRunning ? 'Pauzeer timer' : 'Start timer'}
         accessibilityState={{ disabled: remaining === 0 }} disabled={remaining === 0} onPress={() => setTimerRunning(!timerRunning)} style={gd.timerRow}>
         <Text style={gd.timerValue}>{formatTime(remaining)}</Text><Text style={gd.rowTitle}>{remaining === 0 ? 'Timer afgerond' : timerRunning ? 'Pauzeer' : 'Start timer'}</Text>
@@ -215,7 +216,7 @@ export function GuideScreen() {
     <FlowFrame>
     <View style={styles.flowScreen}>
     <ScrollView contentContainerStyle={[styles.flowScroll, gd.scroll]} showsVerticalScrollIndicator={false}>
-      {!!sessionSaveError && <Text accessibilityRole="alert" style={gd.caution}>{sessionSaveError}</Text>}
+      {!!sessionSaveError && <View><Text accessibilityRole="alert" style={gd.caution}>{sessionSaveError}</Text><Pressable accessibilityRole="button" onPress={retrySessionSave} style={gd.quietAction}><Text style={gd.quietActionText}>Voortgang opnieuw opslaan</Text></Pressable></View>}
       {/* Kop: terug naar Voorpret, naam "Gids", kaart-handoff (de routeapp
           blijft route-eigenaar; de in-app kaart woont alleen in Voorpret). */}
       <View style={gd.head}>
@@ -234,7 +235,7 @@ export function GuideScreen() {
       {/* De cover draagt de beleving: beeld, serif-titel en voortgang uit
           echte sessiedata (tijd- en stapgebaseerd — er is geen GPS-tracking,
           dus nooit een verzonnen kilometerstand). */}
-      <CoverImage uri={experience.image} style={gd.cover} imageStyle={gd.coverRound}>
+      {!editorialComposition && <><CoverImage uri={experience.image} style={gd.cover} imageStyle={gd.coverRound}>
         <ImageShade />
         <View style={gd.coverCopy}>
           <Text style={[gd.coverTitle, styles.onImageText]}>{experience.title}</Text>
@@ -246,21 +247,22 @@ export function GuideScreen() {
             <View style={[gd.coverBarFill, { width: `${Math.round((adaptive ? (stepIndex + 1) / experience.steps.length : progress.fraction) * 100)}%` }]} />
           </View>
         </View>
-      </CoverImage><ImageCredit uri={experience.image} />
+      </CoverImage><ImageCredit uri={experience.image} /></>}
 
       {/* De huidige stap — de enige plek waar de staptekst staat. */}
-      <View style={gd.card}>
-        <View style={gd.cardHead}>
+      <View style={[gd.card, editorialComposition && { borderWidth: 0, borderRadius: 0, padding: 0, paddingHorizontal: 0, paddingVertical: 0, backgroundColor: 'transparent' }]}>
+        {!editorialComposition && <View style={gd.cardHead}>
           <Feather name="compass" size={15} color={gd.accentSolid as string} />
           <Text style={gd.cardTitle}>{experience.steps.length > 1 ? `Stap ${stepIndex + 1} van ${experience.steps.length}` : experience.presenceMode === 'quiet' ? 'Rustige begeleiding' : 'Onderweg'}</Text>
           {experience.steps.length <= 1 ? <Text style={gd.cardHeadRight}>{company === 'solo' ? 'alleen' : company === 'family' ? 'met gezin' : 'samen'}</Text> : null}
         </View>
+        }
         {shared && <View style={gd.togetherRow}>
           <View style={gd.togetherAvatars}>{shared.participants.filter((participant) => participant.status === 'ready').map((participant) => <View key={participant.id} style={gd.togetherAvatar}><Text style={styles.participantAvatarText}>{participant.name.slice(0, 1).toUpperCase()}</Text></View>)}</View>
           <View style={styles.flex}><Text style={gd.rowTitle}>Eén gedeelde ervaring</Text><Text style={gd.rowSub}>{shared.coordination === 'meet-there' ? 'Jullie ontmoetten elkaar bij het begin.' : 'Jullie begonnen samen.'} Deze gids loopt alleen op dit toestel.</Text></View>
         </View>}
         {adaptive ? <DiscoverChapter key={adaptiveState.chapterId} step={current} index={stepIndex} total={experience.steps.length}
-          completed={adaptiveState.completedTaskIds.includes(adaptiveState.chapterId)} onToggle={toggleCurrentGuideTask} showInsight={Boolean(insightVisible)} /> : <>
+          completed={adaptiveState.completedTaskIds.includes(adaptiveState.chapterId)} onToggle={toggleCurrentGuideTask} onObserve={() => updateGuideMode('immerse')} showInsight={Boolean(insightVisible)} /> : <>
         <Text style={gd.stepTitle}>{current.title}</Text>
         {current.meta && <View style={gd.stepMetaPill}><Text style={gd.stepMetaText}>{current.meta}</Text></View>}
         <Text style={gd.stepCue}>{current.instruction}</Text>
@@ -289,17 +291,19 @@ export function GuideScreen() {
           <Pressable
             accessibilityRole="button"
             onPress={next}
-            style={[gd.stepNavButton, gd.stepNavPrimary]}
+            style={[gd.stepNavButton, !editorialComposition && gd.stepNavPrimary]}
           >
-            <Text style={[gd.stepNavText, gd.stepNavPrimaryText]}>{isLast ? 'Ervaring afronden' : 'Volgende stap'}</Text>
+            <Text style={[gd.stepNavText, !editorialComposition && gd.stepNavPrimaryText]}>{isLast ? 'Ervaring afronden' : editorialComposition ? 'Volgend hoofdstuk' : 'Volgende stap'}</Text>
           </Pressable>
         </View>
-        <View style={gd.stepToolsRow}>
+        {!editorialComposition && <View style={gd.stepToolsRow}>
           {adaptive && <Pressable accessibilityRole="button" onPress={() => updateGuideMode('immerse')} style={gd.quietAction}><Feather name="headphones" size={18} color={gd.accentSolid as string} /><Text style={gd.quietActionText}>Beleef dit verhaal</Text></Pressable>}
           <Pressable accessibilityRole="button" accessibilityLabel={deepOpen ? 'Sluit de verdieping' : 'Open de verdieping'} accessibilityState={{ expanded: deepOpen }} onPress={() => { impactLight(); setDeepOpen((value) => !value); }} style={gd.quietAction}><Feather name="book-open" size={13} color={gd.accentSolid as string} /><Text style={gd.quietActionText}>Verdieping</Text></Pressable>
           <Pressable accessibilityRole="button" accessibilityLabel="Leg de telefoon weg" onPress={() => { impactLight(); setPhoneAway(true); }} style={gd.quietAction}><Feather name="smartphone" size={13} color={gd.accentSolid as string} /><Text style={gd.quietActionText}>Telefoon weg</Text></Pressable>
         </View>
 
+        }
+        {editorialComposition && <Pressable accessibilityRole="button" accessibilityState={{ expanded: deepOpen }} onPress={() => setDeepOpen(!deepOpen)} style={gd.quietAction}><Text style={gd.quietActionText}>Praktisch en omgeving {deepOpen ? '−' : '+'}</Text></Pressable>}
         {/* VERDIEPING — de vroegere gids-sheet als uitklap van deze stap.
             Staptekst en het huidige inzicht staan al hierboven; hier wonen
             alleen wat de wereld nu laat zien, verdere momenten en praktisch. */}
@@ -360,7 +364,7 @@ export function GuideScreen() {
           van dit moment, elke zin met zichtbare bron-labels. Laden = rustige
           placeholder; falen = het blok valt weg, nooit een kapot scherm. */}
       {guideBriefing?.state === 'loading' ? (
-        <View style={gd.card}>
+        <View style={[gd.card, editorialComposition && { borderWidth: 0, borderRadius: 0, padding: 0, paddingHorizontal: 0, paddingVertical: 0, backgroundColor: 'transparent' }]}>
           <View style={gd.cardHead}>
             <Feather name="globe" size={15} color={gd.accentSolid as string} />
             <Text style={gd.cardTitle}>Nu om je heen</Text>
@@ -368,7 +372,7 @@ export function GuideScreen() {
           <Text style={gd.briefingLoading}>Feiten van dit moment worden opgehaald…</Text>
         </View>
       ) : guideBriefing?.state === 'live' ? (
-        <View style={gd.card}>
+        <View style={[gd.card, editorialComposition && { borderWidth: 0, borderRadius: 0, padding: 0, paddingHorizontal: 0, paddingVertical: 0, backgroundColor: 'transparent' }]}>
           <View style={gd.cardHead}>
             <Feather name="globe" size={15} color={gd.accentSolid as string} />
             <Text style={gd.cardTitle}>Nu om je heen</Text>
