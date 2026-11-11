@@ -1,3 +1,6 @@
+## M3 internal delivery — 2026-11-11
+
+ADR-075 implemented in source 2c818d9. First Moddergat chapter uses the existing Guide with editorial composition, locally bundled original photo, inline context, unchanged persisted task identity, sources and quiet observation. Original factual story/narration retained; old snapshots remain unchanged. Typecheck, all 129 app tests and scenario checks pass; web export passes. Browser verifies all themes, 320/390 px layout, disclosure/task interaction, reload recovery, chapter transitions, 16-second audio playback and phone-away return. EAS 2c70b731-9d61-42b0-8567-1f2c096d159b FINISHED, 0.4.0 (8), internal minimal4-preview. Founder iPhone acceptance remains open: native VoiceOver, large Dynamic Type, Reduced Motion, audio interruptions, offline cold start, missing-media/storage failure recovery and field usefulness are not claimed as tested. No next milestone, public release or broad renderer expansion.
 ## M3 approved — 2026-11-11
 
 ADR-075 accepted: one editorial Moddergat chapter, shared Guide and existing snapshots preserved. Implementation and verification underway. No broader renderer or planner expansion.
