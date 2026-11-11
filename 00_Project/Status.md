@@ -1,3 +1,7 @@
+## M2 accepted on iPhone — 2026-11-11
+
+Founder confirms 'De test is goed' following delivery of internal build 0.4.0 (7). M2 is complete and accepted for its ADR-074 scope. This is general device acceptance; individual VoiceOver, Dynamic Type and offline stress cases were not separately reported. No next milestone is started or authorized by this acceptance. Entries below retain the historical delivery evidence.
+
 ## M2 internal delivery — 2026-11-11
 
 ADR-074 implemented in source 6ac5dd5. Optional local day plans, independent snapshots, reorder/rename/remove controls and shared Prepare/Guide entry. Typecheck and 125 tests plus existing scenarios pass. Browser verifies creation, two-item reorder, reload, independence from unsaving, all themes, active-session guard and Guide resume at step 2. EAS 026679bb-4426-42df-89ae-e445a0f4e247 FINISHED: 0.4.0 (7), internal minimal4-preview. Native device acceptance, VoiceOver, Dynamic Type, offline cold start and performance remain open. No multi-day planner or renderer expansion.

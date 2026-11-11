@@ -78,3 +78,7 @@ Founder explicitly approved this concrete proposal ('Ja akkoord') on 2026-11-11.
 ## Delivery evidence
 
 Source 6ac5dd5; typecheck, 125 tests and existing scenarios pass. Actual browser checks cover create, rename, two-item add/reorder, persistence, independent unsave, three themes, guarded opening and runner resume at step 2. Internal iPhone build 0.4.0 (7), EAS 026679bb-4426-42df-89ae-e445a0f4e247, FINISHED. Physical-device review remains open; no public release. Screenshot and detailed evidence are in Momentum_M2_Oplevering.txt and the three M2 theme screenshots in task outputs.
+
+## Founder device acceptance — 2026-11-11
+
+Founder reports 'De test is goed' after the build (7) handoff. The scoped M2 milestone is accepted and complete. This does not assert individually verified accessibility/offline edge cases or authorize further scope.
