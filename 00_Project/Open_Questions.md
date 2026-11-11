@@ -1,3 +1,7 @@
+## M2 approved — 2026-11-11
+
+ADR-074 is Founder-approved: optional local day plans from saved ideas, ordering and existing Prepare/Guide entry. No dates, trip planning, new services or renderer expansion. Implementation and verification in progress; M1 data remains intact.
+
 ## Minimal 4.0 — 2026-11-10
 
 ADR-073 is Founder-approved for the first milestone only: four tabs, three themes, temporary intelligent refinement, saved ideas and existing preparation/Guide. Day/trip planning and broad renderer expansion remain deferred. This supersedes older conflicting entry/navigation summaries below. Physical iPhone verification of this milestone remains outstanding.

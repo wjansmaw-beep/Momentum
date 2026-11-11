@@ -1,3 +1,7 @@
+## M2 approved — 2026-11-11
+
+ADR-074 is Founder-approved: optional local day plans from saved ideas, ordering and existing Prepare/Guide entry. No dates, trip planning, new services or renderer expansion. Implementation and verification in progress; M1 data remains intact.
+
 ## Founder device feedback — 2026-11-10
 
 Founder confirms after the build (6) correction that the app works well and asks to proceed to the next goal. This records general device acceptance of M1, not separate verification of VoiceOver, large Dynamic Type, denied GPS or offline edge cases. The exact next milestone (optional day planning versus Living Interface expansion) is being clarified; no additional application scope is assumed.
