@@ -1,4 +1,5 @@
 import { useSavedExperiences } from './savedExperiences';
+import { useDayPlans } from './dayPlans';
 import type { MomentRefinement } from '../product/momentRefinement';
 import { freshMemory } from '../product/freshMemory';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -143,6 +144,7 @@ function useAppStore() {
   const [momentMinutes, setMomentMinutes] = useState<number | undefined>();
   const [momentReference, setMomentReference] = useState<string | undefined>();
   const saved = useSavedExperiences();
+  const plans = useDayPlans();
   const [preparationCompany, setPreparationCompany] = useState<Company | undefined>();
   const [displayFontsLoaded] = useFonts({ Fraunces_500Medium, Fraunces_500Medium_Italic, Fraunces_600SemiBold });
   // De uitnodiging in de start-URL is synchroon bekend (web) en bepaalt mede de
@@ -722,6 +724,7 @@ function useAppStore() {
 
   return {
     ...saved,
+    ...plans,
     momentRefinement,
     setMomentRefinement,
     momentMinutes,

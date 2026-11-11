@@ -14,7 +14,7 @@
     "test:generator": "node --test \"services/generator/test/*.test.mjs\"",
     "test:affirmation": "node --test tests/affirmation.test.mjs",
     "test:scenarios": "tsx tests/runContentCatalogScenarios.ts && tsx tests/runPersonalMemoryScenarios.ts",
-    "test:guide": "node --import tsx --test tests/adaptiveGuide.test.mjs tests/guideDestination.test.mjs tests/referenceExperiences.test.mjs tests/narrationAssets.test.mjs tests/freshMemory.test.mjs tests/minimal4.test.mjs",
+    "test:guide": "node --import tsx --test tests/adaptiveGuide.test.mjs tests/guideDestination.test.mjs tests/referenceExperiences.test.mjs tests/narrationAssets.test.mjs tests/freshMemory.test.mjs tests/minimal4.test.mjs tests/dayPlans.test.mjs",
     "test:app": "npm run typecheck && npm run test:generator && npm run test:affirmation && npm run test:scenarios && npm run test:guide",
     "typecheck": "tsc --noEmit"
   },
