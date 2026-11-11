@@ -1,3 +1,7 @@
+## M2 internal delivery — 2026-11-11
+
+ADR-074 implemented in source 6ac5dd5. Optional local day plans, independent snapshots, reorder/rename/remove controls and shared Prepare/Guide entry. Typecheck and 125 tests plus existing scenarios pass. Browser verifies creation, two-item reorder, reload, independence from unsaving, all themes, active-session guard and Guide resume at step 2. EAS 026679bb-4426-42df-89ae-e445a0f4e247 FINISHED: 0.4.0 (7), internal minimal4-preview. Native device acceptance, VoiceOver, Dynamic Type, offline cold start and performance remain open. No multi-day planner or renderer expansion.
+
 ## M2 approved — 2026-11-11
 
 ADR-074 is Founder-approved: optional local day plans from saved ideas, ordering and existing Prepare/Guide entry. No dates, trip planning, new services or renderer expansion. Implementation and verification in progress; M1 data remains intact.

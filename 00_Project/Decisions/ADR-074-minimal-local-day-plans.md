@@ -6,13 +6,13 @@ Date: 2026-11-11
 
 ## Product Guardian preflight
 
-Advances roadmap phases 4–6 after Founder acceptance of M1. The Founder asked to start M2; the previous discussion left day planning versus Living Interface expansion unresolved. This document makes the proposed day-planning scope reviewable without assuming approval of either expansion.
+Advances roadmap phases 4–6 after Founder acceptance of M1. The Founder reviewed the concrete day-planning proposal and approved it on 2026-11-11. M2 therefore implements the bounded day-plan slice; Living Interface expansion remains separate.
 
 Human moment: I have saved a few experiences and want to combine them into a day without organizing a calendar. Strengthens Wonder → Momentum by reducing repeated searching and preserving the user's chosen order. Success means starting a chosen experience, not filling a schedule.
 
-The current app matches ADR-073: four tabs, saved ideas, optional day suggestions and contextual Prepare/Guide. It has no persisted day-plan model. ADR-060's editorial day timeline is not a user-authored schedule; ADR-073 amended its product direction but explicitly deferred planner implementation. This proposal extends that implementation boundary only after approval. ADR-072 and broader renderer work remain separate.
+The current app matches ADR-073: four tabs, saved ideas, optional day suggestions and contextual Prepare/Guide. It has no persisted day-plan model. ADR-060's editorial day timeline is not a user-authored schedule; ADR-073 amended its product direction but explicitly deferred planner implementation. This accepted decision extends that implementation boundary. ADR-072 and broader renderer work remain separate.
 
-## Proposed smallest complete slice
+## Approved smallest complete slice
 
 - Keep Nu, Plannen, Boek and Jij unchanged as main tabs.
 - Plannen opens with saved ideas. A modest 'Maak een dagplan' action reveals planning only by choice; existing plans remain accessible afterwards.
@@ -43,7 +43,7 @@ Snapshots retain original provenance and expiry; saving never refreshes evidence
 
 Unknown versions or malformed data must not be overwritten. Serialize writes, prevent editing before hydration, retain visible save errors and retry actions. Failure loading plans must not block the existing saved list, Guide or Book. Offline local editing works; unavailable media/live data retains existing truthful fallbacks. No new permissions, libraries, services, accounts, cloud sync or external publication.
 
-## Expected files after approval
+## Implementation files
 
 - src/product/dayPlans.ts: typed model, operations and validation (new).
 - src/app/dayPlans.ts: persistence hook (new).
@@ -69,8 +69,12 @@ M2 is complete when multiple experiences remain in the chosen order after restar
 
 ## Founder decision
 
-Confirm M2 as the above simple local day-plan slice, or choose Living Interface expansion instead. Multi-day travel, calendar sync, automatic scheduling, AI itinerary composition and renderer expansion are excluded from this proposal.
+Founder confirmed M2 as the above simple local day-plan slice. Multi-day travel, calendar sync, automatic scheduling, AI itinerary composition and renderer expansion are excluded from this proposal.
 
 ## Approval
 
 Founder explicitly approved this concrete proposal ('Ja akkoord') on 2026-11-11. Implement the scoped local day-plan slice and internal iPhone delivery. Broader planning and renderer work remain excluded.
+
+## Delivery evidence
+
+Source 6ac5dd5; typecheck, 125 tests and existing scenarios pass. Actual browser checks cover create, rename, two-item add/reorder, persistence, independent unsave, three themes, guarded opening and runner resume at step 2. Internal iPhone build 0.4.0 (7), EAS 026679bb-4426-42df-89ae-e445a0f4e247, FINISHED. Physical-device review remains open; no public release. Screenshot and detailed evidence are in Momentum_M2_Oplevering.txt and the three M2 theme screenshots in task outputs.
