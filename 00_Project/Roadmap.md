@@ -1,3 +1,7 @@
+## M3 approved — 2026-11-11
+
+ADR-075 accepted: one editorial Moddergat chapter, shared Guide and existing snapshots preserved. Implementation and verification underway. No broader renderer or planner expansion.
+
 ## M2 accepted on iPhone — 2026-11-11
 
 Founder confirms 'De test is goed' following delivery of internal build 0.4.0 (7). M2 is complete and accepted for its ADR-074 scope. This is general device acceptance; individual VoiceOver, Dynamic Type and offline stress cases were not separately reported. No next milestone is started or authorized by this acceptance. Entries below retain the historical delivery evidence.

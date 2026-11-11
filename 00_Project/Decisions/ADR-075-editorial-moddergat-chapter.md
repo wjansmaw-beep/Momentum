@@ -1,6 +1,6 @@
 # ADR-075 — M3 editorial Moddergat chapter
 
-Status: Proposed, awaiting Founder design and implementation approval
+Status: Accepted by the Founder, 2026-11-11
 Version: 1.0
 Date: 2026-11-11
 
@@ -31,3 +31,7 @@ Preserve existing saved ideas, day-plan snapshots and active-session snapshots v
 ## Verification and boundary
 
 Before code, Founder reviews task outputs Momentum_M3_Ontwerpcontract.txt and Momentum_M3_Ontwerpproef.html. These are design evidence, not app implementation. After approval, verify typecheck/app suites, source/media failures, offline assets, snapshot compatibility, modes and task restoration, native audio interruptions, all themes, Dynamic Type/VoiceOver/Reduced Motion where testable. Deliver internal iPhone build through existing authorized route. Field usefulness remains unverified until an actual visit. No public release or new services.
+
+## Approval
+
+Founder approved the presented design and scoped implementation ('akkoord') on 2026-11-11. Implementation may proceed; existing data and old snapshots remain protected.
