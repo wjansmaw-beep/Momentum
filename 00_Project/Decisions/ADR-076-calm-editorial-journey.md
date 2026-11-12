@@ -102,3 +102,10 @@ The earlier Keunstwurk map link is inconsistent with its named monument; use OSM
 
 Validation: three catalog tests verify independent destinations, preservation of old museum steps, conditional factory access and nature restrictions. This is source/map verification, not field validation; five-place stories, remaining media, connected walking guidance and final iPhone build are still open.
 Full typecheck and test:app pass: 148 counted tests (80 + 13 + 55) plus scenarios. Later note-only wording edits do not alter the checked catalog behavior.
+
+## Five-place narrative increment — 2026-11-12
+
+Product Guardian / Experience Designer / Engineer: the new moddergat-five-places-v1 experience now contains all five stories, editorial leads, voluntary observations, depth, source provenance and chapter-specific map anchors. It uses the existing Experience model, renderer and session. Existing reference-moddergat-v1 remains untouched. The new experience is deliberately not promoted into Nu until the missing media and walking connections are reviewed; this is an incomplete implementation artifact, not a completed route. Thirty minutes is explicitly an editorial reading/stopping allowance, excluding travel/walking, not a sourced route estimate.
+
+The public walking graph review found mapped village connections with stairs and a missing connection to the factory when excluding 80 km/h roads. Nearest-node snapping can land below the statue on the road and is not adequate entrance verification. No computed route geometry/distances or inferred shortcut were added to the app. Remaining work includes a defensible route approach, three additional reviewed photographs, catalog integration, full-app visual migration and native verification. These gaps cannot be covered by a quality score.
+Validation: typecheck and test:app pass, 151 counted tests (80 + 13 + 58) plus scenarios. New tests verify independent identity, five sourced chapter destinations and resume without task completion. No native or field validation is claimed.
