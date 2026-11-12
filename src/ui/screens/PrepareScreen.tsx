@@ -511,7 +511,7 @@ const vp = schemeStyles(({ colors: schemeColors }) => {
     cta: {
       flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
       backgroundColor: palette.accent, borderRadius: 10, paddingVertical: 14, paddingHorizontal: 20, minHeight: 52, gap: 12,
-      
+
     },
     ctaTitle: { fontSize: 15.5, fontWeight: '700', letterSpacing: -0.1, color: palette.accentInk },
     ctaSub: { fontSize: 10.5, fontWeight: '600', color: palette.accentInk, opacity: 0.7, marginTop: 1 },
