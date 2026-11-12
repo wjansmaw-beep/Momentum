@@ -1,3 +1,8 @@
+## M4 internal iPhone review candidate — 2026-11-12
+
+EAS build ada866bb-5228-4f34-8e66-b00c58283ad1 is FINISHED: iOS 0.4.0 (9), source f80aaca, existing internal minimal4-preview distribution. Feature branch feat/adaptive-guide-first-slice is pushed; main is unchanged. Includes calm full consumer surfaces, five-place Moddergat content, optional published walking directions and native destination/foreground-position map. No live turn-by-turn routing or complete new-journey audio series is claimed.
+
+Validation: typecheck, 155 counted tests plus scenarios, web export, browser save/resume and memory flows, 320/390 pt Light/Editorial checks and earlier Dark checks. Screenshots and the Dutch test report are in the task outputs. Provisional weighted internal score 8.39/10; interaction/accessibility remains 7.5 pending native evidence. The >=8.5 target and minimum 8/category are NOT achieved. Founder iPhone acceptance, full device accessibility/offline/permission checks, remaining theme combinations and field usefulness remain open. No next milestone or public release.
 ## M4 approved with practical place information — 2026-11-12
 
 Founder approves the M4 visual prototype and requests adaptive place menus, opening times/costs where relevant, and navigation within the app. ADR-076 records approval and the actual map/routing capability gap. Implement the approved calm reading design and preserved flows; investigate verified in-app walking guidance without new paid/location-sharing services or invented routes. No 8.5 score or delivery is claimed yet.
