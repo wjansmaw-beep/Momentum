@@ -14,14 +14,10 @@ import {
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { CommonActions, StackActions, useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import Reanimated from 'react-native-reanimated';
-import { Experience } from '../../product/experienceModel';
-import { SharedCapsuleState } from '../../sharing/sharedCapsule';
 import { buildExperienceGuide } from '../../guidance/experienceGuide';
 import { verifyRouteBeforeHandoff } from '../../routing/routeIntelligence';
 import { palettes, schemeStyles, typography } from '../../design/theme';
 import { impactLight, impactMedium } from '../../design/haptics';
-import { useBreathing } from '../../design/motion';
 import { CoverImage, ImageShade } from '../CoverImage';
 import { FlowFrame } from '../frames';
 import { styles } from '../styles/appStyles';
@@ -39,25 +35,8 @@ import { chapterIds, restoreAdaptiveGuide, supportsAdaptiveGuide } from '../../g
 import { DiscoverChapter, GuideChapterMenu, GuideModeBar, GuideModeScene } from '../guide/AdaptiveGuide';
 import { currentPlace, currentDestination } from '../../guidance/placeInformation';
 
-// DE GIDS — het enige onderweg-scherm (vervolg op ADR-067, fase R4). De
-// vroegere drie vormen van begeleiding — het Presence-scherm, de
-// ExperienceGuidePanel-sheet en de PhoneAway-overlay — waren drie schermen
-// voor één beleving. Nu zijn het drie toestanden van dezelfde stap:
-//
-// - STAP (standaard): coverfoto, serif-titel en voortgang zoals het oude
-//   gids-paneel dat het mooiste deed; daaronder de huidige stap en de live
-//   briefing "Nu om je heen" (ADR-068). Geen routekaart — die woont in
-//   Voorpret; de kaart-handoff blijft via de kop.
-// - VERDIEPING: de oude sheet-inhoud (wat de wereld nu laat zien,
-//   gidsmomenten, praktisch) klappt uit ónder dezelfde stap. De disclosure
-//   "Feiten & bronnen" houdt de datarijen en de dekkingsverklaring (ADR-056)
-//   één tik diep beschikbaar.
-// - TELEFOON WEG: het zwarte adem-scherm als dim-stand van díe stap; één tik
-//   keert terug naar exact dezelfde stapweergave.
-//
-// Stappen zijn altijd bladerbaar: Vorige/Volgende worden nooit geblokkeerd —
-// een lopende timer is een hulp, geen poort. De GIDS-tab opent dit scherm
-// direct op de opgeslagen stap; de oude hervatkaart-GuideScreen is verdwenen.
+// One Guide owns the current chapter, presentation mode and session.
+// Observation and narration stay in the Guide; no separate phone-away screen.
 
 export function GuideScreen() {
   const { selected: experience, personalProfile: personal, activeSession, sessionSaveError, retrySessionSave, updatePresenceStep, updateGuideMode, toggleCurrentGuideTask, presenceBack, finishPresence, discardSession, liveWorld, prototypeContext } = useApp();
@@ -86,7 +65,6 @@ export function GuideScreen() {
   const [stepIndex, setStepIndex] = useState(Math.min(initialStep, Math.max(0, experience.steps.length - 1)));
   const [remaining, setRemaining] = useState(experience.steps[Math.min(initialStep, Math.max(0, experience.steps.length - 1))]?.seconds ?? 0);
   const [timerRunning, setTimerRunning] = useState(false);
-  const [phoneAway, setPhoneAway] = useState(false);
   const [deepOpen, setDeepOpen] = useState(false);
   const [factsOpen, setFactsOpen] = useState(false);
   const [handoffStatus, setHandoffStatus] = useState('');
@@ -123,9 +101,8 @@ export function GuideScreen() {
   useEffect(() => navigation.addListener('beforeRemove', (event) => {
     if (leavingRef.current) return;
     event.preventDefault();
-    if (phoneAway) { setPhoneAway(false); return; }
     onBack();
-  }), [navigation, phoneAway]);
+  }), [navigation]);
 
   const openHandoff = async () => {
     if (!routeTarget) { setHandoffStatus('Er is geen gecontroleerde bestemming voor deze ervaring.'); return; }
@@ -202,7 +179,6 @@ export function GuideScreen() {
     return () => { active = false; };
   }, [experience.id, stepIndex, currentStepTitle, liveWorld?.retrievedAt]);
 
-  if (phoneAway) return <FlowFrame statusBar="light"><PhoneAwayView experience={experience} cue={current.title} seconds={current.seconds} remaining={remaining} formatTime={formatTime} shared={shared} onReopen={() => setPhoneAway(false)} /></FlowFrame>;
   if (adaptive && adaptiveState.mode !== 'discover') return <FlowFrame>
     <View style={styles.flowScreen}>
       {!!sessionSaveError && <View><Text accessibilityRole="alert" style={gd.caution}>{sessionSaveError}</Text><Pressable accessibilityRole="button" onPress={retrySessionSave} style={gd.quietAction}><Text style={gd.quietActionText}>Voortgang opnieuw opslaan</Text></Pressable></View>}
@@ -213,7 +189,7 @@ export function GuideScreen() {
       <GuideChapterMenu experience={experience} index={stepIndex} onSelect={setStepIndex} />
       <GuideModeBar mode={adaptiveState.mode} onChange={updateGuideMode} />
       <GuideModeScene key={adaptiveState.chapterId} mode={adaptiveState.mode} experience={experience} step={current} index={stepIndex}
-        onDiscover={() => updateGuideMode('discover')} onQuiet={() => setPhoneAway(true)} onRoute={openHandoff}
+        onDiscover={() => updateGuideMode('discover')} onRoute={openHandoff}
         onBack={onBack} onFinish={onFinish} routeStatus={handoffStatus} />
     </View>
   </FlowFrame>;
@@ -305,7 +281,6 @@ export function GuideScreen() {
         {!adaptive && !editorialComposition && <View style={gd.stepToolsRow}>
           {adaptive && <Pressable accessibilityRole="button" onPress={() => updateGuideMode('immerse')} style={gd.quietAction}><Feather name="headphones" size={18} color={gd.accentSolid as string} /><Text style={gd.quietActionText}>Beleef dit verhaal</Text></Pressable>}
           <Pressable accessibilityRole="button" accessibilityLabel={deepOpen ? 'Sluit de verdieping' : 'Open de verdieping'} accessibilityState={{ expanded: deepOpen }} onPress={() => { impactLight(); setDeepOpen((value) => !value); }} style={gd.quietAction}><Feather name="book-open" size={13} color={gd.accentSolid as string} /><Text style={gd.quietActionText}>Verdieping</Text></Pressable>
-          <Pressable accessibilityRole="button" accessibilityLabel="Leg de telefoon weg" onPress={() => { impactLight(); setPhoneAway(true); }} style={gd.quietAction}><Feather name="smartphone" size={13} color={gd.accentSolid as string} /><Text style={gd.quietActionText}>Telefoon weg</Text></Pressable>
         </View>
 
         }
@@ -414,23 +389,6 @@ export function GuideScreen() {
     </View>
     </FlowFrame>
   );
-}
-
-// Telefoon weg (dim-stand van de huidige stap): echt OLED-zwart met één zacht
-// gloeiend, ademend element (Reanimated; geen Skia). Bij reduced-motion staat
-// de gloed stil. Eén tik op "Terug naar de gids" keert terug naar exact de
-// stapweergave waar de wandelaar was.
-function PhoneAwayView({ experience, cue, seconds, remaining, formatTime, shared, onReopen }: { experience: Experience; cue: string; seconds?: number; remaining: number; formatTime: (seconds: number) => string; shared?: SharedCapsuleState; onReopen: () => void }) {
-  const breath = useBreathing({ period: 6400, scaleTo: 1.055, opacityTo: 0.72 });
-  return <View style={styles.phoneAwayScreen}>
-    <Text style={styles.phoneAwayEyebrow}>GIDS</Text><Text style={styles.phoneAwayTitle}>{experience.title}</Text><Text style={styles.phoneAwayCue}>{cue}</Text>
-    <Reanimated.View style={[styles.phoneAwayGlow, { borderColor: gd.accentSolid as string, shadowColor: gd.accentSolid as string }, breath]}>
-      {seconds ? <Text style={styles.phoneAwayTimer}>{formatTime(remaining)}</Text> : <Ionicons name="ellipse" size={10} color={gd.accentSolid as string} />}
-    </Reanimated.View>
-    {shared && <Text style={styles.phoneAwayTogether}>{shared.participants.filter((participant) => participant.status === 'ready').map((participant) => participant.name).join(' + ')} · samen aanwezig</Text>}
-    <Text style={styles.phoneAwayBody}>Je hoeft nu niets te bedienen. De gids blijft met één tik beschikbaar.</Text>
-    <Pressable accessibilityRole="button" accessibilityLabel="Terug naar de gids" onPress={onReopen} style={styles.reopenGuide}><Text style={styles.reopenGuideText}>Terug naar de gids</Text></Pressable>
-  </View>;
 }
 
 // Visuele taal (concept v2): zelfde palet als R1–R4 — near-black podium,

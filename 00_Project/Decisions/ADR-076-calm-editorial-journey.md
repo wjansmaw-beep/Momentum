@@ -153,3 +153,11 @@ Validation: full typecheck and test:app pass, 155 counted tests (80 generator + 
 ## Internal iPhone build ready — 2026-11-12
 
 EAS ada866bb-5228-4f34-8e66-b00c58283ad1 FINISHED, iOS 0.4.0 (9), source f80aaca, internal minimal4-preview. Existing feature branch is pushed; main unchanged. Build success is not a native interaction test. Dutch report and actual web-app screenshots are in task outputs. Internal rubric: reading 8.7, menus 8.8, journey 8.0, accessibility 7.5, sources 8.8, preservation 8.5; weighted 8.39. Scores are provisional judgments supported by the recorded checks, not empirical user scores. Target and per-category floor remain unmet until further improvement/evidence and Founder iPhone acceptance. No completed-goal claim.
+
+## Founder refinement — 2026-11-12
+
+Product Guardian: Founder reports the current iPhone tests work very well, and explicitly requests removal of Telefoon weg because it adds little value. Remove its controls, local overlay state and dedicated dim screen in both legacy and adaptive Guide. Keep observation, narration, timers, chapter navigation and persisted sessions unchanged. This is a scoped M4 simplification; no data migration or new permissions. General device feedback does not establish individual accessibility, GPS-denial or offline test results.
+
+Future direction only: when the user reopens the app, relevant local story content could follow the current location and experience context. Record this for later design; do not implement automatic location requests, chapter changes, background tracking or a new event engine in this refinement.
+
+Verification: typecheck, all 155 counted app tests plus scenarios and web export pass. Browser confirms chapter-5 session resume, observer mode without phone-away controls, and listening fallback with return to the story. No persisted data/model change. Updated native build pending.

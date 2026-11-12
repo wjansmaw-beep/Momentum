@@ -92,9 +92,9 @@ export function DiscoverChapter({ step, index, total, showInsight, onObserve, ex
   </View>;
 }
 
-export function GuideModeScene({ mode, experience, step, index, onDiscover, onQuiet, onRoute, onBack, onFinish, routeStatus }: {
+export function GuideModeScene({ mode, experience, step, index, onDiscover, onRoute, onBack, onFinish, routeStatus }: {
   mode: 'navigate' | 'immerse'; experience: Experience; step: CapsuleStep; index: number;
-  onDiscover: () => void; onQuiet: () => void; onRoute: () => void; onBack: () => void; onFinish: () => void; routeStatus: string;
+  onDiscover: () => void; onRoute: () => void; onBack: () => void; onFinish: () => void; routeStatus: string;
 }) {
   const editorial = step.editorial?.composition === 'editorial-place';
   const [observing, setObserving] = useState(editorial);
@@ -131,7 +131,7 @@ export function GuideModeScene({ mode, experience, step, index, onDiscover, onQu
         <View style={s.segments}>{[false, true].map((value) => <Pressable key={String(value)} accessibilityRole="button" aria-pressed={observing === value} accessibilityState={{ selected: observing === value }}
           onPress={() => setObserving(value)} style={[s.segment, observing === value && s.activeTab]}><Text style={[s.tabText, observing === value && s.activeText]}>{value ? 'Observeren' : 'Luisteren'}</Text></Pressable>)}</View>
         {!observing && narration ? <NarrationPlayer key={narration.id} source={narration.source} transcript={narration.transcript} /> : <Text style={s.sceneText}>{observing ? step.editorial?.observation || step.instruction : 'Audio is nog niet beschikbaar. Je kunt de verhaaltekst lezen of kiezen voor observeren.'}</Text>}
-        <Action title={observing ? 'Telefoon weg' : 'Lees de verhaaltekst'} onPress={observing ? onQuiet : onDiscover} />
+        {!observing && <Action title="Lees de verhaaltekst" onPress={onDiscover} />}
       </>}
     </View>
   </ScrollView>;

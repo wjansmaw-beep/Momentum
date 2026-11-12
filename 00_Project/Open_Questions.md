@@ -167,3 +167,7 @@ Priority labels:
 3. Approve or amend the active-entry interaction and permission-light prototype content set.
 4. Choose the initial product and documentation language.
 5. Approve or amend the staged MVP technical boundary and first Capsule pair.
+
+## Future location-aware return to the Guide — 2026-11-12
+
+Founder wants relevant story content to follow the place when reopening the app. Future design must decide location permission timing, freshness/accuracy, narrative selection and session continuity, user control over chapter changes, and offline/denied-permission behavior. No automatic GPS advance, background tracking or new event infrastructure is authorized now. Telefoon weg is removed under ADR-076 instead of being replaced by another special mode.

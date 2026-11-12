@@ -1,3 +1,7 @@
+## M4 Founder feedback and simplification — 2026-11-12
+
+Founder reports build 9 tests work very well. ADR-076 now authorizes removal of the redundant phone-away controls and screen, retaining observation and listening. Location-relevant storytelling on reopening is a future direction only. Verification of this refinement is in progress; no additional native test coverage is inferred from general feedback.
+
 ## M4 internal iPhone review candidate — 2026-11-12
 
 EAS build ada866bb-5228-4f34-8e66-b00c58283ad1 is FINISHED: iOS 0.4.0 (9), source f80aaca, existing internal minimal4-preview distribution. Feature branch feat/adaptive-guide-first-slice is pushed; main is unchanged. Includes calm full consumer surfaces, five-place Moddergat content, optional published walking directions and native destination/foreground-position map. No live turn-by-turn routing or complete new-journey audio series is claimed.
