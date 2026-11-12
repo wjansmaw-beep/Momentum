@@ -12,8 +12,8 @@ import { CoverImage } from './CoverImage';
 export function EditorialAction({ title, onPress, primary = false, selected, disabled = false }: { title: string; onPress: () => void; primary?: boolean; selected?: boolean; disabled?: boolean }) {
   useAppearance();
   return <Pressable accessibilityRole="button" aria-pressed={selected} accessibilityState={{ selected, disabled }} disabled={disabled} onPress={onPress}
-    style={({ pressed }) => [ed.action, primary && { backgroundColor: colors.accent, borderColor: colors.accent }, { opacity: disabled ? .45 : pressed ? .7 : 1 }]}>
-    <Text style={[ed.actionText, primary && { color: colors.onAccent }]}>{selected ? '✓  ' : ''}{title}</Text>
+    style={({ pressed }) => [ed.action, primary && { backgroundColor: colors.accent, borderRadius: 10, paddingHorizontal: 18 }, { opacity: disabled ? .45 : pressed ? .7 : 1 }]}>
+    <Text style={[ed.actionText, primary && { color: colors.onAccent, textAlign: 'center' }]}>{selected ? '✓  ' : ''}{title}</Text>
   </Pressable>;
 }
 export function EditorialDisclosure({ title, children }: { title: string; children: React.ReactNode }) {
@@ -27,7 +27,7 @@ export function EditorialPhoto({ experience }: { experience: Experience }) {
   const credit = ownCredit ?? (['outside', 'restore'].includes(experience.kind) ? referenceImages.lauwersmeer : undefined);
   const [error, setError] = useState('');
   return <View style={{ gap: 8 }}>
-    <CoverImage uri={credit?.uri} alt={credit ? (ownCredit ? `Foto bij ${experience.title}` : 'Sfeerbeeld van het Lauwersmeer; niet de bestemming van deze ervaring') : 'Geen gecontroleerde foto beschikbaar'} style={ed.hero} imageStyle={{ borderRadius: 18 }} />
+    <CoverImage uri={credit?.uri} alt={credit ? (ownCredit ? `Foto bij ${experience.title}` : 'Sfeerbeeld van het Lauwersmeer; niet de bestemming van deze ervaring') : 'Geen gecontroleerde foto beschikbaar'} style={ed.hero} imageStyle={{ borderRadius: 0 }} />
     {credit && !ownCredit && <Text style={ed.small}>Sfeerbeeld: Lauwersmeer · geen voorgestelde bestemming</Text>}
     {credit && <EditorialDisclosure title="Foto en herkomst"><Text style={ed.small}>{credit.label} · uitsnede; geen actuele opname</Text>
       <EditorialAction title="Bekijk beeldbron" onPress={() => { Linking.openURL(credit.source).catch(() => setError('De beeldbron is nu niet bereikbaar.')); }} />
@@ -68,15 +68,15 @@ export function SaveExperience({ experience }: { experience: Experience }) {
 }
 export const ed = schemeStyles(({ colors: c }) => StyleSheet.create({
  scroll: { paddingHorizontal: 20, paddingTop: 24, paddingBottom: 150, gap: 24 },
- title: { fontFamily: typography.displayFamily, fontSize: 36, lineHeight: 43, color: c.bone },
- heading: { fontFamily: typography.displayFamily, fontSize: 27, lineHeight: 34, color: c.bone },
+ title: { fontFamily: typography.family, fontWeight: '600', fontSize: 28, lineHeight: 35, color: c.bone },
+ heading: { fontFamily: typography.family, fontWeight: '600', fontSize: 22, lineHeight: 29, color: c.bone },
  body: { fontFamily: typography.family, fontSize: 17, lineHeight: 26, color: c.bone },
  small: { fontFamily: typography.family, fontSize: 14, lineHeight: 21, color: c.muted },
- eyebrow: { fontFamily: typography.family, fontSize: 13, lineHeight: 20, letterSpacing: 2, color: c.muted },
- hero: { height: 230, borderRadius: 18, overflow: 'hidden', backgroundColor: c.panelRaised },
+ eyebrow: { fontFamily: typography.family, fontSize: 13, lineHeight: 20, letterSpacing: .4, color: c.muted },
+ hero: { height: 230, borderRadius: 0, overflow: 'hidden', backgroundColor: c.panelRaised },
  section: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line, paddingTop: 12, gap: 12 },
  row: { minHeight: 48, flexDirection: 'row', gap: 12, alignItems: 'center' },
  depth: { gap: 12, paddingVertical: 8 },
- action: { minHeight: 52, borderWidth: 1, borderColor: c.muted, borderRadius: 18, paddingHorizontal: 18, paddingVertical: 12, justifyContent: 'center' },
- actionText: { fontFamily: typography.family, fontSize: 16, lineHeight: 24, color: c.bone, textAlign: 'center' },
+ action: { minHeight: 48, paddingVertical: 12, justifyContent: 'center' },
+ actionText: { fontFamily: typography.family, fontSize: 16, lineHeight: 24, color: c.bone, textAlign: 'left' },
 }));

@@ -1,4 +1,5 @@
 import { ImageCredit } from '../ImageCredit';
+import { EditorialDisclosure } from '../editorial';
 import React, { useState } from 'react';
 import { Image, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
@@ -31,68 +32,40 @@ export function GuideModeBar({ mode, onChange }: { mode: GuideMode; onChange: (m
   </View>;
 }
 
-export function DiscoverChapter({ step, index, total, completed, onToggle, showInsight, onObserve }: {
+// Historical task fields remain in sessions; reading no longer asks for completion.
+export function DiscoverChapter({ step, index, total, showInsight, onObserve }: {
   step: CapsuleStep; index: number; total: number; completed: boolean; onToggle: () => void; showInsight: boolean; onObserve?: () => void;
 }) {
-  const [taskOpen, setTaskOpen] = useState(true);
-  const [sourceOpen, setSourceOpen] = useState(false);
-  const [sourceError, setSourceError] = useState('');
-  const [depthOpen, setDepthOpen] = useState(false);
-  const [outsideOpen, setOutsideOpen] = useState(false);
   const [photoFailed, setPhotoFailed] = useState(false);
-  const editorial = step.editorial?.composition === 'editorial-place';
-  const intro = editorial ? step.editorial?.introduction : undefined;
-  const insight = showInsight ? step.insight : undefined;
+  const [sourceError, setSourceError] = useState('');
+  const intro = step.editorial?.composition === 'editorial-place' ? step.editorial.introduction : undefined;
   const blocks = renderableBlocks(step, showInsight);
   const story = blocks.find(block => block.kind === 'story');
   const depth = blocks.find(block => block.kind === 'depth');
   const evidence = blocks.find(block => block.kind === 'evidence');
-  const depthSection = depth && <View style={editorial ? s.rule : undefined}>
-    <Pressable accessibilityRole="button" aria-expanded={depthOpen} accessibilityState={{ expanded: depthOpen }} onPress={() => setDepthOpen(!depthOpen)} style={s.disclosure}>
-      <Text style={s.disclosureText}>{editorial ? 'Waarom twee tijdlagen?' : 'Vertel me meer'}</Text><Feather name={depthOpen ? 'chevron-up' : 'chevron-down'} size={18} color={colors.bone} />
-    </Pressable>{depthOpen && <><Text style={s.body}>{depth.text}</Text>{editorial && <Text style={s.source}>Redactionele duiding · geen persoonlijke getuigenis</Text>}</>}
-  </View>;
-  return <View style={[s.read, editorial && s.editorialRead]}>
-    <Text style={s.kicker}>DISCOVER · {index + 1} VAN {total}</Text>
-    {intro && <>
-      <Text accessibilityRole="header" style={s.heroTitle}>{intro.title}</Text><Text style={s.body}>{intro.promise}</Text>
-      {!photoFailed ? <View style={s.documentaryPhoto}><Image source={museumPhoto} resizeMode="contain" accessibilityLabel="Museumhuisje ’t Fiskershúske, foto uit 2007" style={{ width: '100%', height: '100%' }} onError={() => setPhotoFailed(true)} /></View> : <Text style={s.source}>Foto niet beschikbaar. Je kunt verder lezen en ter plaatse kijken.</Text>}
-      <Text style={s.source}>Museumhuisje ’t Fiskershúske · opname uit 2007, geen actuele situatie.</Text>
-      <ImageCredit uri={referenceImages.moddergat.uri} original />
-    </>}
-    <Text accessibilityRole="header" style={s.title}>{story?.title ?? step.title}</Text>
+  return <View style={[s.read, s.editorialRead]}>
+    <Text style={s.kicker}>Hoofdstuk {index + 1} van {total}</Text>
+    {intro && (!photoFailed ? <View style={s.documentaryPhoto}><Image source={museumPhoto} resizeMode="contain" accessibilityLabel="Museumhuisje ’t Fiskershúske, foto uit 2007" style={{ width: '100%', height: '100%' }} onError={() => setPhotoFailed(true)} /></View> : <Text style={s.source}>Foto niet beschikbaar. Je kunt verder lezen.</Text>)}
+    <Text accessibilityRole="header" style={s.title}>{intro?.title ?? story?.title ?? step.title}</Text>
+    {intro && <Text style={s.lead}>{intro.promise}</Text>}
     {story && <Text style={s.body}>{story.text}</Text>}
-    {editorial && story && <Text style={s.source}>Brongebonden verhaal · {step.insight?.sourceLabel}</Text>}
     {step.meta && <Text style={s.meta}>{step.meta}</Text>}
-    {editorial && depthSection}
-    <View style={[s.task, editorial && s.editorialTask]}>
-      <Pressable accessibilityRole="button" aria-expanded={taskOpen} accessibilityState={{ expanded: taskOpen }} onPress={() => setTaskOpen(!taskOpen)} style={s.disclosure}>
-        {!editorial && <Feather name="compass" size={22} color={colors.bone} />}<Text style={s.disclosureText}>{editorial ? 'Kies één detail' : 'Jouw ontdekkingsopdracht'}</Text>
-        <Feather name={taskOpen ? 'chevron-up' : 'chevron-down'} size={18} color={colors.bone} />
-      </Pressable>
-      <Text style={s.body}>{taskOpen ? step.instruction : step.instruction.split(/(?<=[.!?])\s/)[0]}</Text>
-      {taskOpen && intro && <><Pressable accessibilityRole="button" aria-expanded={outsideOpen} accessibilityState={{ expanded: outsideOpen }} style={s.disclosure} onPress={() => setOutsideOpen(!outsideOpen)}><Text style={s.source}>Buiten of thuis? {outsideOpen ? '−' : '+'}</Text></Pressable>{outsideOpen && <Text style={s.body}>{intro.outside}</Text>}</>}
-      {taskOpen && <Pressable accessibilityRole="checkbox" aria-checked={completed} accessibilityState={{ checked: completed }}
-        onPress={onToggle} style={s.disclosure}>
-        <Feather name={completed ? 'check-square' : 'square'} size={23} color={colors.bone} />
-        <Text style={s.body}>{editorial ? 'Dit heb ik bekeken' : 'Dit heb ik gedaan'}</Text>
-      </Pressable>}
-    </View>
-    {editorial && <Text style={s.source}>Vrijwillig en omkeerbaar. Je kunt altijd verder.</Text>}
-    {!editorial && depthSection}
-    {insight && evidence && <>
-      <Pressable accessibilityRole="button" aria-expanded={sourceOpen} accessibilityState={{ expanded: sourceOpen }} onPress={() => setSourceOpen(!sourceOpen)} style={s.disclosure}>
-        <Feather name="file-text" size={19} color={colors.bone} /><Text style={s.source}>Verhaal en bron · {insight.sourceLabel}</Text>
-      </Pressable>
-      {sourceOpen && <View>
-        <Text style={s.source}>{evidence.provenance} · {evidence.label}{evidence.reviewedAt ? ` · nagekeken ${evidence.reviewedAt}` : ''}</Text>
+    {depth && <EditorialDisclosure title="Verdiep het verhaal"><Text style={s.body}>{depth.text}</Text></EditorialDisclosure>}
+    <EditorialDisclosure title="Kijk eens om je heen">
+      <Text style={s.body}>{step.instruction}</Text>
+      {intro && <Text style={s.source}>{intro.outside}</Text>}
+      {onObserve && <Pressable accessibilityRole="button" onPress={onObserve} style={s.disclosure}><Text style={s.body}>Rustig observeren →</Text></Pressable>}
+    </EditorialDisclosure>
+    {(evidence || intro) && <EditorialDisclosure title="Feiten en bronnen">
+      {evidence && <>
+        <Text style={s.source}>{evidence.provenance} · {evidence.label}{evidence.reviewedAt ? ' · nagekeken ' + evidence.reviewedAt : ''}</Text>
         {evidence.url && <Pressable accessibilityRole="link" onPress={() => {
           setSourceError(''); Linking.openURL(evidence.url!).catch(() => setSourceError('De bron kon niet worden geopend. Probeer het later opnieuw.'));
         }} style={s.disclosure}><Text style={s.link}>Bekijk de oorspronkelijke bron ↗</Text></Pressable>}
-        {!!sourceError && <Text accessibilityLiveRegion="polite" style={s.source}>{sourceError}</Text>}
-      </View>}
-    </>}
-    {editorial && onObserve && <Action title="Kijk nog even zonder uitleg" onPress={onObserve} />}
+      </>}
+      {intro && <><Text style={s.source}>Museumhuisje ’t Fiskershúske · foto uit 2007, geen actuele opname.</Text><ImageCredit uri={referenceImages.moddergat.uri} original /></>}
+      {!!sourceError && <Text accessibilityLiveRegion="polite" style={s.source}>{sourceError}</Text>}
+    </EditorialDisclosure>}
   </View>;
 }
 
@@ -152,7 +125,8 @@ const s = schemeStyles(({ colors: c }) => StyleSheet.create({
   tab: { flex: 1, minHeight: 64, padding: 10, alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 24 },
   activeTab: { backgroundColor: c.accent }, activeText: { color: c.onAccent }, tabText: { color: c.bone, fontSize: 13 },
   read: { backgroundColor: c.ink, borderRadius: 26, padding: 20, gap: 12 },
-  kicker: { color: c.muted, fontSize: 12, letterSpacing: 2 }, title: { color: c.bone, fontSize: 30, lineHeight: 37, fontFamily: typography.displayFamily },
+  kicker: { color: c.muted, fontSize: 13 }, title: { color: c.bone, fontSize: 28, lineHeight: 35, fontWeight: '600', fontFamily: typography.family },
+  lead: { color: c.muted, fontSize: 17, lineHeight: 26, fontStyle: 'italic' },
   body: { color: c.bone, fontSize: 17, lineHeight: 27, flexShrink: 1 }, meta: { color: c.muted, fontSize: 14 },
   task: { backgroundColor: c.panelRaised, borderRadius: 18, padding: 15, gap: 8 },
   disclosure: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 10 },
