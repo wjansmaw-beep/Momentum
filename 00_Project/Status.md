@@ -1,3 +1,6 @@
+## M4 implementation in progress — 2026-11-12
+
+Approved ADR-076 is being implemented in small increments: shared calm typography/actions, discovery without completion controls, per-chapter destination resolution, sourced practical disclosures and compact Guide modes/chapter selection. 134 tests plus scenarios and typecheck pass; browser verifies museum chapter selection and session restoration. Five-place licensed content, verified walking connections/in-app guidance, remaining full-app polish and native review are still open. No final score or iPhone delivery claimed.
 ## M4 approved with practical place information — 2026-11-12
 
 Founder approves the M4 visual prototype and requests adaptive place menus, opening times/costs where relevant, and navigation within the app. ADR-076 records approval and the actual map/routing capability gap. Implement the approved calm reading design and preserved flows; investigate verified in-app walking guidance without new paid/location-sharing services or invented routes. No 8.5 score or delivery is claimed yet.

@@ -6,7 +6,6 @@ import { Feather } from '@expo/vector-icons';
 import type { CapsuleStep, Experience } from '../../product/experienceModel';
 import type { GuideMode } from '../../guidance/adaptiveGuide';
 import { colors, schemeStyles, typography } from '../../design/theme';
-import { CoverImage, ImageShade } from '../CoverImage';
 import { currentPlace, currentDestination } from '../../guidance/placeInformation';
 import { PlaceDetails } from './PlaceDetails';
 import { GuideOrientationMap } from './GuideOrientationMap';
@@ -21,18 +20,36 @@ const museumPhoto = require('../../../assets/images/moddergat-fiskershuske-bouwe
 
 export function GuideModeBar({ mode, onChange }: { mode: GuideMode; onChange: (mode: GuideMode) => void }) {
   const modes = [{ id: 'navigate', title: 'Navigate', label: 'Kaart en bestemming', icon: 'navigation' },
-    { id: 'discover', title: 'Discover', label: 'Verhaal en opdracht', icon: 'book-open' },
+    { id: 'discover', title: 'Discover', label: 'Verhaal en ontdekking', icon: 'book-open' },
     { id: 'immerse', title: 'Immerse', label: 'Luisteren en observeren', icon: 'headphones' }] as const;
   return <View style={s.bar} accessibilityLabel="Gidsmodi">
     {modes.map((item) => <Pressable key={item.id} accessibilityRole="tab" accessibilityLabel={item.label}
       aria-selected={mode === item.id} accessibilityState={{ selected: mode === item.id }} onPress={() => onChange(item.id)}
       style={[s.tab, mode === item.id && s.activeTab]}>
-      <Feather name={item.icon} size={22} color={mode === item.id ? colors.onAccent : colors.bone} />
+
       <Text style={[s.tabText, mode === item.id && s.activeText]}>{item.title}</Text>
     </Pressable>)}
   </View>;
 }
 
+export function GuideChapterMenu({ experience, index, onSelect }: { experience: Experience; index: number; onSelect: (index: number) => void }) {
+  const [open, setOpen] = useState(false);
+  return <View style={{ marginHorizontal: 20, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.line }}>
+    <Pressable accessibilityRole="button" aria-expanded={open} accessibilityState={{ expanded: open }} onPress={() => setOpen(!open)} style={s.disclosure}>
+      <Text style={[s.source, { flex: 1 }]}>Hoofdstuk {index + 1} van {experience.steps.length}</Text>
+      <Text accessible={false} style={s.body}>{open ? '−' : '+'}</Text>
+    </Pressable>
+    {open && <ScrollView style={{ maxHeight: 280 }} nestedScrollEnabled>{experience.steps.map((chapter, chapterIndex) => <Pressable key={chapterIndex}
+      accessibilityRole="button" accessibilityState={{ selected: index === chapterIndex }}
+      onPress={() => { onSelect(chapterIndex); setOpen(false); }} style={{ minHeight: 48, paddingVertical: 12, flexDirection: 'row', gap: 14, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line }}>
+      <Text style={s.source}>{chapterIndex + 1}</Text>
+      <View style={{ flex: 1, gap: 3 }}><Text style={s.body}>{chapter.editorial?.introduction?.title ?? chapter.title}</Text>
+        {chapter.visitPlace && <Text style={s.source}>{chapter.visitPlace.name}</Text>}
+        {index === chapterIndex && <Text style={s.source}>Huidig hoofdstuk</Text>}
+      </View>
+    </Pressable>)}</ScrollView>}
+  </View>;
+}
 // Historical task fields remain in sessions; reading no longer asks for completion.
 export function DiscoverChapter({ step, index, total, showInsight, onObserve, experience, onNavigate }: {
   step: CapsuleStep; index: number; total: number; completed: boolean; onToggle: () => void; showInsight: boolean; onObserve?: () => void; experience?: Experience; onNavigate?: () => void;
@@ -45,7 +62,7 @@ export function DiscoverChapter({ step, index, total, showInsight, onObserve, ex
   const depth = blocks.find(block => block.kind === 'depth');
   const evidence = blocks.find(block => block.kind === 'evidence');
   return <View style={[s.read, s.editorialRead]}>
-    <Text style={s.kicker}>Hoofdstuk {index + 1} van {total}</Text>
+
     {intro && (!photoFailed ? <View style={s.documentaryPhoto}><Image source={museumPhoto} resizeMode="contain" accessibilityLabel="Museumhuisje ’t Fiskershúske, foto uit 2007" style={{ width: '100%', height: '100%' }} onError={() => setPhotoFailed(true)} /></View> : <Text style={s.source}>Foto niet beschikbaar. Je kunt verder lezen.</Text>)}
     <Text accessibilityRole="header" style={s.title}>{intro?.title ?? story?.title ?? step.title}</Text>
     {intro && <Text style={s.lead}>{intro.promise}</Text>}
@@ -84,27 +101,28 @@ export function GuideModeScene({ mode, experience, step, index, onDiscover, onQu
   const [placeError, setPlaceError] = useState(false);
   const narration = referenceAudio(experience.id, step);
   return <ScrollView contentContainerStyle={s.sceneScroll}>
-    {editorial ? <View style={s.sceneBody}><Pressable accessibilityRole="button" accessibilityLabel="Terug naar de voorbereiding" style={s.disclosure} onPress={onBack}><Feather name="arrow-left" size={22} color={colors.bone} /><Text style={s.body}>Voorpret</Text></Pressable><Text style={s.source}>Hoofdstuk {index + 1} van {experience.steps.length} · {step.editorial?.introduction?.title}</Text><Pressable accessibilityRole="button" style={s.disclosure} onPress={onFinish}><Text style={s.source}>Ervaring afronden</Text></Pressable></View> : <><CoverImage uri={experience.image} style={s.hero}>
-      <ImageShade />
-      <View style={s.heroHead}><Pressable accessibilityRole="button" accessibilityLabel="Terug naar de voorbereiding" onPress={onBack} style={s.circle}><Feather name="arrow-left" size={22} color={colors.bone} /></Pressable>
-        <Text style={s.brand}>MOMENTUM</Text><Pressable accessibilityRole="button" accessibilityLabel="Ervaring afronden" onPress={onFinish} style={s.circle}><Feather name="check" size={22} color={colors.bone} /></Pressable></View>
-      <View style={s.heroCopy}><Text style={s.heroMeta}>Hoofdstuk {index + 1} van {experience.steps.length}</Text><Text style={s.heroTitle}>{experience.title}</Text></View>
-    </CoverImage><ImageCredit uri={experience.image} /></>}
-    <View style={s.sceneBody}>
+    <View style={[s.sceneBody, { paddingBottom: 0 }]}>
+      <Pressable accessibilityRole="button" accessibilityLabel="Terug naar de voorbereiding" style={s.disclosure} onPress={onBack}>
+        <Feather name="arrow-left" size={20} color={colors.bone} /><Text style={s.source}>Voorpret</Text>
+      </Pressable>
+    </View>    <View style={s.sceneBody}>
       <Text style={s.heroMeta}>{mode === 'navigate' ? 'NAVIGATE' : 'IMMERSE'}</Text>
       <Text accessibilityRole="header" style={s.sceneTitle}>{mode === 'navigate' ? place?.name ?? experience.routePlan?.destinationName ?? step.title : observing ? 'Geef de plek even de ruimte' : 'Het verhaal om je heen'}</Text>
       {mode === 'navigate' ? <>
         {destination && <GuideOrientationMap key={`${destination.latitude}:${destination.longitude}`} destination={destination} />}
         {place && <>
           <Text style={s.sceneText}>{place.address}</Text><Text style={s.sceneText}>{place.note}</Text>
-          <Action title="Bekijk actuele bezoekersinformatie" onPress={() => { setPlaceError(false); Linking.openURL(place.sourceUrl).catch(() => setPlaceError(true)); }} />
-          <Action title="Bron van het kaartpunt" onPress={() => { setPlaceError(false); Linking.openURL(place.coordinateSourceUrl).catch(() => setPlaceError(true)); }} />
-          {placeError && <Text accessibilityLiveRegion="polite" style={s.sceneText}>De bron kon niet worden geopend.</Text>}
+          <PlaceDetails place={place} />
+          <EditorialDisclosure title="Over deze plek">
+            <Text style={s.source}>De kaart toont de gecontroleerde bestemming. Een wandelroute binnen Momentum is nog niet beschikbaar.</Text>
+            <Pressable accessibilityRole="link" style={s.disclosure} onPress={() => { setPlaceError(false); Linking.openURL(place.sourceUrl).catch(() => setPlaceError(true)); }}><Text style={s.body}>Bezoekersinformatie ↗</Text></Pressable>
+            <Pressable accessibilityRole="link" style={s.disclosure} onPress={() => { setPlaceError(false); Linking.openURL(place.coordinateSourceUrl).catch(() => setPlaceError(true)); }}><Text style={s.body}>Bron van het kaartpunt ↗</Text></Pressable>
+            {placeError && <Text accessibilityLiveRegion="polite" style={s.source}>De bron kon niet worden geopend.</Text>}
+          </EditorialDisclosure>
         </>}
-        <Text style={s.sceneText}>{hasRoute ? 'De routeapp leidt je naar de bestemming. Kies zelf wanneer je het verhaal opent.' : 'Er is geen gecontroleerde bestemming gekoppeld. Je kunt de ontdekking handmatig openen.'}</Text>
-        {hasRoute && <Action title="Open route in Kaarten" onPress={onRoute} />}
-        {!!routeStatus && <Text accessibilityLiveRegion="polite" style={s.sceneText}>{routeStatus}</Text>}
-        <Action title={hasRoute ? 'Ik ben aangekomen' : 'Open de ontdekking'} onPress={onDiscover} />
+        {!hasRoute && <Text style={s.sceneText}>Er is geen gecontroleerde bestemming gekoppeld. Je kunt het verhaal hier lezen.</Text>}
+        {hasRoute && <Pressable accessibilityRole="button" style={s.disclosure} onPress={onRoute}><Text style={s.body}>Route openen in Kaarten ↗</Text></Pressable>}        {!!routeStatus && <Text accessibilityLiveRegion="polite" style={s.sceneText}>{routeStatus}</Text>}
+        <Action title="Lees het verhaal" onPress={onDiscover} />
       </> : <>
         <View style={s.segments}>{[false, true].map((value) => <Pressable key={String(value)} accessibilityRole="button" aria-pressed={observing === value} accessibilityState={{ selected: observing === value }}
           onPress={() => setObserving(value)} style={[s.segment, observing === value && s.activeTab]}><Text style={[s.tabText, observing === value && s.activeText]}>{value ? 'Observeren' : 'Luisteren'}</Text></Pressable>)}</View>
@@ -124,9 +142,9 @@ const s = schemeStyles(({ colors: c }) => StyleSheet.create({
   editorialTask: { backgroundColor: c.ink, borderRadius: 0, padding: 0, paddingTop: 16, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line },
   rule: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line, paddingTop: 12, gap: 8 },
   documentaryPhoto: { width: '100%', aspectRatio: 4 / 3 },
-  bar: { flexDirection: 'row', backgroundColor: c.ink, padding: 10, gap: 6 },
-  tab: { flex: 1, minHeight: 64, padding: 10, alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 24 },
-  activeTab: { backgroundColor: c.accent }, activeText: { color: c.onAccent }, tabText: { color: c.bone, fontSize: 13 },
+  bar: { flexDirection: 'row', backgroundColor: c.ink, paddingHorizontal: 20, paddingVertical: 6, gap: 4 },
+  tab: { flex: 1, minHeight: 44, paddingHorizontal: 4, paddingVertical: 8, alignItems: 'center', justifyContent: 'center', borderRadius: 20 },
+  activeTab: { backgroundColor: c.panelRaised }, activeText: { color: c.bone, fontWeight: '600' }, tabText: { color: c.muted, fontSize: 15 },
   read: { backgroundColor: c.ink, borderRadius: 26, padding: 20, gap: 12 },
   kicker: { color: c.muted, fontSize: 13 }, title: { color: c.bone, fontSize: 28, lineHeight: 35, fontWeight: '600', fontFamily: typography.family },
   lead: { color: c.muted, fontSize: 17, lineHeight: 26, fontStyle: 'italic' },
@@ -141,9 +159,9 @@ const s = schemeStyles(({ colors: c }) => StyleSheet.create({
   brand: { fontFamily: typography.displayFamily, color: c.onImage, fontSize: 17, letterSpacing: 2 },
   heroCopy: { padding: 22, backgroundColor: c.ink, gap: 10 }, heroMeta: { color: c.bone, fontSize: 13, letterSpacing: 1 },
   heroTitle: { fontFamily: typography.displayFamily, color: c.bone, fontSize: 32, lineHeight: 39 },
-  sceneBody: { padding: 22, gap: 17 }, sceneTitle: { color: c.bone, fontFamily: typography.displayFamily, fontSize: 28, lineHeight: 35 },
+  sceneBody: { padding: 20, gap: 17 }, sceneTitle: { color: c.bone, fontFamily: typography.family, fontWeight: '600', fontSize: 28, lineHeight: 35 },
   sceneText: { color: c.bone, fontSize: 16, lineHeight: 25 },
-  action: { minHeight: 52, borderRadius: 28, backgroundColor: c.accent, padding: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  action: { minHeight: 52, borderRadius: 10, backgroundColor: c.accent, padding: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   actionText: { color: c.onAccent, fontSize: 16, flexShrink: 1 }, segments: { flexDirection: 'row', gap: 5 },
   segment: { flex: 1, minHeight: 48, borderRadius: 24, padding: 12, alignItems: 'center', justifyContent: 'center' },
 }));

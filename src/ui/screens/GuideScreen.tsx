@@ -1,4 +1,5 @@
 import { ImageCredit } from '../ImageCredit';
+import { EditorialDisclosure } from '../editorial';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ImageStyle,
@@ -35,7 +36,7 @@ import {
 } from '../../liveworld/livingWorldBriefing';
 import { briefingSourceLine } from '../../liveworld/briefingFacts';
 import { chapterIds, restoreAdaptiveGuide, supportsAdaptiveGuide } from '../../guidance/adaptiveGuide';
-import { DiscoverChapter, GuideModeBar, GuideModeScene } from '../guide/AdaptiveGuide';
+import { DiscoverChapter, GuideChapterMenu, GuideModeBar, GuideModeScene } from '../guide/AdaptiveGuide';
 import { currentPlace, currentDestination } from '../../guidance/placeInformation';
 
 // DE GIDS — het enige onderweg-scherm (vervolg op ADR-067, fase R4). De
@@ -81,6 +82,7 @@ export function GuideScreen() {
     discardSession();
     navigation.dispatch(CommonActions.reset({ index: 0, routes: [{ name: 'Now' }] }));
   };
+  const scrollRef = useRef<ScrollView>(null);
   const [stepIndex, setStepIndex] = useState(Math.min(initialStep, Math.max(0, experience.steps.length - 1)));
   const [remaining, setRemaining] = useState(experience.steps[Math.min(initialStep, Math.max(0, experience.steps.length - 1))]?.seconds ?? 0);
   const [timerRunning, setTimerRunning] = useState(false);
@@ -99,8 +101,10 @@ export function GuideScreen() {
   const guide = { ...unfilteredGuide, currentInsight: unfilteredGuide.currentInsight && insightAllowed(unfilteredGuide.currentInsight) ? unfilteredGuide.currentInsight : undefined, furtherInsights: unfilteredGuide.furtherInsights.filter(insightAllowed), moments: unfilteredGuide.moments.filter((moment) => insightAllowed(moment.insight)) };
 
   useEffect(() => {
+    scrollRef.current?.scrollTo({ y: 0, animated: false });
     setRemaining(current.seconds ?? 0);
     setTimerRunning(false);
+    setHandoffStatus('');
     onStepChange(stepIndex);
   }, [current.seconds, stepIndex]);
 
@@ -206,16 +210,17 @@ export function GuideScreen() {
         accessibilityState={{ disabled: remaining === 0 }} disabled={remaining === 0} onPress={() => setTimerRunning(!timerRunning)} style={gd.timerRow}>
         <Text style={gd.timerValue}>{formatTime(remaining)}</Text><Text style={gd.rowTitle}>{remaining === 0 ? 'Timer afgerond' : timerRunning ? 'Pauzeer' : 'Start timer'}</Text>
       </Pressable>}
-      <GuideModeScene mode={adaptiveState.mode} experience={experience} step={current} index={stepIndex}
+      <GuideChapterMenu experience={experience} index={stepIndex} onSelect={setStepIndex} />
+      <GuideModeBar mode={adaptiveState.mode} onChange={updateGuideMode} />
+      <GuideModeScene key={adaptiveState.chapterId} mode={adaptiveState.mode} experience={experience} step={current} index={stepIndex}
         onDiscover={() => updateGuideMode('discover')} onQuiet={() => setPhoneAway(true)} onRoute={openHandoff}
         onBack={onBack} onFinish={onFinish} routeStatus={handoffStatus} />
-      <GuideModeBar mode={adaptiveState.mode} onChange={updateGuideMode} />
     </View>
   </FlowFrame>;
   return (
     <FlowFrame>
     <View style={styles.flowScreen}>
-    <ScrollView contentContainerStyle={[styles.flowScroll, gd.scroll]} showsVerticalScrollIndicator={false}>
+    <ScrollView ref={scrollRef} contentContainerStyle={[styles.flowScroll, gd.scroll, adaptive && { paddingHorizontal: 0 }]} showsVerticalScrollIndicator={false}>
       {!!sessionSaveError && <View><Text accessibilityRole="alert" style={gd.caution}>{sessionSaveError}</Text><Pressable accessibilityRole="button" onPress={retrySessionSave} style={gd.quietAction}><Text style={gd.quietActionText}>Voortgang opnieuw opslaan</Text></Pressable></View>}
       {/* Kop: terug naar Voorpret, naam "Gids", kaart-handoff (de routeapp
           blijft route-eigenaar; de in-app kaart woont alleen in Voorpret). */}
@@ -232,10 +237,11 @@ export function GuideScreen() {
         </Pressable>}
       </View>
 
+      {adaptive && <><GuideChapterMenu experience={experience} index={stepIndex} onSelect={setStepIndex} /><GuideModeBar mode="discover" onChange={updateGuideMode} /></>}
       {/* De cover draagt de beleving: beeld, serif-titel en voortgang uit
           echte sessiedata (tijd- en stapgebaseerd — er is geen GPS-tracking,
           dus nooit een verzonnen kilometerstand). */}
-      {!editorialComposition && <><CoverImage uri={experience.image} style={gd.cover} imageStyle={gd.coverRound}>
+      {!adaptive && !editorialComposition && <><CoverImage uri={experience.image} style={gd.cover} imageStyle={gd.coverRound}>
         <ImageShade />
         <View style={gd.coverCopy}>
           <Text style={[gd.coverTitle, styles.onImageText]}>{experience.title}</Text>
@@ -250,8 +256,8 @@ export function GuideScreen() {
       </CoverImage><ImageCredit uri={experience.image} /></>}
 
       {/* De huidige stap — de enige plek waar de staptekst staat. */}
-      <View style={[gd.card, editorialComposition && { borderWidth: 0, borderRadius: 0, padding: 0, paddingHorizontal: 0, paddingVertical: 0, backgroundColor: 'transparent' }]}>
-        {!editorialComposition && <View style={gd.cardHead}>
+      <View style={[gd.card, adaptive && { borderWidth: 0, borderRadius: 0, padding: 0, marginHorizontal: 20, paddingHorizontal: 0, paddingVertical: 0, backgroundColor: 'transparent' }]}>
+        {!adaptive && !editorialComposition && <View style={gd.cardHead}>
           <Feather name="compass" size={15} color={gd.accentSolid as string} />
           <Text style={gd.cardTitle}>{experience.steps.length > 1 ? `Stap ${stepIndex + 1} van ${experience.steps.length}` : experience.presenceMode === 'quiet' ? 'Rustige begeleiding' : 'Onderweg'}</Text>
           {experience.steps.length <= 1 ? <Text style={gd.cardHeadRight}>{company === 'solo' ? 'alleen' : company === 'family' ? 'met gezin' : 'samen'}</Text> : null}
@@ -284,26 +290,26 @@ export function GuideScreen() {
             </Pressable>
           </View>
         ) : null}
-        {!!routeTarget && experience.presenceMode === 'handoff' && stepIndex === 0 && <Pressable accessibilityRole="button" onPress={openHandoff} style={gd.quietAction}><Feather name="navigation" size={13} color={gd.accentSolid as string} /><Text style={gd.quietActionText}>Open route in Kaarten</Text></Pressable>}
+        {!adaptive && !!routeTarget && experience.presenceMode === 'handoff' && stepIndex === 0 && <Pressable accessibilityRole="button" onPress={openHandoff} style={gd.quietAction}><Feather name="navigation" size={13} color={gd.accentSolid as string} /><Text style={gd.quietActionText}>Open route in Kaarten</Text></Pressable>}
         {handoffStatus ? <Text style={gd.handoffStatus}>{handoffStatus}</Text> : null}
         <View style={gd.stepNavRow}>
-          {stepIndex > 0 && <Pressable accessibilityRole="button" onPress={() => { impactLight(); setStepIndex((value) => Math.max(0, value - 1)); }} style={gd.stepNavButton}><Text style={gd.stepNavText}>Vorige</Text></Pressable>}
+          {stepIndex > 0 && <Pressable accessibilityRole="button" onPress={() => { impactLight(); setStepIndex((value) => Math.max(0, value - 1)); }} style={[gd.stepNavButton, adaptive && { borderWidth: 0, backgroundColor: "transparent", minHeight: 48 }]}><Text style={gd.stepNavText}>Vorige</Text></Pressable>}
           <Pressable
             accessibilityRole="button"
             onPress={next}
-            style={[gd.stepNavButton, !editorialComposition && gd.stepNavPrimary]}
+            style={[gd.stepNavButton, gd.stepNavPrimary, adaptive && { borderRadius: 10, minHeight: 48 }]}
           >
-            <Text style={[gd.stepNavText, !editorialComposition && gd.stepNavPrimaryText]}>{isLast ? 'Ervaring afronden' : editorialComposition ? 'Volgend hoofdstuk' : 'Volgende stap'}</Text>
+            <Text style={[gd.stepNavText, gd.stepNavPrimaryText]}>{isLast ? 'Ervaring afronden' : adaptive ? 'Volgend hoofdstuk' : 'Volgende stap'}</Text>
           </Pressable>
         </View>
-        {!editorialComposition && <View style={gd.stepToolsRow}>
+        {!adaptive && !editorialComposition && <View style={gd.stepToolsRow}>
           {adaptive && <Pressable accessibilityRole="button" onPress={() => updateGuideMode('immerse')} style={gd.quietAction}><Feather name="headphones" size={18} color={gd.accentSolid as string} /><Text style={gd.quietActionText}>Beleef dit verhaal</Text></Pressable>}
           <Pressable accessibilityRole="button" accessibilityLabel={deepOpen ? 'Sluit de verdieping' : 'Open de verdieping'} accessibilityState={{ expanded: deepOpen }} onPress={() => { impactLight(); setDeepOpen((value) => !value); }} style={gd.quietAction}><Feather name="book-open" size={13} color={gd.accentSolid as string} /><Text style={gd.quietActionText}>Verdieping</Text></Pressable>
           <Pressable accessibilityRole="button" accessibilityLabel="Leg de telefoon weg" onPress={() => { impactLight(); setPhoneAway(true); }} style={gd.quietAction}><Feather name="smartphone" size={13} color={gd.accentSolid as string} /><Text style={gd.quietActionText}>Telefoon weg</Text></Pressable>
         </View>
 
         }
-        {editorialComposition && <Pressable accessibilityRole="button" accessibilityState={{ expanded: deepOpen }} onPress={() => setDeepOpen(!deepOpen)} style={gd.quietAction}><Text style={gd.quietActionText}>Praktisch en omgeving {deepOpen ? '−' : '+'}</Text></Pressable>}
+        {adaptive && <Pressable accessibilityRole="button" accessibilityState={{ expanded: deepOpen }} onPress={() => setDeepOpen(!deepOpen)} style={[gd.quietAction, { borderWidth: 0, borderRadius: 0, backgroundColor: "transparent", paddingHorizontal: 0 }]}><Text style={gd.quietActionText}>Praktisch en omgeving {deepOpen ? '−' : '+'}</Text></Pressable>}
         {/* VERDIEPING — de vroegere gids-sheet als uitklap van deze stap.
             Staptekst en het huidige inzicht staan al hierboven; hier wonen
             alleen wat de wereld nu laat zien, verdere momenten en praktisch. */}
@@ -364,7 +370,7 @@ export function GuideScreen() {
           van dit moment, elke zin met zichtbare bron-labels. Laden = rustige
           placeholder; falen = het blok valt weg, nooit een kapot scherm. */}
       {guideBriefing?.state === 'loading' ? (
-        <View style={[gd.card, editorialComposition && { borderWidth: 0, borderRadius: 0, padding: 0, paddingHorizontal: 0, paddingVertical: 0, backgroundColor: 'transparent' }]}>
+        <View style={[gd.card, adaptive && { borderWidth: 0, borderRadius: 0, padding: 0, marginHorizontal: 20, paddingHorizontal: 0, paddingVertical: 0, backgroundColor: 'transparent' }]}>
           <View style={gd.cardHead}>
             <Feather name="globe" size={15} color={gd.accentSolid as string} />
             <Text style={gd.cardTitle}>Nu om je heen</Text>
@@ -372,7 +378,7 @@ export function GuideScreen() {
           <Text style={gd.briefingLoading}>Feiten van dit moment worden opgehaald…</Text>
         </View>
       ) : guideBriefing?.state === 'live' ? (
-        <View style={[gd.card, editorialComposition && { borderWidth: 0, borderRadius: 0, padding: 0, paddingHorizontal: 0, paddingVertical: 0, backgroundColor: 'transparent' }]}>
+        <View style={[gd.card, adaptive && { borderWidth: 0, borderRadius: 0, padding: 0, marginHorizontal: 20, paddingHorizontal: 0, paddingVertical: 0, backgroundColor: 'transparent' }]}>
           <View style={gd.cardHead}>
             <Feather name="globe" size={15} color={gd.accentSolid as string} />
             <Text style={gd.cardTitle}>Nu om je heen</Text>
@@ -391,7 +397,7 @@ export function GuideScreen() {
 
       {/* Afronden: rustige ghost-knop naar de Remember-flow. Daarnaast de
           enige manier om een ervaring ongebruikt te verlaten. */}
-      <Pressable
+      <View style={{ marginHorizontal: 20 }}><EditorialDisclosure title="Deze ervaring afsluiten"><Pressable
         accessibilityRole="button"
         accessibilityLabel="Moment afronden"
         onPress={() => { impactMedium(); onFinish(); }}
@@ -402,9 +408,9 @@ export function GuideScreen() {
       </Pressable>
       <Pressable accessibilityRole="button" accessibilityLabel="Sluit deze ervaring rustig af" onPress={onDiscard} style={gd.discard}>
         <Text style={gd.discardText}>Sluit deze ervaring rustig af</Text>
-      </Pressable>
+      </Pressable></EditorialDisclosure></View>
     </ScrollView>
-    {adaptive && <GuideModeBar mode="discover" onChange={updateGuideMode} />}
+
     </View>
     </FlowFrame>
   );
@@ -561,7 +567,7 @@ const gd = schemeStyles(({ colors: schemeColors }) => {
     headTitle: { fontSize: 14.5, fontWeight: '600', color: palette.ink },
     headSub: { fontSize: 11.5, color: palette.ink2, marginTop: 1 },
     iconbtn: {
-      width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center',
+      width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center',
       backgroundColor: palette.glass, borderWidth: 1, borderColor: palette.line,
     },
     cover: { marginHorizontal: 12, minHeight: 280, justifyContent: 'flex-end' },
