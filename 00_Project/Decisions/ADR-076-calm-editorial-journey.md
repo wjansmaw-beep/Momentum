@@ -1,7 +1,7 @@
 # ADR-076 — M4: calm editorial journeys
 
-Status: Proposed — design and implementation scope awaiting Founder review
-Version: 0.1
+Status: Accepted by the Founder, 2026-11-12
+Version: 1.0
 Date: 2026-11-11
 
 ## Product Guardian
@@ -31,7 +31,7 @@ Give the five-place curated journey a new stable experience identity rather than
 
 ## Route and source work still required
 
-Candidate narrative sequence: museum, Vissersvrouw, Vissersmonument, garnalenfabriek, Peazemerlannen. This is NOT a verified walking order. Validate each point, paths and current access constraints before presenting an itinerary. Keep route-app handoff as existing navigation owner. Museum website confirms factory history but its header address is the museum address: do not reuse it as factory coordinates. Nature manager distinguishes accessible routes and seasonal closures; do not infer all-area access. No guaranteed current opening or accessibility certification.
+Candidate narrative sequence: museum, Vissersvrouw, Vissersmonument, garnalenfabriek, Peazemerlannen. This is NOT a verified walking order. Validate each point, paths and current access constraints before presenting an itinerary. Founder amendment 2026-11-12: make in-app navigation the intended primary experience; external route-app handoff remains an optional fallback, not mandatory. Museum website confirms factory history but its header address is the museum address: do not reuse it as factory coordinates. Nature manager distinguishes accessible routes and seasonal closures; do not infer all-area access. No guaranteed current opening or accessibility certification.
 
 Initial evidence: https://www.museummoddergat.nl/de-garnalenfabriek/ ; https://keunstwurk.nl/art/monument-voor-de-omgekomen-vissers/ ; https://www.itfryskegea.nl/gebieden/peazemerlannen/ ; https://www.itfryskegea.nl/natuurroutes/peazemerlannen/ . Image rights for four additional locations, entrance/path coordinates and connected route remain open.
 
@@ -54,3 +54,13 @@ Verify current/legacy sessions, saved plans and memories; source expiry; denied 
 ## Approval request
 
 Review task outputs Momentum_M4_Ontwerpproef.html and Momentum_M4_Nulmeting.txt. Approve sans-serif hierarchy, inline disclosure language, task-free discovery and five-place integration scope before application implementation.
+
+## Founder approval and adaptive practical information — 2026-11-12
+
+Founder approves the visual prototype ('dit ziet er heel goed uit') and requests context-dependent menus, a navigation action, opening times and costs where appropriate, with easy travel to the place without leaving Momentum. This is approval to implement the agreed M4 design; do not request the same approval again.
+
+Add practical disclosures according to the place: Naar deze plek; Openingstijden; Toegang en kosten. Render information that matters for the selected place. Unknown is not free, unrestricted or open. For relevant missing information show a concise unknown state and a source/check action, rather than hiding uncertainty. Record provenance, checked date, applicable period, currency and conditions where available. Only show 'nu open' with sufficient current schedule/time-zone/exception evidence; otherwise show published hours with qualification. Preserve compact credit/license access and all existing error behavior.
+
+Current code evidence: GuideOrientationMap is an embedded react-native-maps view with a destination marker, zoom/recenter, no displayed user location and no pedestrian routing engine. A marker is not route guidance. Extend the existing map within the shared session for per-place navigation. Offer optional foreground position only after an explicit location action, preserve useful destination view if denied, and never invent a direct-line walking path. Seek verified walking geometry/route instructions for the curated journey. True dynamic turn-by-turn routing is a capability gap to investigate, not a capability already delivered. Do not add paid providers, transmit location to a new service or introduce background tracking without separate scoped authorization. Any capability limitation must be stated in delivery rather than silently forcing users out of the app.
+
+This supersedes the external-route-only assumption in the initial proposal. Full-app design and five-place quality scope remain; practical data may be refined iteratively, but missing navigation capability cannot be hidden behind a passing design score.
