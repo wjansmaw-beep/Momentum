@@ -1,3 +1,4 @@
+import { ed, EditorialAction, EditorialDisclosure } from '../editorial';
 import { ImageCredit } from '../ImageCredit';
 import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
@@ -53,7 +54,7 @@ export function RememberScreen() {
   }), [navigation]);
   const [note, setNote] = useState('');
   const [aspects, setAspects] = useState<ReflectionAspect[]>([]);
-  const [outcome, setOutcome] = useState<LearningOutcome>('worth-it');
+  const [outcome, setOutcome] = useState<LearningOutcome>('neutral');
   const [feelings, setFeelings] = useState<string[]>([]);
   const [doAgain, setDoAgain] = useState<DoAgain | undefined>(undefined);
   const [photos, setPhotos] = useState<string[]>([]);
@@ -74,12 +75,15 @@ export function RememberScreen() {
   const save = (selectedAspects = aspects) => onSave({ note, outcome, aspects: selectedAspects, feelings, doAgain }, generationEvaluation, photos);
   return (
     <FlowFrame>
-    <ScrollView contentContainerStyle={styles.flowScroll} keyboardShouldPersistTaps="handled">
-      <Text style={[styles.eyebrow, { color: phase.remember.text }]}>HERINNERING</Text><Text style={styles.flowTitle}>Wat blijft er over?</Text><Text style={styles.screenSubtitle}>{experience.memoryPrompt}</Text>
+    <ScrollView contentContainerStyle={ed.scroll} keyboardShouldPersistTaps="handled">
+      <Text style={[styles.eyebrow, { color: phase.remember.text }]}>HERINNERING</Text><Text accessibilityRole="header" style={ed.title}>Wat blijft er over?</Text><Text style={ed.body}>{experience.memoryPrompt}</Text>
       <CoverImage uri={experience.image} style={styles.memoryPreview} imageStyle={styles.memoryImageStyle}><ImageShade /><Text style={styles.memoryPreviewTitle}>{experience.title}</Text></CoverImage><ImageCredit uri={experience.image} />
       {shared && <View style={styles.sharedMemoryCard}><Text style={styles.expectationLabel}>SAMEN BELEEFD</Text><Text style={styles.sharedMemoryTitle}>{shared.participants.filter((participant) => participant.status === 'ready').map((participant) => participant.name).join(' + ')}</Text><Text style={styles.sharedMemoryBody}>Je bewaart alleen jouw eigen herinnering. De andere deelnemer krijgt geen kopie van jouw reflectie.</Text></View>}
       {experience.meaningThread && <MeaningThreadCard experience={experience} reflective />}
-      {meaningThread.length ? <View style={styles.meaningTraceCard}><Text style={styles.expectationLabel}>WAT MISSCHIEN BLEEF HANGEN</Text><Text style={styles.meaningTraceTitle}>{meaningThread.join(' · ')}</Text><Text style={styles.meaningTraceBody}>Je hoeft hier niets over te schrijven. Bewaar alleen wat voor jou werkelijk betekenis had.</Text></View> : null}
+      {meaningThread.length ? <View style={{ gap: 12 }}><Text style={styles.expectationLabel}>WAT MISSCHIEN BLEEF HANGEN</Text><Text style={styles.meaningTraceTitle}>{meaningThread.join(' · ')}</Text><Text style={styles.meaningTraceBody}>Je hoeft hier niets over te schrijven. Bewaar alleen wat voor jou werkelijk betekenis had.</Text></View> : null}
+      <TextInput accessibilityLabel="Jouw herinnering (optioneel)" value={note} onChangeText={setNote} placeholder="Optioneel: één zin die je wilt bewaren…" placeholderTextColor={colors.placeholder} multiline style={[ed.body, { minHeight: 100, paddingVertical: 14, borderBottomWidth: 1, borderColor: colors.line }]} />
+      <EditorialDisclosure title="Hoe heb je dit ervaren?">
+      <Text style={ed.small}>Zonder keuze blijft je oordeel neutraal.</Text>
       <Text style={styles.fieldLabel}>HOE WAS DIT VOOR JOU?</Text>
       <View style={styles.memoryOutcomeRow}>
         <ChoiceChip label="De moeite waard" selected={outcome === 'worth-it'} onPress={() => setOutcome('worth-it')} />
@@ -96,7 +100,7 @@ export function RememberScreen() {
       <View style={styles.memoryOutcomeRow}>
         {(Object.keys(doAgainLabels) as DoAgain[]).map((value) => <ChoiceChip key={value} label={doAgainLabels[value]} selected={doAgain === value} onPress={() => setDoAgain((current) => current === value ? undefined : value)} />)}
       </View>
-      <TextInput value={note} onChangeText={setNote} placeholder="Optioneel: één zin die je wilt bewaren…" placeholderTextColor={colors.placeholder} multiline style={styles.memoryInput} />
+      </EditorialDisclosure>
       {/* Foto's bij de herinnering (ADR-061, punt 3): expliciete keuze via de
           systeemkiezer; beelden blijven alleen op dit apparaat. */}
       <Text style={styles.fieldLabel}>FOTO'S BIJ DIT MOMENT</Text>
@@ -110,7 +114,7 @@ export function RememberScreen() {
         {photos.length < 8 && <Pressable accessibilityRole="button" accessibilityLabel="Voeg foto's toe aan deze herinnering" onPress={addPhotos} style={styles.photoAdd}><Ionicons name="images-outline" size={19} color={colors.muted} /><Text style={styles.photoAddText}>FOTO'S</Text></Pressable>}
       </View>
       <Text style={styles.photoHint}>Optioneel · blijven alleen op dit apparaat · worden nooit geüpload</Text>
-      <Pressable accessibilityRole="button" accessibilityState={{ expanded: learningOpen }} onPress={() => setLearningOpen((value) => !value)} style={styles.learningDisclosure}><View style={styles.flex}><Text style={styles.learningDisclosureTitle}>Help Momentum hiervan leren</Text><Text style={styles.learningDisclosureBody}>Alleen je bewuste keuzes worden aan je lokale profiel toegevoegd.</Text></View><Ionicons name={learningOpen ? 'chevron-up' : 'chevron-down'} size={18} color={colors.gold} /></Pressable>
+      <Pressable accessibilityRole="button" aria-expanded={learningOpen} accessibilityState={{ expanded: learningOpen }} onPress={() => setLearningOpen((value) => !value)} style={[ed.section, ed.row]}><View style={styles.flex}><Text style={styles.learningDisclosureTitle}>Help Momentum hiervan leren</Text><Text style={styles.learningDisclosureBody}>Alleen je bewuste keuzes worden aan je lokale profiel toegevoegd.</Text></View><Ionicons name={learningOpen ? 'chevron-up' : 'chevron-down'} size={18} color={colors.gold} /></Pressable>
       {learningOpen && <><Text style={styles.fieldLabel}>WAT MAG VOLGENDE KEER ANDERS?</Text><View style={styles.chipRow}>{options.map((aspect) => <ChoiceChip key={aspect} label={reflectionAspectLabels[aspect]} selected={aspects.includes(aspect)} onPress={() => toggle(aspect)} />)}</View></>}
       {experience.generation && <View style={styles.learningCard}>
         <Text style={styles.learningTitle}>Beoordeel de Momentmaker</Text>
@@ -122,8 +126,8 @@ export function RememberScreen() {
           <ChoiceChip label="De inhoud hielp" selected={generationEvaluation.includes('content-useful')} onPress={() => toggleGenerationSignal('content-useful')} />
         </View>
       </View>}
-      <PrimaryButton label="Bewaar dit moment" onPress={() => save(learningOpen ? aspects : [])} />
-      <SecondaryButton label="Afronden zonder bewaren" onPress={onSkip} />
+      <EditorialAction primary title="Bewaar dit moment" onPress={() => save(learningOpen ? aspects : [])} />
+      <EditorialAction title="Afronden zonder bewaren" onPress={onSkip} />
     </ScrollView>
     </FlowFrame>
   );

@@ -28,7 +28,7 @@ export function DayPlanEditor({ plan, onClose }: { plan: DayPlan; onClose: () =>
     {plan.items.map((item, index) => <View key={item.id} style={ed.section}>
       <Text accessibilityRole="header" style={ed.heading}>{index + 1}. {item.experience.title}</Text>
       <Text style={ed.body}>{item.experience.promise}</Text>
-      <Text style={ed.small}>{item.experience.duration} minuten ervaring · exclusief reistijd en pauzes</Text>
+      <Text style={ed.small}>{item.experience.referenceVisit ? 'Op je eigen tempo · wandel- en reistijd niet inbegrepen' : `${item.experience.duration} minuten ervaring · exclusief reistijd en pauzes`}</Text>
       <EditorialDisclosure title={`Bekijk ${item.experience.title}`}>
         <OpenExperience experience={item.experience} />
         <EditorialAction title="Omhoog" disabled={!app.canEditPlans || index === 0} onPress={() => { app.changeDayPlans({ type: 'move', id: plan.id, itemId: item.id, direction: -1 }); announce(`${item.experience.title}, positie ${index} van ${plan.items.length}.`); }} />

@@ -1,6 +1,13 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { freshMemory } from '../src/product/freshMemory.ts';
+import { memoryFacts, memoryStats } from '../src/ui/now-v2/bookModel.ts';
+
+test('a reference memory does not imply measured walking time or solo company', () => {
+  const memory = { id: 'test', title: 'Tocht', date: 'Vandaag', note: '', image: '', experienceSnapshot: { referenceVisit: true, duration: 30 } };
+  assert.deepEqual(memoryFacts(memory, undefined), ['vandaag']);
+  assert.ok(memoryStats(memory, [memory], []).every(stat => !stat.label.includes('minuten')));
+});
 import { restoreAdaptiveGuide } from '../src/guidance/adaptiveGuide.ts';
 
 test('saving an empty memory never invents an emotion or a positive rating', () => {

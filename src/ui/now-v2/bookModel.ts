@@ -18,11 +18,10 @@ import { deriveGentleObservations, doAgainLabels, experienceKindLabels } from '.
 export function memoryFacts(memory: Memory, experience: Experience | undefined): string[] {
   const facts: string[] = [memory.date.toLowerCase()];
   const duration = experience?.duration ?? memory.experienceSnapshot?.duration;
-  if (duration) facts.push(`${duration} min`);
+  if (duration && !(experience ?? memory.experienceSnapshot)?.referenceVisit) facts.push(`${duration} min gepland`);
   const distance = experience?.distance ?? memory.experienceSnapshot?.distance;
   if (distance) facts.push(distance);
   if (memory.sharedWith?.length) facts.push(`samen met ${memory.sharedWith.join(', ')}`);
-  else facts.push('alleen');
   return facts;
 }
 
@@ -39,7 +38,7 @@ export type BookStat = { value: string; label: string };
 export function memoryStats(memory: Memory, memories: Memory[], reflections: ReflectionMemory[]): BookStat[] {
   const stats: BookStat[] = [];
   const duration = memory.experienceSnapshot?.duration;
-  if (duration) stats.push({ value: `${duration}`, label: 'minuten' });
+  if (duration && !memory.experienceSnapshot?.referenceVisit) stats.push({ value: `${duration}`, label: 'minuten gepland' });
   const timesKept = memories.filter((item) => item.title === memory.title).length;
   stats.push({ value: `${timesKept}`, label: timesKept === 1 ? 'keer bewaard' : 'keer bewaard' });
   const own = reflections

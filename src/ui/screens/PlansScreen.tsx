@@ -21,7 +21,7 @@ export function PlansScreen() {
    {!!app.savedError && <><Text accessibilityRole="alert" style={ed.small}>{app.savedError}</Text>{app.canSave && <EditorialAction title="Opnieuw opslaan" onPress={app.retrySaved} />}</>}
    {app.savedExperiences.map(item => <View key={item.id} style={ed.section}>
      <Text accessibilityRole="header" style={ed.heading}>{item.experience.title}</Text><Text style={ed.body}>{item.experience.promise}</Text>
-     <OpenExperience experience={item.experience} /><SaveExperience experience={item.experience} />
+     <EditorialDisclosure title="Bekijken of beheren"><OpenExperience experience={item.experience} /><SaveExperience experience={item.experience} /></EditorialDisclosure>
    </View>)}
    <View style={ed.section}>
      {!app.plansHydrated && <Text style={ed.small}>Dagplannen laden…</Text>}

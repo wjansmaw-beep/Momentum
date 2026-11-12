@@ -101,8 +101,6 @@ export function ProfileScreen() {
   };
   const onRefresh = () => { refreshLiveWorld().catch(() => undefined); };
   const [labOpen, setLabOpen] = useState(false);
-  const [regieOpen, setRegieOpen] = useState<RegieSection | undefined>(undefined);
-  const toggleRegie = (section: RegieSection) => { impactLight(); setRegieOpen((current) => current === section ? undefined : section); };
   const [evaluationKind, setEvaluationKind] = useState<ExperienceKind>('outside');
   const [evaluationMinutes, setEvaluationMinutes] = useState(30);
   const [evaluationDayPart, setEvaluationDayPart] = useState<DayPart>(context.dayPart);
@@ -186,47 +184,26 @@ export function ProfileScreen() {
     </View>}
 
     </EditorialDisclosure>
-    {/* Instellingen in mensentaal: drie rijen die elk hun echte sectie openen.
-        Geen rijen zonder functie. */}
-    <View style={yj.panel}>
-      <Pressable accessibilityRole="button" accessibilityState={{ expanded: regieOpen === 'gegevens' }} onPress={() => toggleRegie('gegevens')} style={yj.setrow}>
-        <Feather name="user" size={15} color={yj.accentSolid as string} />
-        <Text style={yj.setrowTitle}>Jouw gegevens</Text>
-        <Text style={yj.setrowSub}>{personal.firstName || 'naam nog niet ingevuld'}</Text>
-        <Feather name={regieOpen === 'gegevens' ? 'chevron-up' : 'chevron-right'} size={15} color={yj.ink3Solid as string} />
-      </Pressable>
-      <Pressable accessibilityRole="button" accessibilityState={{ expanded: regieOpen === 'richting' }} onPress={() => toggleRegie('richting')} style={[yj.setrow, yj.setrowBorder]}>
-        <Feather name="compass" size={15} color={yj.accentSolid as string} />
-        <Text style={yj.setrowTitle}>Mijn richting & voorkeuren</Text>
-        <Feather name={regieOpen === 'richting' ? 'chevron-up' : 'chevron-right'} size={15} color={yj.ink3Solid as string} />
-      </Pressable>
-      <Pressable accessibilityRole="button" accessibilityState={{ expanded: regieOpen === 'privacy' }} onPress={() => toggleRegie('privacy')} style={[yj.setrow, yj.setrowBorder]}>
-        <Feather name="shield" size={15} color={yj.accentSolid as string} />
-        <Text style={yj.setrowTitle}>Privacy & geleerde signalen</Text>
-        <Feather name={regieOpen === 'privacy' ? 'chevron-up' : 'chevron-right'} size={15} color={yj.ink3Solid as string} />
-      </Pressable>
-    </View>
-
-    {regieOpen === 'gegevens' && <>
-      <View style={styles.personalCard}>
+    <EditorialDisclosure title="Jouw gegevens">
+      <View style={{ gap: 12, paddingVertical: 12 }}>
         <ProfileRow label="Naam" value={personal.firstName || 'Niet ingevuld'} />
         <ProfileRow label="Initiatief" value={initiativeLabels[personal.initiative]} />
         <ProfileRow label="Reisbereidheid" value={`maximaal ${personal.maxTravelMinutes} min`} />
         <ProfileRow label="Begeleiding" value={guidanceLabel} />
       </View>
       <SecondaryButton label="Doorloop mijn startkeuzes opnieuw" onPress={onRedoOnboarding} />
-    </>}
+    </EditorialDisclosure>
 
-    {regieOpen === 'richting' && <>
+    <EditorialDisclosure title="Mijn richting & voorkeuren">
       <Text style={styles.screenSubtitle}>Jouw woorden sturen zachtjes mee — nooit als opdracht of score.</Text>
       {(Object.keys(directionLabels) as Array<keyof typeof directionLabels>).map((horizon) => <DirectionEditor key={horizon} horizon={horizon} values={personal.directions[horizon]} paused={personal.pausedDirections} onTogglePause={(value) => onPersonalChange({ ...personal, pausedDirections: personal.pausedDirections.includes(value) ? personal.pausedDirections.filter((item) => item !== value) : [...personal.pausedDirections, value] })} onSave={(values) => onPersonalChange({ ...personal, directions: { ...personal.directions, [horizon]: values }, pausedDirections: personal.pausedDirections.filter((item) => values.includes(item) || Object.entries(personal.directions).some(([key, entries]) => key !== horizon && entries.includes(item))) })} />)}
       <Text style={styles.fieldLabel}>ZELF GEKOZEN VOORKEUREN</Text>
       <View style={styles.chipRow}>{(Object.keys(experienceKindLabels) as ExperienceKind[]).map((kind) => <ChoiceChip key={kind} label={experienceKindLabels[kind]} selected={personal.preferredKinds.includes(kind)} onPress={() => onPersonalChange({ ...personal, preferredKinds: personal.preferredKinds.includes(kind) ? personal.preferredKinds.filter((item) => item !== kind) : [...personal.preferredKinds, kind] })} />)}</View>
-    </>}
+    </EditorialDisclosure>
 
-    {regieOpen === 'privacy' && <>
+    <EditorialDisclosure title="Privacy & geleerde signalen">
       <Text style={styles.fieldLabel}>WAT MOMENTUM HEEFT GELEERD</Text>
-      <View style={styles.learningCard}>
+      <View style={{ gap: 12, paddingVertical: 12 }}>
         <Text style={styles.learningTitle}>{personal.reflectionMemories.length || personal.learningEvents.length ? `${personal.reflectionMemories.length + personal.learningEvents.length} expliciete signalen` : 'Nog geen duurzaam leersignaal'}</Text>
         <Text style={styles.learningBody}>{personal.reflectionMemories[0]?.explanation ?? personal.learningEvents[0]?.explanation ?? '“Niet nu” verandert niets. Alleen bevestigingen en correcties die jij bewust geeft worden onthouden.'}</Text>
         {personal.reflectionMemories.slice(0, 5).map((memory) => <View key={memory.id} style={styles.memorySignalRow}><View style={styles.flex}><Text style={styles.learningEvent}>• {memory.explanation}</Text>{memory.note && <Text style={styles.memorySignalNote}>“{memory.note}”</Text>}</View><Pressable accessibilityLabel={`Vergeet feedback over ${memory.experienceTitle}`} onPress={() => onForgetReflection(memory.id)} style={styles.forgetSignal}><Text style={styles.forgetSignalText}>Vergeet</Text></Pressable></View>)}
@@ -236,7 +213,7 @@ export function ProfileScreen() {
       </View>
       <SecondaryButton label="Wis alleen wat Momentum heeft geleerd" onPress={onResetLearning} />
       <Text style={styles.fieldLabel}>KOPPELINGEN & PRIVACY</Text>
-      <View style={styles.personalCard}><ProfileRow label="Globale omgeving" value={locationConfirmed ? liveWorld?.regionLabel ?? 'Gekoppeld' : 'Niet gekoppeld'} /><ProfileRow label="Agenda" value={calendar.state === 'live' ? 'Lokaal gekoppeld' : calendar.state === 'denied' ? 'Niet toegestaan' : 'Niet gekoppeld'} /><ProfileRow label="Weer" value={locationConfirmed && liveWorld?.weather ? 'Live gekoppeld' : 'Wereldwijde fallback'} /><ProfileRow label="Frisse capsules" value={generatorStatus.label} /><ProfileRow label="Gezondheid" value="Niet gekoppeld" /></View>
+      <View style={{ gap: 12, paddingVertical: 12 }}><ProfileRow label="Globale omgeving" value={locationConfirmed ? liveWorld?.regionLabel ?? 'Gekoppeld' : 'Niet gekoppeld'} /><ProfileRow label="Agenda" value={calendar.state === 'live' ? 'Lokaal gekoppeld' : calendar.state === 'denied' ? 'Niet toegestaan' : 'Niet gekoppeld'} /><ProfileRow label="Weer" value={locationConfirmed && liveWorld?.weather ? 'Live gekoppeld' : 'Wereldwijde fallback'} /><ProfileRow label="Frisse capsules" value={generatorStatus.label} /><ProfileRow label="Gezondheid" value="Niet gekoppeld" /></View>
       <Text style={styles.sourcePrivacy}>Voor een frisse capsule bij openen gebruikt de generator hooguit één richting die jij zelf koos, dagdeel, beschikbare tijd, gezelschap en expliciet materiaal. Geen doelen, reflecties, agenda-inhoud of locatie.</Text>
       {calendar.state !== 'live' && <SecondaryButton label={calendarLoading ? 'Agenda wordt gecontroleerd…' : Platform.OS === 'web' ? 'Agenda vereist een development build' : 'Koppel mijn agenda'} onPress={onConnectCalendar} />}
       <SecondaryButton label={locationConfirmed ? 'Werk mijn globale omgeving bij' : 'Gebruik mijn globale omgeving'} onPress={onUseLocation} />
@@ -250,7 +227,7 @@ export function ProfileScreen() {
       }} />)}
       <Text style={styles.fieldLabel}>MOMENTMAKER-PROEFBANK</Text>
       <Text style={styles.screenSubtitle}>Open telkens één volledige capsule met gecontroleerde testcontext. Dit wijzigt je profiel, agenda en gewone Nu-selectie niet.</Text>
-      <View style={styles.learningCard}>
+      <View style={{ gap: 12, paddingVertical: 12 }}>
         <Text style={styles.learningTitle}>Volgende ontbrekende proef</Text>
         <Text style={styles.learningBody}>{nextEvaluation.label} · {experienceKindLabels[nextEvaluation.kind]} · {nextEvaluation.availableMinutes} min · {dayPartLabels[nextEvaluation.dayPart].toLowerCase()} · {nextCompany.toLowerCase()}{nextEvaluation.kind === 'movement' ? nextEvaluation.hasKettlebell ? ' · met kettlebell' : ' · zonder materiaal' : ''}.</Text>
         <Text style={styles.learningEvent}>{evaluationProgress.evaluated} van {evaluationProgress.planned} kernscenario's volledig beleefd en beoordeeld · {evaluationProgress.attempted} geprobeerd{evaluationProgress.rejected ? ` · ${evaluationProgress.rejected} tegengehouden` : ''}.</Text>
@@ -267,7 +244,7 @@ export function ProfileScreen() {
       {evaluationKind === 'movement' && <View style={styles.chipRow}><ChoiceChip label="Kettlebell beschikbaar" selected={evaluationKettlebell} onPress={() => setEvaluationKettlebell(true)} /><ChoiceChip label="Zonder materiaal" selected={!evaluationKettlebell} onPress={() => setEvaluationKettlebell(false)} /></View>}
       <PrimaryButton label={generatingMoment ? 'Capsule wordt opgebouwd…' : `Proef ${experienceKindLabels[evaluationKind].toLowerCase()}`} onPress={() => { if (!generatingMoment) onEvaluateGenerator(evaluationKind, { ...context, availableMinutes: evaluationMinutes, dayPart: evaluationDayPart, company: evaluationCompany, hasKettlebell: evaluationKettlebell }); }} />
       <Text style={styles.fieldLabel}>MOMENTMAKER EVALUATIE</Text>
-      <View style={styles.personalCard}>
+      <View style={{ gap: 12, paddingVertical: 12 }}>
         <ProfileRow label="Geldige concepten getoond" value={`${evidence.generatedShown}`} />
         <ProfileRow label="Door contract tegengehouden" value={`${evidence.generatedRejected}`} />
         <ProfileRow label="Na beleven beoordeeld" value={`${evidence.generatedEvaluated}`} />
@@ -278,26 +255,26 @@ export function ProfileScreen() {
       </View>
       <Text style={styles.screenSubtitle}>{evidence.lastGenerationNote ?? 'Maak een nieuw moment om de generatorroute te evalueren.'} Deze lokale evaluatie staat los van je persoonlijke voorkeuren en herinneringen.</Text>
       <Text style={styles.fieldLabel}>DEKKING PER RICHTING</Text>
-      <View style={styles.personalCard}>{(Object.keys(experienceKindLabels) as ExperienceKind[]).map((kind) => {
+      <View style={{ gap: 12, paddingVertical: 12 }}>{(Object.keys(experienceKindLabels) as ExperienceKind[]).map((kind) => {
         const item = evidence.generationByKind[kind];
         const qualities = [item.personal ? `${item.personal} persoonlijk` : '', item.surprising ? `${item.surprising} verrassend` : '', item.executable ? `${item.executable} uitvoerbaar` : '', item.contentUseful ? `${item.contentUseful} inhoud` : ''].filter(Boolean).join(' · ');
         return <ProfileRow key={kind} label={experienceKindLabels[kind]} value={`${item.shown} getoond · ${item.evaluated} beoordeeld${qualities ? ` · ${qualities}` : ''}`} />;
       })}</View>
       <Text style={styles.fieldLabel}>KERNMATRIX</Text>
-      <View style={styles.personalCard}>{generatorEvaluationPlan.map((scenario) => {
+      <View style={{ gap: 12, paddingVertical: 12 }}>{generatorEvaluationPlan.map((scenario) => {
         const trials = evidence.generationTrials.filter((trial) => trial.id === scenario.id);
         const evaluatedTrial = [...trials].reverse().find((trial) => trial.status === 'evaluated');
         const state = evaluatedTrial ? `${evaluatedTrial.signals.length}/4 kwaliteitssignalen` : trials.some((trial) => trial.status === 'shown') ? 'Nog beleven en beoordelen' : trials.some((trial) => trial.status === 'rejected') ? 'Tegengehouden · opnieuw onderzoeken' : 'Nog niet geprobeerd';
         return <ProfileRow key={scenario.id} label={scenario.label} value={state} />;
       })}</View>
       <Text style={styles.fieldLabel}>AUTOMATISCHE COMPOSITIE</Text>
-      <View style={styles.personalCard}><ProfileRow label="Kaarten gecontroleerd" value={`${composition.checked}`} /><ProfileRow label="Automatisch verrijkt" value={`${composition.automaticallyComposed}`} /><ProfileRow label="Gidsmomenten" value={`${composition.guideMoments}`} /><ProfileRow label="Actueel bron-onderbouwd" value={`${composition.liveGrounded}`} /><ProfileRow label="Tegenhouden" value={`${composition.rejected}`} /></View>
+      <View style={{ gap: 12, paddingVertical: 12 }}><ProfileRow label="Kaarten gecontroleerd" value={`${composition.checked}`} /><ProfileRow label="Automatisch verrijkt" value={`${composition.automaticallyComposed}`} /><ProfileRow label="Gidsmomenten" value={`${composition.guideMoments}`} /><ProfileRow label="Actueel bron-onderbouwd" value={`${composition.liveGrounded}`} /><ProfileRow label="Tegenhouden" value={`${composition.rejected}`} /></View>
       <Text style={styles.screenSubtitle}>Elke kandidaat wordt lokaal gecontroleerd op een complete belofte, uitvoerbare stappen, tijd, gezelschap, route en bronversheid. Een afgekeurde kaart bereikt Nu en Vandaag niet.</Text>
       <Text style={styles.fieldLabel}>LIVING WORLD OPPORTUNITY ENGINE</Text>
-      <View style={styles.personalCard}><ProfileRow label="Bronstatus" value={opportunitySummary.sourceLabel} /><ProfileRow label="Bronmix" value={opportunitySummary.sourceMix.join(' + ') || 'Geen actuele mix'} /><ProfileRow label="Plaatsverhalen" value={`${opportunitySummary.knowledgeCount}`} /><ProfileRow label="Routecontrole" value={routingCapability().providerLabel} /><ProfileRow label="Perspectieven" value={`${opportunitySummary.perspectiveCount}`} /><ProfileRow label="Kansen beoordeeld" value={`${opportunitySummary.considered}`} /><ProfileRow label="Uitvoerbaar" value={`${opportunitySummary.ready.length}`} /><ProfileRow label="Terecht tegengehouden" value={`${opportunitySummary.withheld.length}`} /></View>
+      <View style={{ gap: 12, paddingVertical: 12 }}><ProfileRow label="Bronstatus" value={opportunitySummary.sourceLabel} /><ProfileRow label="Bronmix" value={opportunitySummary.sourceMix.join(' + ') || 'Geen actuele mix'} /><ProfileRow label="Plaatsverhalen" value={`${opportunitySummary.knowledgeCount}`} /><ProfileRow label="Routecontrole" value={routingCapability().providerLabel} /><ProfileRow label="Perspectieven" value={`${opportunitySummary.perspectiveCount}`} /><ProfileRow label="Kansen beoordeeld" value={`${opportunitySummary.considered}`} /><ProfileRow label="Uitvoerbaar" value={`${opportunitySummary.ready.length}`} /><ProfileRow label="Terecht tegengehouden" value={`${opportunitySummary.withheld.length}`} /></View>
       {opportunitySummary.withheld.slice(0, 3).map((item) => <Text key={item.id} style={styles.screenSubtitle}>Niet getoond: {item.reason}</Text>)}
       <Text style={styles.fieldLabel}>LOKAAL PROEFBEWIJS</Text>
-      <View style={styles.personalCard}><ProfileRow label="Gestart" value={`${evidence.started}`} /><ProfileRow label="Afgerond" value={`${evidence.completed}`} /><ProfileRow label="Gereflecteerd" value={`${evidence.reflected}`} /><ProfileRow label="Reflectie overgeslagen" value={`${evidence.skippedReflection}`} /></View>
+      <View style={{ gap: 12, paddingVertical: 12 }}><ProfileRow label="Gestart" value={`${evidence.started}`} /><ProfileRow label="Afgerond" value={`${evidence.completed}`} /><ProfileRow label="Gereflecteerd" value={`${evidence.reflected}`} /><ProfileRow label="Reflectie overgeslagen" value={`${evidence.skippedReflection}`} /></View>
       <Text style={styles.screenSubtitle}>Alleen lokale aantallen, zonder account, inhoud, tijdstip of externe analytics. Dit helpt straks beoordelen of mensen werkelijk beginnen en afronden.</Text>
       <SecondaryButton label="Wis lokale proeftellingen" onPress={onResetEvidence} />
       <Text style={styles.fieldLabel}>TESTCONTEXT</Text>
@@ -328,7 +305,7 @@ export function ProfileScreen() {
       <View style={styles.futureSources}><Text style={styles.fieldLabel}>VOLGENDE LIVE BRONNEN</Text>{futureSourceRegistry.map((source) => <View key={source.id} style={styles.futureSourceRow}><Text style={styles.futureSourceLabel}>{source.label}</Text><Text style={styles.futureSourceState}>GEPLAND</Text></View>)}</View>
       </>}
       </>}
-    </>}
+    </EditorialDisclosure>
 
     <EditorialDisclosure title="Hoe Momentum kiest"><Text style={ed.body}>Momentum filtert eerst op tijd, gezelschap en materiaal. Daarna wegen moment, jouw eigen woorden, bevestigde voorkeuren, actuele bronnen en voldoende afwisseling mee.</Text></EditorialDisclosure>
   </ScrollView></SurfaceFrame>;
@@ -406,7 +383,7 @@ const yj = schemeStyles(({ colors: schemeColors }) => {
       backgroundColor: palette.iconTile, borderWidth: 1, borderColor: palette.line,
     },
     avatarInitial: { fontFamily: typography.displayFamilyMedium, fontSize: 24, color: palette.accent },
-    name: { fontFamily: typography.displayFamilyMedium, fontWeight: '400', fontSize: 22, color: palette.ink, marginTop: 8 },
+    name: { fontFamily: typography.family, fontWeight: '600', fontSize: 22, color: palette.ink, marginTop: 8 },
     since: { fontSize: 14, lineHeight: 21, color: palette.ink3, marginTop: 4 },
     seclblWrap: { marginTop: 16 },
     seclbl: { fontSize: 14, fontWeight: '600', color: palette.ink2 },

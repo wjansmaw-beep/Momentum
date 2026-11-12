@@ -26,6 +26,7 @@ export function EditorialPhoto({ experience }: { experience: Experience }) {
   const ownCredit = referenceImageCredit(experience.image);
   const credit = ownCredit ?? (['outside', 'restore'].includes(experience.kind) ? referenceImages.lauwersmeer : undefined);
   const [error, setError] = useState('');
+  if (!credit) return <Text style={ed.small}>Bij deze ervaring is geen gecontroleerde foto beschikbaar.</Text>;
   return <View style={{ gap: 8 }}>
     <CoverImage uri={credit?.uri} alt={credit ? (ownCredit ? `Foto bij ${experience.title}` : 'Sfeerbeeld van het Lauwersmeer; niet de bestemming van deze ervaring') : 'Geen gecontroleerde foto beschikbaar'} style={ed.hero} imageStyle={{ borderRadius: 0 }} />
     {credit && !ownCredit && <Text style={ed.small}>Sfeerbeeld: Lauwersmeer · geen voorgestelde bestemming</Text>}

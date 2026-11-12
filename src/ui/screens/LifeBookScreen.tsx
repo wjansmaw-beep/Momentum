@@ -1,4 +1,4 @@
-import { ed, OpenExperience, ResumeExperience, SaveExperience } from '../editorial';
+import { ed, EditorialAction, EditorialDisclosure, OpenExperience, ResumeExperience, SaveExperience } from '../editorial';
 import { ImageCredit } from '../ImageCredit';
 import React, { useState } from 'react';
 import { ImageStyle, Pressable, ScrollView, Share, Text, TextStyle, View, ViewStyle } from 'react-native';
@@ -29,6 +29,7 @@ import { memoryFacts, memoryObservation, memoryStats, monthStrip } from '../now-
 export function LifeBookScreen() {
   const { memories, personalProfile, applyFeedback, openExperience, addMemoryPhotos } = useApp();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const [shareError, setShareError] = useState('');
   const [featuredId, setFeaturedId] = useState<string | undefined>(memories[0]?.id);
   const featured = memories.find((memory) => memory.id === featuredId) ?? memories[0];
   const experience = featured ? featured.experienceSnapshot ?? experiences.find((item) => item.title === featured.title) : undefined;
@@ -39,7 +40,8 @@ export function LifeBookScreen() {
   const shareMemory = async () => {
     if (!featured) return;
     const message = `${featured.title}\n${featured.note}\n${memoryFacts(featured, experience).join(' · ')}`;
-    await Share.share({ title: featured.title, message }).catch(() => undefined);
+    setShareError('');
+    await Share.share({ title: featured.title, message }).catch(() => setShareError('Delen lukte niet. Je herinnering blijft bewaard.'));
   };
   const facts = featured ? memoryFacts(featured, experience) : [];
   const stats = featured ? memoryStats(featured, memories, personalProfile.reflectionMemories) : [];
@@ -52,7 +54,7 @@ export function LifeBookScreen() {
   };
   return (
     <SurfaceFrame>
-    <ScrollView contentContainerStyle={styles.screenScroll} showsVerticalScrollIndicator={false}>
+    <ScrollView contentContainerStyle={{ paddingTop: 24, paddingBottom: 130 }} showsVerticalScrollIndicator={false}>
       <View style={bk.head}><Text accessibilityRole="header" style={ed.title}>Boek</Text></View>
       <View style={{ paddingHorizontal: 20 }}><ResumeExperience /></View>
       {memories.length === 0 || !featured ? (
@@ -64,20 +66,11 @@ export function LifeBookScreen() {
           {/* Albumpagina: foto met like-hart (echt favoriet-signaal), titel en
               een feitenrij die alleen bestaande velden gebruikt. */}
           <View style={bk.photoWrap}>
-            <CoverImage uri={featured.image} style={bk.photo} imageStyle={bk.photoImage}>
-              <ImageShade />
-            </CoverImage><ImageCredit uri={featured.image} />
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={saved ? 'Voorkeur: vaker voorstellen' : 'Stel deze ervaring vaker voor (onthouden)'}
-              onPress={onToggleSave}
-              style={bk.like}
-            >
-              <Ionicons name={saved ? 'heart' : 'heart-outline'} size={20} color={bk.inkSolid as string} />
-            </Pressable>
+            <CoverImage uri={featured.image} alt={`Beeld bij ${featured.title}`} style={bk.photo} imageStyle={bk.photoImage} /><ImageCredit uri={featured.image} />
+
           </View>
           <View style={bk.titleBlock}>
-            <Text style={bk.title}>{featured.title}</Text>
+            <Text accessibilityRole="header" style={ed.title}>{featured.title}</Text>
             <View style={bk.factRow}>
               {facts.map((fact, index) => (
                 <React.Fragment key={`${fact}-${index}`}>
@@ -87,6 +80,8 @@ export function LifeBookScreen() {
               ))}
             </View>
           </View>
+          {!!featured.note?.trim() && <View style={{ marginHorizontal: 20, marginTop: 20 }}><Text style={ed.body}>{featured.note}</Text></View>}
+          <View style={{ marginHorizontal: 20, marginTop: 24 }}><EditorialDisclosure title="Over deze herinnering">
           {/* Momentum merkt: een telling over echte data, of de zachte
               observatie uit het leermodel; anders valt de kaart weg. */}
           {observation && <View style={bk.observ}>
@@ -106,6 +101,8 @@ export function LifeBookScreen() {
               </View>
             ))}
           </View>}
+          <EditorialAction title={saved ? 'Voorkeur onthouden: vaker voorstellen' : 'Stel deze ervaring vaker voor (onthouden)'} selected={saved} disabled={saved || !experience} onPress={onToggleSave} />
+          </EditorialDisclosure></View>
           {/* Strook met bewaarde momenten: tik wisselt de albumpagina. */}
           <View style={bk.month}>
             <View style={bk.monthHead}>
@@ -135,6 +132,7 @@ export function LifeBookScreen() {
             <Feather name="share" size={15} color={bk.inkSolid as string} />
             <Text style={bk.ghostText}>Deel dit moment</Text>
           </Pressable>
+          {!!shareError && <Text accessibilityRole="alert" style={[ed.small, { marginHorizontal: 20 }]}>{shareError}</Text>}
           {experience ? <View style={{ padding: 20, gap: 16 }}><OpenExperience experience={experience} from="lifebook" /><SaveExperience experience={experience} /></View>
             : <Text style={ed.small}>De oorspronkelijke ervaring is niet meer beschikbaar. Je herinnering blijft bewaard.</Text>}
         </>
@@ -218,30 +216,30 @@ const bk = schemeStyles(({ colors: schemeColors }) => {
     head: { paddingHorizontal: 22, paddingTop: 10, paddingBottom: 4 },
     headTitle: { fontSize: 14.5, fontWeight: '600', color: palette.ink },
     headSub: { fontSize: 11.5, color: palette.ink2, marginTop: 1 },
-    photoWrap: { marginHorizontal: 12, marginTop: 12, borderRadius: 26, overflow: 'hidden', position: 'relative' },
+    photoWrap: { marginHorizontal: 20, marginTop: 20, borderRadius: 0, overflow: 'hidden', position: 'relative' },
     photo: { height: 300 },
-    photoImage: { borderRadius: 26 },
+    photoImage: { borderRadius: 0 },
     like: {
       position: 'absolute', top: 14, right: 14, width: 44, height: 44, borderRadius: 22,
       alignItems: 'center', justifyContent: 'center',
-      backgroundColor: palette.glass, borderWidth: 1, borderColor: palette.line,
+      backgroundColor: 'transparent',
     },
     titleBlock: { marginTop: 14, marginHorizontal: 22 },
-    title: { fontFamily: typography.displayFamilyMedium, fontWeight: '400', fontSize: 26, letterSpacing: -0.3, color: palette.ink },
+    title: { fontFamily: typography.family, fontWeight: '600', fontSize: 26, letterSpacing: -0.3, color: palette.ink },
     factRow: { marginTop: 6, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 9 },
     fact: { fontSize: 12, color: palette.ink2, fontWeight: '500' },
     factDot: { width: 3, height: 3, borderRadius: 1.5, backgroundColor: palette.ink3 },
     observ: {
-      marginTop: 24, marginHorizontal: 20, paddingVertical: 16,
+      paddingVertical: 12,
       borderTopWidth: 0.5, borderBottomWidth: 0.5, borderColor: palette.line,
     },
     observLabel: { fontSize: 10, letterSpacing: 1.8, fontWeight: '700', color: palette.accent, textTransform: 'uppercase' },
     observText: { marginTop: 7, fontSize: 17, lineHeight: 26, color: palette.ink },
     observAction: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 9, minHeight: 44, alignSelf: 'flex-start' },
     observActionText: { fontSize: 12, fontWeight: '600', color: palette.accent },
-    stats: { flexDirection: 'row', gap: 8, marginTop: 12, marginHorizontal: 12 },
+    stats: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 12 },
     stat: {
-      flex: 1, paddingVertical: 12, paddingHorizontal: 8, alignItems: 'center',
+      flexGrow: 1, flexBasis: 90, paddingVertical: 12, paddingHorizontal: 8, alignItems: 'center',
     },
     statValue: { fontFamily: typography.displayFamilyMedium, fontWeight: '400', fontSize: 19, color: palette.ink },
     statLabel: { fontSize: 13, color: palette.ink2, marginTop: 4, textAlign: 'center' },
@@ -258,7 +256,7 @@ const bk = schemeStyles(({ colors: schemeColors }) => {
     thumbLabel: { position: 'absolute', left: 8, bottom: 7, fontSize: 8.5, fontWeight: '700', letterSpacing: 0.8, color: '#F5F4F0' },
     ghost: {
       flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-      marginHorizontal: 12, marginTop: 16, borderRadius: 999, paddingVertical: 13,
+      marginHorizontal: 20, marginTop: 16, minHeight: 48, paddingVertical: 13,
       backgroundColor: palette.glass, borderWidth: 1, borderColor: palette.line,
     },
     ghostText: { fontSize: 13.5, fontWeight: '600', color: palette.ink },
