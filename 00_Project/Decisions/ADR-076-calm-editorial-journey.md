@@ -161,3 +161,7 @@ Product Guardian: Founder reports the current iPhone tests work very well, and e
 Future direction only: when the user reopens the app, relevant local story content could follow the current location and experience context. Record this for later design; do not implement automatic location requests, chapter changes, background tracking or a new event engine in this refinement.
 
 Verification: typecheck, all 155 counted app tests plus scenarios and web export pass. Browser confirms chapter-5 session resume, observer mode without phone-away controls, and listening fallback with return to the story. No persisted data/model change. Updated native build pending.
+
+## Reviewer continuation — 2026-11-12
+
+Build 10 is FINISHED (52303230-1cf4-4471-8cd4-f12a420d0bad); supersedes the pending-build note above. No application code changed in this review. At 320 px the web Guide chapter menu and museum practical disclosure expose no horizontally out-of-viewport controls/headings or targets below 44 px height. Chapter selection and keyboard Enter expansion work. Static primary/secondary text contrast ratios across all three palettes are documented in the task output Momentum_M4_Laatste_Controle.txt; minimum tested pair is 5.26:1. Native Dynamic Type, VoiceOver, offline cold start and permission-denial behavior still require device evidence. General Founder satisfaction is recorded; do not infer specific device tests or inflate the provisional 8.39 score. Future location-aware storytelling remains deferred.
