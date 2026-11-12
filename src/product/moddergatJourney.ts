@@ -19,7 +19,7 @@ function stop(id: string, placeKey: string, title: string, promise: string, stor
 }
 
 // New identity: never replace the museum-only reference or its saved snapshots.
-// Not yet offered in Nu: complete media/route review before catalog promotion.
+// Offered explicitly from Nu; published approaches are not live routing.
 export const moddergatJourney: Experience = {
   ...museum,
   id: 'moddergat-five-places-v1',
@@ -30,7 +30,7 @@ export const moddergatJourney: Experience = {
   why: ['Vijf plekken, één doorlopend verhaal', 'Lees, kijk of luister op je eigen tempo'],
   prepareTitle: 'Van het dorp naar de dijk',
   prepare: [
-    'De 30 minuten zijn een redactionele indicatie voor lezen en stilstaan, zonder wandel- of reistijd. De volledige loopverbinding is nog in controle.',
+    'De 30 minuten zijn een redactionele indicatie voor lezen en stilstaan, zonder wandel- of reistijd. De gids geeft aanwijzingen tussen de plekken; actuele doorgang en afsluitingen zijn niet live gecontroleerd.',
     'Je kunt ieder hoofdstuk los openen. Een gesloten museum of fabriekje hoeft het lezen buiten niet te verhinderen.',
     'Controleer de openingstijden en toegangsvoorwaarden per plek. Het museum en het garnalenfabriekje hebben verschillende voorwaarden.',
     'Bij de dijk liggen trappen en ongelijke paden. Een drempelvrije route is niet bevestigd.',

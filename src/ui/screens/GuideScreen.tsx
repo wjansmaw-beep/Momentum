@@ -230,7 +230,7 @@ export function GuideScreen() {
         </Pressable>
         <View style={styles.flex}>
           <Text style={gd.headTitle}>Gids</Text>
-          <Text style={gd.headSub} numberOfLines={1}>{experience.duration} min · {company === 'solo' ? 'alleen' : company === 'family' ? 'met gezin' : 'samen'}</Text>
+          <Text style={gd.headSub}>{experience.referenceVisit ? 'Op je eigen tempo' : `${experience.duration} min`} · {company === 'solo' ? 'alleen' : company === 'family' ? 'met gezin' : 'samen'}</Text>
         </View>
         {!!routeTarget && <Pressable accessibilityRole="button" accessibilityLabel={adaptive ? 'Bekijk deze plek op de kaart' : 'Open route in Kaarten'} onPress={adaptive ? () => updateGuideMode('navigate') : openHandoff} style={gd.iconbtn}>
           <Feather name="map-pin" size={16} color={gd.inkSolid as string} />

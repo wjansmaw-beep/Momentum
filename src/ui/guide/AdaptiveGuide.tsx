@@ -66,6 +66,7 @@ export function DiscoverChapter({ step, index, total, showInsight, onObserve, ex
   return <View style={[s.read, s.editorialRead]}>
 
     {photo && (!photoFailed ? <View style={[s.documentaryPhoto, { aspectRatio: photo.aspectRatio }]}><Image source={localChapterImages[photo.key]} resizeMode="contain" accessibilityLabel={photo.alt} style={{ width: '100%', height: '100%' }} onError={() => setPhotoFailed(true)} /></View> : <Text style={s.source}>Foto niet beschikbaar. Je kunt verder lezen.</Text>)}
+    {experience && currentPlace(experience, step) && <Text style={s.source}>{currentPlace(experience, step)!.name}</Text>}
     <Text accessibilityRole="header" style={s.title}>{intro?.title ?? story?.title ?? step.title}</Text>
     {intro && <Text style={s.lead}>{intro.promise}</Text>}
     {story && <Text style={s.body}>{story.text}</Text>}
