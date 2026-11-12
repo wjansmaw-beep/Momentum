@@ -1,4 +1,4 @@
-import { ed, EditorialPhoto } from '../editorial';
+import { ed, EditorialPhoto, EditorialDisclosure, EditorialAction } from '../editorial';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Linking,
@@ -89,6 +89,7 @@ export function PrepareScreen() {
   const [coordination, setCoordination] = useState<SharedCoordination>(initialShared?.coordination ?? 'leave-together');
   const [shared, setShared] = useState<SharedCapsuleState | undefined>(initialShared);
   const [shareStatus, setShareStatus] = useState('');
+  const [sourceError, setSourceError] = useState('');
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [whyOpen, setWhyOpen] = useState(false);
   const guide = buildExperienceGuide(experience, 0);
@@ -102,7 +103,7 @@ export function PrepareScreen() {
     const companion = company === 'family' ? 'met gezin' : 'samen';
     const invite = createSharedInvite({ experienceId: experience.id, title: experience.title, promise: experience.promise, duration: experience.duration, hostName, company, guideDepth, coordination });
     const inviteUrl = buildInviteUrl(invite);
-    const message = `Ga je mee?\n\n${experience.title}\n${experience.promise}\n${experience.duration} minuten · ${companion}\n${coordination === 'meet-there' ? 'We ontmoeten elkaar bij het startpunt.' : 'We vertrekken samen.'}\n\n${inviteUrl ? `Open de uitnodiging:\n${inviteUrl}` : 'Open Momentum om samen af te stemmen.'}`;
+    const message = `Ga je mee?\n\n${experience.title}\n${experience.promise}\n${experience.referenceVisit ? 'Op je eigen tempo; wandel- en reistijd niet inbegrepen' : `${experience.duration} minuten`} · ${companion}\n${coordination === 'meet-there' ? 'We ontmoeten elkaar bij het startpunt.' : 'We vertrekken samen.'}\n\n${inviteUrl ? `Open de uitnodiging:\n${inviteUrl}` : 'Open Momentum om samen af te stemmen.'}`;
     try {
       if (Platform.OS === 'web' && inviteUrl && typeof navigator !== 'undefined' && navigator.clipboard) {
         await navigator.clipboard.writeText(inviteUrl);
@@ -177,7 +178,7 @@ export function PrepareScreen() {
   return (
     <FlowFrame>
     <View style={styles.flowScreen}>
-    <ScrollView contentContainerStyle={[styles.flowScroll, styles.flowScrollStickyAction]} showsVerticalScrollIndicator={false}>
+    <ScrollView contentContainerStyle={[ed.scroll, { paddingBottom: 180 }]} showsVerticalScrollIndicator={false}>
       {/* Header volgens concept: ronde terugknop, "Voorpret", momentnaam. */}
       <View style={vp.head}>
         <Pressable accessibilityRole="button" accessibilityLabel="Terug" onPress={onBack} style={vp.back}>
@@ -185,22 +186,17 @@ export function PrepareScreen() {
         </Pressable>
         <View style={styles.flex}>
           <Text style={vp.headTitle}>Voorpret</Text>
-          <Text style={vp.headSub} numberOfLines={1}>{experience.title}</Text>
         </View>
       </View>
 
-      <View style={{ paddingHorizontal: 20, gap: 16, marginBottom: 16 }}>
+      <View style={{ gap: 16 }}>
         <Text accessibilityRole="header" style={ed.title}>{experience.title}</Text>
         <Text style={ed.body}>{experience.promise}</Text>
         <EditorialPhoto experience={experience} />
       </View>
 
       {/* Scène: zo ga je — routesegmenten uit het plan, eerlijk zonder plan. */}
-      {hasJourney && <View style={vp.card}>
-        <View style={vp.cardHead}>
-          <Feather name="map" size={15} color={vp.accentSolid as string} />
-          <Text style={vp.cardTitle}>Zo ga je</Text>
-        </View>
+      {hasJourney && <EditorialDisclosure title={'Zo ga je'}>
         {segments.map((segment, index) => (
           <View key={`${segment.title}-${index}`} style={[vp.row, index > 0 && vp.rowBorder]}>
             <View style={vp.rowIcon}><Feather name={segment.icon} size={15} color={vp.accentSolid as string} /></View>
@@ -211,16 +207,12 @@ export function PrepareScreen() {
             {segment.trailing ? <Text style={vp.rowTrailing}>{segment.trailing}</Text> : null}
           </View>
         ))}
-      </View>}
+      </EditorialDisclosure>}
 
       {/* Strook: de route van dit moment — staptitels in volgorde, zodat de
           gids onderweg nooit een verrassing is. De routekaart zelf blijft
           bewust hier; onderweg is alleen de stap waar je bent. */}
-      <View style={vp.card}>
-        <View style={vp.cardHead}>
-          <Feather name="list" size={15} color={vp.accentSolid as string} />
-          <Text style={vp.cardTitle}>{experience.referenceVisit ? 'De hoofdstukken' : hasJourney ? 'De route van dit moment' : 'Zo gaat het'}</Text>
-        </View>
+      <EditorialDisclosure title={experience.referenceVisit ? (experience.steps.every(step => step.visitPlace) ? 'De plekken van deze tocht' : 'De hoofdstukken') : hasJourney ? 'De route van dit moment' : 'Zo gaat het'}>
         {experience.steps.map((step, index) => (
           <View key={`${step.title}-${index}`} style={[vp.row, index > 0 && vp.rowBorder]}>
             <View style={vp.stepNo}><Text style={vp.stepNoText}>{index + 1}</Text></View>
@@ -230,18 +222,13 @@ export function PrepareScreen() {
             {step.seconds ? <Text style={vp.rowTrailing}>{`${Math.max(1, Math.round(step.seconds / 60))} min`}</Text> : null}
           </View>
         ))}
-      </View>
+      </EditorialDisclosure>
 
       {/* Scène: neem mee — regels uit live weer; zonder meting de paklijst
           van de capsule zelf. Status alleen waar een regel uit data volgt. */}
-      <View style={vp.card}>
-        <View style={vp.cardHead}>
-          <Feather name="check" size={15} color={vp.accentSolid as string} />
-          <Text style={vp.cardTitle}>{experience.referenceVisit ? 'Goed om te weten' : hasJourney ? 'Neem mee' : 'Dit heb je nodig'}</Text>
-        </View>
+      <EditorialDisclosure title={experience.referenceVisit ? 'Goed om te weten' : hasJourney ? 'Neem mee' : 'Dit heb je nodig'}>
         {packing.map((row, index) => (
           <View key={`${row.title}-${index}`} style={[vp.row, index > 0 && vp.rowBorder]}>
-            <View style={vp.rowIcon}><Feather name={row.icon} size={15} color={vp.accentSolid as string} /></View>
             <View style={styles.flex}>
               <Text style={vp.rowTitle}>{row.title}</Text>
               {row.sub ? <Text style={vp.rowSub}>{row.sub}</Text> : null}
@@ -249,11 +236,11 @@ export function PrepareScreen() {
             {row.status ? <Text style={vp.rowTrailing}>{row.status}</Text> : null}
           </View>
         ))}
-      </View>
+      </EditorialDisclosure>
 
       {/* Scène: weer onderweg — huidige meting en zonmodel; geen verzonnen
           uur-voor-uur-verwachting. */}
-      {(experience.referenceVisit || weather) && <View style={vp.card}>
+      {weather && <View style={vp.card}>
         <View style={vp.cardHead}>
           <Feather name="sun" size={15} color={vp.accentSolid as string} />
           <Text style={vp.cardTitle}>{experience.referenceVisit ? 'Ter plaatse' : 'Weer onderweg'}</Text>{experience.referenceVisit && <Text style={vp.rowSub}>Controleer zelf het weer en de toegang op de plek van je bezoek.</Text>}
@@ -302,58 +289,59 @@ export function PrepareScreen() {
       {/* Rustige verdieping onder de v2-scènes: betekenisdraad, kaart en
           aankomst, verhaal van de plek — ongewijzigd uit ADR-065, fase 1. */}
       {experience.meaningThread && <MeaningThreadCard experience={experience} compact />}
-      {experience.routePlan && <View style={styles.routePlanCard}>
+      {experience.routePlan && <View style={{ gap: 12, paddingVertical: 12 }}>
         <Text style={styles.liveEvidenceTitle}>ZO KOM JE ER</Text><Text style={styles.routePlanTitle}>{experience.routePlan.destinationName}</Text>
         {/* ADR-061, punt 3: in-kaart oriëntatie op de bestemming (OSM-tegels
             op native, stijlvolle fallback op web). Alleen oriëntatie; de
             routeapp blijft de route-eigenaar. */}
         {experience.routePlan.destination && <RouteMapPreview latitude={experience.routePlan.destination.latitude} longitude={experience.routePlan.destination.longitude} label={experience.routePlan.destinationName} radiusMeters={experience.routePlan.arrivalPlan?.radiusMeters} />}
-        {experience.routePlan.arrivalPlan && <View style={styles.arrivalPlanCard}><Text style={styles.arrivalPlanLabel}>DAAR AANGEKOMEN</Text><Text style={styles.arrivalPlanTitle}>{experience.routePlan.arrivalPlan.label}</Text><Text style={styles.arrivalPlanBody}>{experience.routePlan.arrivalPlan.instruction}</Text><Text style={styles.arrivalPlanMeta}>{experience.routePlan.arrivalPlan.durationMinutes} min{experience.routePlan.arrivalPlan.radiusMeters ? ` · tot circa ${experience.routePlan.arrivalPlan.radiusMeters} m rond het anker` : ''}</Text><Text style={styles.arrivalPlanReturn}>{experience.routePlan.arrivalPlan.returnTrigger}</Text></View>}
+        {experience.routePlan.arrivalPlan && <View style={{ gap: 12, paddingVertical: 12 }}><Text style={styles.arrivalPlanLabel}>DAAR AANGEKOMEN</Text><Text style={styles.arrivalPlanTitle}>{experience.routePlan.arrivalPlan.label}</Text><Text style={styles.arrivalPlanBody}>{experience.routePlan.arrivalPlan.instruction}</Text><Text style={styles.arrivalPlanMeta}>{experience.routePlan.arrivalPlan.durationMinutes} min{experience.routePlan.arrivalPlan.radiusMeters ? ` · tot circa ${experience.routePlan.arrivalPlan.radiusMeters} m rond het anker` : ''}</Text><Text style={styles.arrivalPlanReturn}>{experience.routePlan.arrivalPlan.returnTrigger}</Text></View>}
         <Text style={styles.routeGuard}>{experience.routePlan.natureGuard}</Text>
       </View>}
-      {experience.placeKnowledge && <View style={styles.placeKnowledgeCard}>
+      {experience.placeKnowledge && <View style={{ gap: 12, paddingVertical: 12 }}>
         <Text style={styles.placeKnowledgeLabel}>VERHAAL VAN DE PLEK</Text>
         <Text style={styles.placeKnowledgeTitle}>{experience.placeKnowledge.title}</Text>
         <Text style={styles.placeKnowledgeBody}>{experience.placeKnowledge.summary}</Text>
-        <Pressable accessibilityRole="link" accessibilityLabel={`Open bron over ${experience.placeKnowledge.title}`} onPress={() => Linking.openURL(experience.placeKnowledge!.sourceUrl).catch(() => undefined)}><Text style={[styles.placeKnowledgeSource, { color: phase.prepare.text }]}>{experience.placeKnowledge.sourceLabel} · Bekijk bron <Ionicons name="open-outline" size={11} color={phase.prepare.text} /></Text></Pressable>
+        <Pressable accessibilityRole="link" accessibilityLabel={`Open bron over ${experience.placeKnowledge.title}`} style={ed.row} onPress={() => { setSourceError(''); Linking.openURL(experience.placeKnowledge!.sourceUrl).catch(() => setSourceError('De bron kon niet worden geopend. Probeer het later opnieuw.')); }}><Text style={ed.body}>{experience.placeKnowledge.sourceLabel} · Bekijk bron ↗</Text></Pressable>
+        {!!sourceError && <Text accessibilityRole="alert" style={ed.small}>{sourceError}</Text>}
       </View>}
       {/* ADR-065, fase 1: maximaal één zichtbare vraag — met wie. Dit is de
           meest ervaringsgerichte keuze; de rest zijn slimme standaardwaarden. */}
-      <Text style={styles.fieldLabel}>MET WIE BELEEF JE DIT?</Text><View style={styles.chipRow}>{companyChoices.filter((item) => supportedCompanies.includes(item.id)).map((item) => <ChoiceChip key={item.id} label={item.label} selected={company === item.id} onPress={() => chooseCompany(item.id)} />)}</View>
-      <View style={styles.readySummary}>
-        <View style={styles.flex}><Text style={styles.readySummaryLabel}>ALLES STAAT KLAAR</Text><Text style={styles.readySummaryTitle}>{companyLabel}{experience.routePlan ? ` · ${transportLabels[transport].toLowerCase()}` : ''} · {guideDepthLabel}</Text></View>
-        <Pressable accessibilityRole="button" accessibilityState={{ expanded: detailsOpen }} onPress={() => setDetailsOpen((value) => !value)} style={styles.adjustButton}><Text style={styles.adjustButtonText}>{detailsOpen ? 'Sluit' : 'Aanpassen'}</Text></Pressable>
+      <EditorialDisclosure title={`Met wie? · ${companyLabel}`}>{companyChoices.filter(item => supportedCompanies.includes(item.id)).map(item => <EditorialAction key={item.id} title={item.label} selected={company === item.id} onPress={() => chooseCompany(item.id)} />)}</EditorialDisclosure>
+      <View style={[ed.section, { paddingVertical: 12, gap: 8 }]}>
+        <View style={styles.flex}><Text style={ed.small}>{companyLabel}{experience.routePlan ? ` · ${transportLabels[transport].toLowerCase()}` : ''} · {guideDepthLabel}</Text></View>
+        <Pressable accessibilityRole="button" aria-expanded={detailsOpen} accessibilityState={{ expanded: detailsOpen }} onPress={() => setDetailsOpen((value) => !value)} style={ed.row}><Text style={ed.body}>{detailsOpen ? 'Begeleiding en samen afstemmen −' : 'Begeleiding en samen afstemmen +'}</Text></Pressable>
       </View>
       {detailsOpen && <>
       {experience.routePlan && <>
       <Text style={styles.fieldLabel}>HOE GA JE?</Text><View style={styles.chipRow}>{(['walking', 'cycling'] as TransportMode[]).map((mode) => <ChoiceChip key={mode} label={transportLabels[mode]} selected={transport === mode} onPress={() => setTransport(mode)} />)}</View>
       </>}
-      {company !== 'solo' && <View style={styles.sharedPlanCard}>
+      {company !== 'solo' && <View style={{ gap: 12, paddingVertical: 12 }}>
         <Text style={styles.expectationLabel}>SAMEN AFSTEMMEN</Text>
         <Text style={styles.sharedPlanTitle}>Hoe komen jullie samen bij het begin?</Text>
         <View style={styles.guideDepthList}>
-          <Pressable onPress={() => { impactLight(); setCoordination('leave-together'); }} style={[styles.guideDepthChoice, coordination === 'leave-together' && styles.guideDepthChoiceSelected]}><View style={styles.flex}><Text style={styles.guideDepthTitle}>Samen vertrekken</Text><Text style={styles.guideDepthBody}>Eén toestel kan de voorbereiding en gids dragen.</Text></View><Ionicons name={coordination === 'leave-together' ? 'radio-button-on' : 'radio-button-off'} size={17} color={coordination === 'leave-together' ? colors.accent : colors.muted} /></Pressable>
-          <Pressable onPress={() => { impactLight(); setCoordination('meet-there'); }} style={[styles.guideDepthChoice, coordination === 'meet-there' && styles.guideDepthChoiceSelected]}><View style={styles.flex}><Text style={styles.guideDepthTitle}>Ontmoet bij het startpunt</Text><Text style={styles.guideDepthBody}>Iedereen regelt de eigen reis; de ervaring begint samen.</Text></View><Ionicons name={coordination === 'meet-there' ? 'radio-button-on' : 'radio-button-off'} size={17} color={coordination === 'meet-there' ? colors.accent : colors.muted} /></Pressable>
+          <Pressable accessibilityRole="radio" aria-checked={coordination === 'leave-together'} accessibilityState={{ checked: coordination === 'leave-together' }} onPress={() => { impactLight(); setCoordination('leave-together'); }} style={[ed.row, { gap: 12 }]}><View style={styles.flex}><Text style={ed.body}>Samen vertrekken</Text><Text style={ed.small}>Eén toestel kan de voorbereiding en gids dragen.</Text></View><Ionicons name={coordination === 'leave-together' ? 'radio-button-on' : 'radio-button-off'} size={17} color={coordination === 'leave-together' ? colors.accent : colors.muted} /></Pressable>
+          <Pressable accessibilityRole="radio" aria-checked={coordination === 'meet-there'} accessibilityState={{ checked: coordination === 'meet-there' }} onPress={() => { impactLight(); setCoordination('meet-there'); }} style={[ed.row, { gap: 12 }]}><View style={styles.flex}><Text style={ed.body}>Ontmoet bij het startpunt</Text><Text style={ed.small}>Iedereen regelt de eigen reis; de ervaring begint samen.</Text></View><Ionicons name={coordination === 'meet-there' ? 'radio-button-on' : 'radio-button-off'} size={17} color={coordination === 'meet-there' ? colors.accent : colors.muted} /></Pressable>
         </View>
         {shared ? <View style={styles.participantList}>
           {shared.participants.map((participant) => <View key={participant.id} style={styles.participantRow}><View style={[styles.participantAvatar, participant.status === 'ready' && styles.participantAvatarReady]}><Text style={styles.participantAvatarText}>{participant.name.slice(0, 1).toUpperCase()}</Text></View><View style={styles.flex}><Text style={styles.participantName}>{participant.name}</Text><Text style={styles.participantStatus}>{participant.role === 'host' ? 'Organiseert' : participant.status === 'ready' ? 'Doet mee op dit toestel' : 'Uitnodiging gedeeld'}</Text></View></View>)}
           <Text style={styles.localSharedNote}>Alleen deze ervaring wordt gedeeld. Profiel, agenda, locatiegeschiedenis en redenen achter de aanbeveling blijven privé.</Text>
         </View> : null}
-        {shared?.role !== 'guest' && <Pressable onPress={shareExperience} style={styles.shareCard}><View style={styles.shareMark}><Ionicons name="share-social-outline" size={18} color={colors.accent} /></View><View style={styles.flex}><Text style={styles.shareTitle}>{shared ? 'Deel uitnodiging opnieuw' : 'Nodig iemand uit'}</Text><Text style={styles.shareBody}>De ontvanger kan de kaart openen, bekijken en meedoen op het eigen toestel.</Text></View><Ionicons name="arrow-forward" size={21} color={colors.gold} /></Pressable>}
+        {shared?.role !== 'guest' && <Pressable accessibilityRole="button" onPress={shareExperience} style={[ed.row, { gap: 12 }]}><View style={styles.shareMark}><Ionicons name="share-social-outline" size={18} color={colors.accent} /></View><View style={styles.flex}><Text style={styles.shareTitle}>{shared ? 'Deel uitnodiging opnieuw' : 'Nodig iemand uit'}</Text><Text style={styles.shareBody}>De ontvanger kan de kaart openen, bekijken en meedoen op het eigen toestel.</Text></View><Ionicons name="arrow-forward" size={21} color={colors.gold} /></Pressable>}
         {shareStatus ? <Text style={styles.shareStatus}>{shareStatus}</Text> : null}
-        {shared && <Pressable onPress={() => { setShared(undefined); setShareStatus('Gedeelde voorbereiding is op dit toestel gestopt.'); }} style={styles.stopSharingButton}><Text style={styles.stopSharingText}>{shared.role === 'guest' ? 'Verlaat gedeelde voorbereiding' : 'Trek deze lokale uitnodiging in'}</Text></Pressable>}
+        {shared && <Pressable accessibilityRole="button" onPress={() => { setShared(undefined); setShareStatus('Gedeelde voorbereiding is op dit toestel gestopt.'); }} style={ed.row}><Text style={styles.stopSharingText}>{shared.role === 'guest' ? 'Verlaat gedeelde voorbereiding' : 'Trek deze lokale uitnodiging in'}</Text></Pressable>}
       </View>}
       <Text style={styles.fieldLabel}>HOEVEEL BEGELEIDING WIL JE?</Text><View style={styles.guideDepthList}>
-        {([{ id: 'quiet', title: 'Rustig', body: 'Alleen de huidige aanwijzing; de gids blijft op afroep beschikbaar.' }, { id: 'guide', title: 'Gids', body: 'Huidige uitleg en actuele bronnen precies wanneer ze helpen.' }, { id: 'deep', title: 'Verdieping', body: 'Ook extra verhalen, alle inzichten en praktische achtergrond.' }] as Array<{ id: GuideDepth; title: string; body: string }>).map((item) => <Pressable accessibilityRole="radio" accessibilityState={{ selected: guideDepth === item.id }} key={item.id} onPress={() => { impactLight(); setGuideDepth(item.id); }} style={[styles.guideDepthChoice, guideDepth === item.id && styles.guideDepthChoiceSelected]}><View style={styles.flex}><Text style={styles.guideDepthTitle}>{item.title}</Text><Text style={styles.guideDepthBody}>{item.body}</Text></View><Ionicons name={guideDepth === item.id ? 'radio-button-on' : 'radio-button-off'} size={17} color={guideDepth === item.id ? colors.accent : colors.muted} /></Pressable>)}
+        {([{ id: 'quiet', title: 'Rustig', body: 'Alleen de huidige aanwijzing; de gids blijft op afroep beschikbaar.' }, { id: 'guide', title: 'Gids', body: 'Huidige uitleg en actuele bronnen precies wanneer ze helpen.' }, { id: 'deep', title: 'Verdieping', body: 'Ook extra verhalen, alle inzichten en praktische achtergrond.' }] as Array<{ id: GuideDepth; title: string; body: string }>).map((item) => <Pressable accessibilityRole="radio" aria-checked={guideDepth === item.id} accessibilityState={{ checked: guideDepth === item.id }} key={item.id} onPress={() => { impactLight(); setGuideDepth(item.id); }} style={[ed.row, { gap: 12 }]}><View style={styles.flex}><Text style={ed.body}>{item.title}</Text><Text style={ed.small}>{item.body}</Text></View><Ionicons name={guideDepth === item.id ? 'radio-button-on' : 'radio-button-off'} size={17} color={guideDepth === item.id ? colors.accent : colors.muted} /></Pressable>)}
       </View>
       </>}
       {/* Waarom/bron-laag (ADR-065, fase 1): eerlijkheid blijft één tik dieper
           beschikbaar — actuele aanwijzingen met bronnen, en de aannames achter
           tijden en geldigheid. Nooit als hoofdtekst. */}
-      <Pressable accessibilityRole="button" accessibilityState={{ expanded: whyOpen }} onPress={() => setWhyOpen((value) => !value)} style={styles.learningDisclosure}><View style={styles.flex}><Text style={styles.learningDisclosureTitle}>Waarom dit plan?</Text><Text style={styles.learningDisclosureBody}>{whyOpen ? 'Sluit de uitleg' : 'Actuele aanwijzingen, bronnen en aannames'}</Text></View><Ionicons name={whyOpen ? 'chevron-up' : 'chevron-down'} size={18} color={colors.gold} /></Pressable>
+      <Pressable accessibilityRole="button" aria-expanded={whyOpen} accessibilityState={{ expanded: whyOpen }} onPress={() => setWhyOpen((value) => !value)} style={[ed.section, ed.row]}><View style={styles.flex}><Text style={ed.body}>Waarom dit plan?</Text></View><Text accessible={false} style={ed.body}>{whyOpen ? '−' : '+'}</Text></Pressable>
       {whyOpen && <>
-      {freshEvidence.length ? <View style={styles.prepareLiveCard}><Text style={styles.liveEvidenceTitle}>WAT DE WERELD NU LAAT ZIEN</Text>{freshEvidence.slice(0, 3).map((evidence) => <View key={`${evidence.sourceName}-${evidence.label}`} style={styles.prepareLiveRow}><View style={styles.liveEvidenceDot} /><View style={styles.flex}><Text style={styles.liveEvidenceLabel}>{evidence.label}</Text><Text style={styles.liveEvidenceMeta}>{evidence.sourceName} · {evidence.certainty === 'observation' ? 'recente waarneming' : 'actuele verwachting'} · {evidence.freshnessLabel.toLowerCase()}</Text></View></View>)}</View> : <View style={styles.editorialDepthCard}><Text style={styles.expectationLabel}>TIJDENS JE ERVARING</Text><Text style={styles.editorialDepthText}>{experience.steps.find((step) => step.insight)?.insight?.title ?? experience.wonder}</Text>{guide.evidence.some((item) => item.freshness === 'expired') ? <Text style={styles.expiredEvidenceText}>Eerdere broncontext is verlopen en wordt niet meer als actuele aanwijzing gebruikt.</Text> : null}</View>}
-      {experience.routePlan && <View style={styles.commitmentCard}>
+      {freshEvidence.length ? <View style={{ gap: 12, paddingVertical: 12 }}><Text style={styles.liveEvidenceTitle}>WAT DE WERELD NU LAAT ZIEN</Text>{freshEvidence.slice(0, 3).map((evidence) => <View key={`${evidence.sourceName}-${evidence.label}`} style={styles.prepareLiveRow}><View style={styles.liveEvidenceDot} /><View style={styles.flex}><Text style={styles.liveEvidenceLabel}>{evidence.label}</Text><Text style={styles.liveEvidenceMeta}>{evidence.sourceName} · {evidence.certainty === 'observation' ? 'recente waarneming' : 'actuele verwachting'} · {evidence.freshnessLabel.toLowerCase()}</Text></View></View>)}</View> : <View style={{ gap: 12, paddingVertical: 12 }}><Text style={styles.expectationLabel}>TIJDENS JE ERVARING</Text><Text style={styles.editorialDepthText}>{experience.steps.find((step) => step.insight)?.insight?.title ?? experience.wonder}</Text>{guide.evidence.some((item) => item.freshness === 'expired') ? <Text style={styles.expiredEvidenceText}>Eerdere broncontext is verlopen en wordt niet meer als actuele aanwijzing gebruikt.</Text> : null}</View>}
+      {experience.routePlan && <View style={{ gap: 12, paddingVertical: 12 }}>
         <Text style={styles.commitmentLabel}>ZO ZIJN TIJDEN EN BRONNEN OPGEBOUWD</Text>
         <Text style={styles.commitmentBody}>Je gaat {transportLabels[transport].toLowerCase()} · rustig geschat (conservatieve voorinschatting){experience.routePlan.sourceLabel ? ` · ${experience.routePlan.sourceLabel}` : ''}</Text>
         {transport !== experience.routePlan.mode && <Text style={styles.commitmentBody}>De tijdsinschatting is samengesteld voor {transportLabels[experience.routePlan.mode].toLowerCase()}; jouw keuze past het plan aan zonder die eerlijke marge te verkorten.</Text>}
@@ -361,7 +349,7 @@ export function PrepareScreen() {
         {experience.routePlan.expiresAt && <Text style={styles.commitmentBody}>Bronvenster geldig tot {new Date(experience.routePlan.expiresAt).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })}. Vlak voor vertrek volgt een nieuwe geldigheidscontrole.</Text>}
         {experience.routePlan.recheckLabel && <Text style={styles.commitmentBody}>{experience.routePlan.recheckLabel}</Text>}
       </View>}
-      <View style={styles.commitmentCard}><Text style={styles.commitmentLabel}>ZO IS DIT PLAN SAMENGESTELD</Text><Text style={styles.commitmentBody}>{guide.coverageLabel}{guide.compositionLabel ? ` · ${guide.compositionLabel}` : ''}.</Text></View>
+      <View style={{ gap: 12, paddingVertical: 12 }}><Text style={styles.commitmentLabel}>ZO IS DIT PLAN SAMENGESTELD</Text><Text style={styles.commitmentBody}>{guide.coverageLabel}{guide.compositionLabel ? ` · ${guide.compositionLabel}` : ''}.</Text></View>
       </>}
     </ScrollView>
     {/* Go-CTA volgens concept: titel + eerlijke subregel + pijl; start
@@ -373,7 +361,7 @@ export function PrepareScreen() {
         onPress={() => { impactMedium(); onStart(company, guideDepth, shared ? { ...shared, coordination } : undefined, transport); }}
         style={({ pressed }) => [vp.cta, pressed && vp.pressed]}
       >
-        <View>
+        <View style={{ flex: 1 }}>
           <Text style={vp.ctaTitle}>{startLabel}</Text>
           <Text style={vp.ctaSub}>{startDetail}</Text>
         </View>
@@ -469,10 +457,10 @@ const vp = schemeStyles(({ colors: schemeColors }) => {
     accentInkSolid: palette.accentInk,
     gradientStart: palette.gradientStart,
     gradientEnd: palette.gradientEnd,
-    head: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 22, paddingTop: 10, paddingBottom: 12 },
+    head: { flexDirection: 'row', alignItems: 'center', gap: 12 },
     back: {
       width: 44, height: 44, borderRadius: 19, alignItems: 'center', justifyContent: 'center',
-      backgroundColor: palette.glass, borderTopWidth: 1, borderTopColor: palette.line,
+      backgroundColor: 'transparent',
     },
     headTitle: { fontSize: 14.5, fontWeight: '600', color: palette.ink },
     headSub: { fontSize: 11.5, color: palette.ink2, marginTop: 1 },
@@ -496,24 +484,23 @@ const vp = schemeStyles(({ colors: schemeColors }) => {
     countBarLabels: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
     countBarLabel: { fontSize: 10, color: palette.ink2, fontWeight: '500' },
     card: {
-      marginHorizontal: 20, marginTop: 24, borderRadius: 0, paddingHorizontal: 0, paddingVertical: 14,
-      backgroundColor: palette.glass, borderTopWidth: 1, borderTopColor: palette.line,
+      borderRadius: 0, paddingVertical: 14,
+      backgroundColor: 'transparent', borderTopWidth: 1, borderTopColor: palette.line,
     },
     cardHead: { flexDirection: 'row', alignItems: 'center', gap: 9, marginBottom: 10 },
     cardTitle: { fontSize: 11, letterSpacing: 1.6, fontWeight: '700', color: palette.ink2, textTransform: 'uppercase' },
     row: { flexDirection: 'row', alignItems: 'center', gap: 11, paddingVertical: 7 },
     rowBorder: { borderTopWidth: 1, borderTopColor: palette.rowLine },
     rowIcon: {
-      width: 32, height: 32, borderRadius: 11, backgroundColor: palette.iconTile,
+      width: 24, height: 32, backgroundColor: 'transparent',
       alignItems: 'center', justifyContent: 'center',
     },
     stepNo: {
-      width: 24, height: 24, borderRadius: 12, backgroundColor: palette.iconTile,
-      borderWidth: 1, borderColor: palette.line,
+      width: 24, minHeight: 24, backgroundColor: 'transparent',
       alignItems: 'center', justifyContent: 'center',
     },
-    stepNoText: { fontSize: 10.5, fontWeight: '700', color: palette.accent },
-    rowTitle: { fontSize: 16, fontWeight: '600', color: palette.ink },
+    stepNoText: { fontSize: 13, fontWeight: '700', color: palette.accent },
+    rowTitle: { fontSize: 17, lineHeight: 26, fontWeight: '400', color: palette.ink },
     rowSub: { fontSize: 14, color: palette.ink2, marginTop: 1 },
     rowTrailing: { fontSize: 11.5, fontWeight: '600', color: palette.ink2 },
     briefingLoading: { fontSize: 12, color: palette.ink2, fontWeight: '500', paddingVertical: 4 },
@@ -523,8 +510,8 @@ const vp = schemeStyles(({ colors: schemeColors }) => {
     briefingFootnote: { fontSize: 9.5, lineHeight: 13, color: palette.ink2, marginTop: 8, fontStyle: 'italic' },
     cta: {
       flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-      backgroundColor: palette.accent, borderRadius: 999, paddingVertical: 14, paddingHorizontal: 20,
-      shadowColor: palette.glow, shadowOpacity: 0.9, shadowRadius: 26, shadowOffset: { width: 0, height: 10 }, elevation: 10,
+      backgroundColor: palette.accent, borderRadius: 10, paddingVertical: 14, paddingHorizontal: 20, minHeight: 52, gap: 12,
+      
     },
     ctaTitle: { fontSize: 15.5, fontWeight: '700', letterSpacing: -0.1, color: palette.accentInk },
     ctaSub: { fontSize: 10.5, fontWeight: '600', color: palette.accentInk, opacity: 0.7, marginTop: 1 },
