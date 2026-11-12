@@ -26,6 +26,8 @@ export const referenceExperiences: Experience[] = [
   {
     ...base, image: referenceImages.moddergat.uri, id: 'reference-moddergat-v1', kind: 'culture', title: 'Moddergat — leven bij de zee',
     visitPlace: {
+      openingHours: { text: 'Gepubliceerd seizoen 2026: 14 februari t/m 31 oktober, maandag t/m zaterdag 10.00–17.00. Feestdagen en zondagen in juni, juli en augustus: 12.00–17.00, onder voorbehoud van wijzigingen. Buiten deze periode is de actuele openstelling hier niet bevestigd.', sourceUrl: 'https://www.museummoddergat.nl/bezoekersinfo/', checkedAt: '2026-11-12', validUntil: '2026-11-01T00:00:00+01:00' },
+      admission: { text: 'Gepubliceerde tarieven: volwassenen € 6,50; kinderen 7–16 jaar € 3,50; kinderen 0–6 jaar en Museumkaart gratis. Controleer de bron voor overige tarieven, voorwaarden en wijzigingen.', sourceUrl: 'https://www.museummoddergat.nl/bezoekersinfo/', checkedAt: '2026-11-12' },
       name: 'Museum ’t Fiskershúske', address: 'Fiskerspaad 4–8a, 9142 VN Moddergat',
       latitude: 53.404949, longitude: 6.075724,
       sourceUrl: 'https://www.museummoddergat.nl/bezoekersinfo/',

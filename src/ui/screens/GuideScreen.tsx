@@ -36,7 +36,7 @@ import {
 import { briefingSourceLine } from '../../liveworld/briefingFacts';
 import { chapterIds, restoreAdaptiveGuide, supportsAdaptiveGuide } from '../../guidance/adaptiveGuide';
 import { DiscoverChapter, GuideModeBar, GuideModeScene } from '../guide/AdaptiveGuide';
-import { guideDestination } from '../../guidance/guideDestination';
+import { currentPlace, currentDestination } from '../../guidance/placeInformation';
 
 // DE GIDS — het enige onderweg-scherm (vervolg op ADR-067, fase R4). De
 // vroegere drie vormen van begeleiding — het Presence-scherm, de
@@ -61,8 +61,6 @@ import { guideDestination } from '../../guidance/guideDestination';
 export function GuideScreen() {
   const { selected: experience, personalProfile: personal, activeSession, sessionSaveError, retrySessionSave, updatePresenceStep, updateGuideMode, toggleCurrentGuideTask, presenceBack, finishPresence, discardSession, liveWorld, prototypeContext } = useApp();
   const adaptive = supportsAdaptiveGuide(experience);
-  const routePoint = guideDestination(experience.routePlan);
-  const routeTarget = experience.visitPlace?.address ?? (routePoint ? `${routePoint.latitude},${routePoint.longitude}` : undefined);
   const adaptiveState = restoreAdaptiveGuide(experience, activeSession?.experienceId === experience.id ? activeSession.adaptiveGuide : undefined, activeSession?.stepIndex ?? 0);
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const company = activeSession?.company ?? personal.defaultCompany;
@@ -91,6 +89,8 @@ export function GuideScreen() {
   const [factsOpen, setFactsOpen] = useState(false);
   const [handoffStatus, setHandoffStatus] = useState('');
   const current = experience.steps[stepIndex] ?? { title: experience.presenceTitle, instruction: experience.presenceCue };
+  const routePoint = currentDestination(experience, current);
+  const routeTarget = currentPlace(experience, current)?.address || (routePoint ? String(routePoint.latitude) + ',' + String(routePoint.longitude) : undefined);
   const editorialComposition = current.editorial?.composition === 'editorial-place';
   const insightVisible = guideDepth !== 'quiet' && current.insight && (guideDepth === 'deep' || personal.guidanceBalance > -0.2) && !personal.mutedInsightTopics.includes(current.insight.topic) && !personal.mutedInsightExperienceIds.includes(experience.id);
   const isLast = stepIndex >= experience.steps.length - 1;
@@ -227,7 +227,7 @@ export function GuideScreen() {
           <Text style={gd.headTitle}>Gids</Text>
           <Text style={gd.headSub} numberOfLines={1}>{experience.duration} min · {company === 'solo' ? 'alleen' : company === 'family' ? 'met gezin' : 'samen'}</Text>
         </View>
-        {!!routeTarget && <Pressable accessibilityRole="button" accessibilityLabel="Open route in Kaarten" onPress={openHandoff} style={gd.iconbtn}>
+        {!!routeTarget && <Pressable accessibilityRole="button" accessibilityLabel={adaptive ? 'Bekijk deze plek op de kaart' : 'Open route in Kaarten'} onPress={adaptive ? () => updateGuideMode('navigate') : openHandoff} style={gd.iconbtn}>
           <Feather name="map-pin" size={16} color={gd.inkSolid as string} />
         </Pressable>}
       </View>
@@ -262,7 +262,7 @@ export function GuideScreen() {
           <View style={styles.flex}><Text style={gd.rowTitle}>Eén gedeelde ervaring</Text><Text style={gd.rowSub}>{shared.coordination === 'meet-there' ? 'Jullie ontmoetten elkaar bij het begin.' : 'Jullie begonnen samen.'} Deze gids loopt alleen op dit toestel.</Text></View>
         </View>}
         {adaptive ? <DiscoverChapter key={adaptiveState.chapterId} step={current} index={stepIndex} total={experience.steps.length}
-          completed={adaptiveState.completedTaskIds.includes(adaptiveState.chapterId)} onToggle={toggleCurrentGuideTask} onObserve={() => updateGuideMode('immerse')} showInsight={Boolean(insightVisible)} /> : <>
+          completed={adaptiveState.completedTaskIds.includes(adaptiveState.chapterId)} onToggle={toggleCurrentGuideTask} onObserve={() => updateGuideMode('immerse')} experience={experience} onNavigate={() => updateGuideMode('navigate')} showInsight={Boolean(insightVisible)} /> : <>
         <Text style={gd.stepTitle}>{current.title}</Text>
         {current.meta && <View style={gd.stepMetaPill}><Text style={gd.stepMetaText}>{current.meta}</Text></View>}
         <Text style={gd.stepCue}>{current.instruction}</Text>

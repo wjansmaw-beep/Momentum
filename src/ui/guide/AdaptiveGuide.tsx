@@ -7,7 +7,8 @@ import type { CapsuleStep, Experience } from '../../product/experienceModel';
 import type { GuideMode } from '../../guidance/adaptiveGuide';
 import { colors, schemeStyles, typography } from '../../design/theme';
 import { CoverImage, ImageShade } from '../CoverImage';
-import { guideDestination } from '../../guidance/guideDestination';
+import { currentPlace, currentDestination } from '../../guidance/placeInformation';
+import { PlaceDetails } from './PlaceDetails';
 import { GuideOrientationMap } from './GuideOrientationMap';
 import { renderableBlocks } from '../../guidance/experienceRenderer';
 import { NarrationPlayer } from './NarrationPlayer';
@@ -33,8 +34,8 @@ export function GuideModeBar({ mode, onChange }: { mode: GuideMode; onChange: (m
 }
 
 // Historical task fields remain in sessions; reading no longer asks for completion.
-export function DiscoverChapter({ step, index, total, showInsight, onObserve }: {
-  step: CapsuleStep; index: number; total: number; completed: boolean; onToggle: () => void; showInsight: boolean; onObserve?: () => void;
+export function DiscoverChapter({ step, index, total, showInsight, onObserve, experience, onNavigate }: {
+  step: CapsuleStep; index: number; total: number; completed: boolean; onToggle: () => void; showInsight: boolean; onObserve?: () => void; experience?: Experience; onNavigate?: () => void;
 }) {
   const [photoFailed, setPhotoFailed] = useState(false);
   const [sourceError, setSourceError] = useState('');
@@ -50,12 +51,14 @@ export function DiscoverChapter({ step, index, total, showInsight, onObserve }: 
     {intro && <Text style={s.lead}>{intro.promise}</Text>}
     {story && <Text style={s.body}>{story.text}</Text>}
     {step.meta && <Text style={s.meta}>{step.meta}</Text>}
+    {onNavigate && experience && currentPlace(experience, step) && <Pressable accessibilityRole="button" onPress={onNavigate} style={s.disclosure}><Text style={s.body}>Naar deze plek →</Text></Pressable>}
     {depth && <EditorialDisclosure title="Verdiep het verhaal"><Text style={s.body}>{depth.text}</Text></EditorialDisclosure>}
     <EditorialDisclosure title="Kijk eens om je heen">
       <Text style={s.body}>{step.instruction}</Text>
       {intro && <Text style={s.source}>{intro.outside}</Text>}
       {onObserve && <Pressable accessibilityRole="button" onPress={onObserve} style={s.disclosure}><Text style={s.body}>Rustig observeren →</Text></Pressable>}
     </EditorialDisclosure>
+    {experience && <PlaceDetails place={currentPlace(experience, step)} />}
     {(evidence || intro) && <EditorialDisclosure title="Feiten en bronnen">
       {evidence && <>
         <Text style={s.source}>{evidence.provenance} · {evidence.label}{evidence.reviewedAt ? ' · nagekeken ' + evidence.reviewedAt : ''}</Text>
@@ -75,9 +78,9 @@ export function GuideModeScene({ mode, experience, step, index, onDiscover, onQu
 }) {
   const editorial = step.editorial?.composition === 'editorial-place';
   const [observing, setObserving] = useState(editorial);
-  const place = experience.visitPlace;
+  const place = currentPlace(experience, step);
   const hasRoute = Boolean(place || experience.routePlan?.destination || experience.routePlan?.destinationName);
-  const destination = place ? guideDestination({ destination: place, destinationName: place.name }) : guideDestination(experience.routePlan);
+  const destination = currentDestination(experience, step);
   const [placeError, setPlaceError] = useState(false);
   const narration = referenceAudio(experience.id, step);
   return <ScrollView contentContainerStyle={s.sceneScroll}>

@@ -10,7 +10,25 @@ export type GuidedInsight = {
   sourceLabel: string;
   sourceUrl?: string;
 };
+export type PlaceInformation = {
+  text: string;
+  sourceUrl: string;
+  checkedAt: string;
+  validUntil?: string;
+};
+export type VisitPlace = {
+  name: string;
+  address: string;
+  latitude: number;
+  longitude: number;
+  sourceUrl: string;
+  coordinateSourceUrl: string;
+  note: string;
+  openingHours?: PlaceInformation;
+  admission?: PlaceInformation;
+};
 export type CapsuleStep = {
+  visitPlace?: VisitPlace;
   editorial?: {
     composition?: 'editorial-place';
     introduction?: { title: string; promise: string; outside: string };
@@ -68,15 +86,7 @@ export type RoutePlan = {
 
 export type Experience = {
   referenceVisit?: boolean;
-  visitPlace?: {
-    name: string;
-    address: string;
-    latitude: number;
-    longitude: number;
-    sourceUrl: string;
-    coordinateSourceUrl: string;
-    note: string;
-  };
+  visitPlace?: VisitPlace;
   id: string;
   kind: ExperienceKind;
   title: string;
