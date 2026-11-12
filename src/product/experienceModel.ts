@@ -31,6 +31,7 @@ export type CapsuleStep = {
   visitPlace?: VisitPlace;
   editorial?: {
     composition?: 'editorial-place';
+    photoKey?: string;
     introduction?: { title: string; promise: string; outside: string };
     id: string;
     version: number;

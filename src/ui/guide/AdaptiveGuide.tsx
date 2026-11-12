@@ -12,9 +12,10 @@ import { GuideOrientationMap } from './GuideOrientationMap';
 import { renderableBlocks } from '../../guidance/experienceRenderer';
 import { NarrationPlayer } from './NarrationPlayer';
 import { referenceAudio } from './referenceAudio';
-import { referenceImages } from '../../product/referenceImages';
-declare function require(path: string): number;
-const museumPhoto = require('../../../assets/images/moddergat-fiskershuske-bouwe-brouwer-2007.jpg');
+import { resolveChapterPhoto } from '../../product/chapterPhotos';
+import { localChapterImages } from './chapterImages';
+
+
 
 
 
@@ -57,13 +58,14 @@ export function DiscoverChapter({ step, index, total, showInsight, onObserve, ex
   const [photoFailed, setPhotoFailed] = useState(false);
   const [sourceError, setSourceError] = useState('');
   const intro = step.editorial?.composition === 'editorial-place' ? step.editorial.introduction : undefined;
+  const photo = resolveChapterPhoto(experience?.id, step);
   const blocks = renderableBlocks(step, showInsight);
   const story = blocks.find(block => block.kind === 'story');
   const depth = blocks.find(block => block.kind === 'depth');
   const evidence = blocks.find(block => block.kind === 'evidence');
   return <View style={[s.read, s.editorialRead]}>
 
-    {intro && (!photoFailed ? <View style={s.documentaryPhoto}><Image source={museumPhoto} resizeMode="contain" accessibilityLabel="Museumhuisje ’t Fiskershúske, foto uit 2007" style={{ width: '100%', height: '100%' }} onError={() => setPhotoFailed(true)} /></View> : <Text style={s.source}>Foto niet beschikbaar. Je kunt verder lezen.</Text>)}
+    {photo && (!photoFailed ? <View style={[s.documentaryPhoto, { aspectRatio: photo.aspectRatio }]}><Image source={localChapterImages[photo.key]} resizeMode="contain" accessibilityLabel={photo.alt} style={{ width: '100%', height: '100%' }} onError={() => setPhotoFailed(true)} /></View> : <Text style={s.source}>Foto niet beschikbaar. Je kunt verder lezen.</Text>)}
     <Text accessibilityRole="header" style={s.title}>{intro?.title ?? story?.title ?? step.title}</Text>
     {intro && <Text style={s.lead}>{intro.promise}</Text>}
     {story && <Text style={s.body}>{story.text}</Text>}
@@ -76,14 +78,14 @@ export function DiscoverChapter({ step, index, total, showInsight, onObserve, ex
       {onObserve && <Pressable accessibilityRole="button" onPress={onObserve} style={s.disclosure}><Text style={s.body}>Rustig observeren →</Text></Pressable>}
     </EditorialDisclosure>
     {experience && <PlaceDetails place={currentPlace(experience, step)} />}
-    {(evidence || intro) && <EditorialDisclosure title="Feiten en bronnen">
+    {(evidence || photo) && <EditorialDisclosure title="Feiten en bronnen">
       {evidence && <>
         <Text style={s.source}>{evidence.provenance} · {evidence.label}{evidence.reviewedAt ? ' · nagekeken ' + evidence.reviewedAt : ''}</Text>
         {evidence.url && <Pressable accessibilityRole="link" onPress={() => {
           setSourceError(''); Linking.openURL(evidence.url!).catch(() => setSourceError('De bron kon niet worden geopend. Probeer het later opnieuw.'));
         }} style={s.disclosure}><Text style={s.link}>Bekijk de oorspronkelijke bron ↗</Text></Pressable>}
       </>}
-      {intro && <><Text style={s.source}>Museumhuisje ’t Fiskershúske · foto uit 2007, geen actuele opname.</Text><ImageCredit uri={referenceImages.moddergat.uri} original /></>}
+      {photo && <><Text style={s.source}>{photo.caption}</Text><ImageCredit uri={photo.credit.uri} original /></>}
       {!!sourceError && <Text accessibilityLiveRegion="polite" style={s.source}>{sourceError}</Text>}
     </EditorialDisclosure>}
   </View>;
