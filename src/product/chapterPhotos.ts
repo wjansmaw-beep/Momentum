@@ -3,6 +3,9 @@ import { referenceImages } from './referenceImages';
 
 // Reviewed keys only: unknown content never substitutes another place's photo.
 export const chapterPhotos = {
+  "paesens-wadden-2023": {credit: referenceImages.peazensWadden, aspectRatio:1.6075117370892018, alt:"Uitzicht vanaf de dijk bij Paesens-Moddergat op de Waddenzee, april 2023", caption:"Uitzicht bij Paesens-Moddergat richting Schiermonnikoog · april 2023. Omgevingsbeeld, geen foto van het toegangshek."},
+  "moddergat-monument-2023": {credit: referenceImages.monument, aspectRatio:1.5, alt:"Een namenwand van het Vissersmonument, april 2023", caption:"Een deel van het Vissersmonument · april 2023. Geen actuele opname."},
+  "moddergat-fisherwoman-2010": {credit: referenceImages.fisherwoman, aspectRatio:0.75, alt:"De Fiskersfrou: vrouw met kind en manden, gefotografeerd in 2010", caption:"De Fiskersfrou van Hans Jouta · oktober 2010. Geen actuele opname."},
   'moddergat-museum-2007': {
     credit: referenceImages.moddergat, aspectRatio: 2032 / 1524,
     alt: 'Museumhuisje ’t Fiskershúske, foto uit 2007',

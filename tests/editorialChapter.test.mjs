@@ -15,9 +15,9 @@ test('M3 augments one existing chapter without invalidating the unchanged task',
  const state = restoreAdaptiveGuide(experience, {version:1,chapterId:chapterIds(experience)[0],mode:'immerse',completedTaskIds:[chapterIds(experience)[0]]});
  assert.equal(state.mode,'immerse'); assert.equal(state.completedTaskIds.length,1);
 });
-test('quiet preferences remain respected by the same renderer', () => {
+test('quiet reading retains the editorial story but suppresses optional depth', () => {
  const step = referenceExperiences[0].steps[0];
- assert.deepEqual(renderableBlocks(step,false).map(b=>b.kind),['observation']);
+ assert.deepEqual(renderableBlocks(step,false).map(b=>b.kind),['story','evidence','observation']);
  assert.ok(renderableBlocks(step,true).some(b=>b.kind==='evidence' && b.url.startsWith('https://www.museummoddergat.nl/')));
 });
 test('old snapshots are retained rather than upgraded in place', () => {

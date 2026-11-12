@@ -28,3 +28,15 @@ test('resuming the new journey preserves chapter and mode without marking visits
  assert.equal(moddergatJourney.routePlan,undefined);
  assert.match(moddergatJourney.prepare[0],/zonder wandel/);
 });
+
+test('each journey chapter has distinct reviewed photography with credit', async()=>{
+ const {resolveChapterPhoto}=await import('../src/product/chapterPhotos.ts');
+ const photos=moddergatJourney.steps.map(step=>resolveChapterPhoto(moddergatJourney.id,step));
+ assert.ok(photos.every(photo=>photo?.alt && photo?.credit.source && photo?.credit.license));
+ assert.equal(new Set(photos.map(photo=>photo.key)).size,5);
+});
+test('saving the five-place journey preserves media keys and chapter destinations', async()=>{
+ const {parseSaved,serializeSaved}=await import('../src/product/savedExperiences.ts');
+ const saved=[{id:moddergatJourney.id,savedAt:'2026-11-12T12:00:00Z',experience:moddergatJourney}];
+ assert.deepEqual(parseSaved(serializeSaved(saved)),saved);
+});

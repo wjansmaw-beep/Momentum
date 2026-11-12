@@ -25,7 +25,7 @@ test('different reference packs share a finite renderer and per-chapter evidence
       assert.deepEqual(blocks.map(b => b.kind), ['story', 'depth', 'evidence', 'observation']);
       assert.match(blocks.find(b => b.kind === 'evidence').url, /^https:\/\//);
       assert.ok(step.instruction.length && step.editorial.observation.length);
-      assert.deepEqual(renderableBlocks(step, false).map(b => b.kind), ['observation']);
+      assert.deepEqual(renderableBlocks(step, false).map(b => b.kind), step.editorial?.composition === 'editorial-place' ? ['story', 'evidence', 'observation'] : ['observation']);
     }
   }
 });

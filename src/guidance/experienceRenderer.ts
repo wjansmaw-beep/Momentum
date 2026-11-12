@@ -9,7 +9,8 @@ export type ExperienceBlock =
   | { kind: 'evidence'; label: string; url?: string; provenance: string; reviewedAt?: string };
 
 export function renderableBlocks(step: CapsuleStep, showInsight: boolean): ExperienceBlock[] {
-  const insight = showInsight ? step.insight : undefined;
+  // Editorial stories are the core content, not an optional contextual insight.
+  const insight = showInsight || step.editorial?.composition === 'editorial-place' ? step.insight : undefined;
   const blocks: ExperienceBlock[] = [];
   if (insight) blocks.push({ kind: 'story', title: insight.title, text: insight.body });
   if (showInsight && step.editorial?.depth) blocks.push({ kind: 'depth', text: step.editorial.depth });
