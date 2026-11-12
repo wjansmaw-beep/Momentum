@@ -7,7 +7,7 @@ import type { CapsuleStep, Experience } from '../../product/experienceModel';
 import type { GuideMode } from '../../guidance/adaptiveGuide';
 import { colors, schemeStyles, typography } from '../../design/theme';
 import { currentPlace, currentDestination } from '../../guidance/placeInformation';
-import { PlaceDetails } from './PlaceDetails';
+import { PlaceDetails, WalkingDirections } from './PlaceDetails';
 import { GuideOrientationMap } from './GuideOrientationMap';
 import { renderableBlocks } from '../../guidance/experienceRenderer';
 import { NarrationPlayer } from './NarrationPlayer';
@@ -114,9 +114,10 @@ export function GuideModeScene({ mode, experience, step, index, onDiscover, onQu
         {destination && <GuideOrientationMap key={`${destination.latitude}:${destination.longitude}`} destination={destination} />}
         {place && <>
           <Text style={s.sceneText}>{place.address}</Text><Text style={s.sceneText}>{place.note}</Text>
+          <WalkingDirections approach={place.approach} />
           <PlaceDetails place={place} />
           <EditorialDisclosure title="Over deze plek">
-            <Text style={s.source}>De kaart toont de gecontroleerde bestemming. Een wandelroute binnen Momentum is nog niet beschikbaar.</Text>
+            <Text style={s.source}>De kaart toont de bestemming, zonder ingetekende wandelroute. Live afslagbegeleiding is niet beschikbaar.</Text>
             <Pressable accessibilityRole="link" style={s.disclosure} onPress={() => { setPlaceError(false); Linking.openURL(place.sourceUrl).catch(() => setPlaceError(true)); }}><Text style={s.body}>Bezoekersinformatie ↗</Text></Pressable>
             <Pressable accessibilityRole="link" style={s.disclosure} onPress={() => { setPlaceError(false); Linking.openURL(place.coordinateSourceUrl).catch(() => setPlaceError(true)); }}><Text style={s.body}>Bron van het kaartpunt ↗</Text></Pressable>
             {placeError && <Text accessibilityLiveRegion="polite" style={s.source}>De bron kon niet worden geopend.</Text>}

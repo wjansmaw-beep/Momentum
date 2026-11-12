@@ -16,7 +16,15 @@ export type PlaceInformation = {
   checkedAt: string;
   validUntil?: string;
 };
+export type WalkingApproach = {
+  from: string;
+  instructions: string[];
+  note: string;
+  sources: Array<{ title: string; url: string }>;
+  checkedAt: string;
+};
 export type VisitPlace = {
+  approach?: WalkingApproach;
   name: string;
   address: string;
   latitude: number;

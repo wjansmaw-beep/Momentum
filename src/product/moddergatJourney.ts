@@ -1,12 +1,13 @@
 import type { CapsuleStep, Experience } from './experienceModel';
 import { moddergatPlaces } from './moddergatPlaces';
+import { moddergatApproaches } from './moddergatApproaches';
 import { referenceExperiences } from './referenceExperiences';
 
 const museum = referenceExperiences[0];
 function stop(id: string, placeKey: string, title: string, promise: string, story: string,
   observation: string, depth: string, sourceLabel: string, sourceUrl: string, photoKey?: string): CapsuleStep {
   return {
-    title, visitPlace: moddergatPlaces[placeKey], instruction: observation,
+    title, visitPlace: { ...moddergatPlaces[placeKey], approach: moddergatApproaches[placeKey] }, instruction: observation,
     editorial: {
       id, version: 1, composition: 'editorial-place', reviewedAt: '2026-11-12', photoKey,
       introduction: { title, promise, outside: 'Je mag deze plek ook alleen bekijken en verdergaan. Er is niets dat je hoeft af te ronden.' },

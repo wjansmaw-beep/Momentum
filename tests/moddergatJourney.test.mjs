@@ -40,3 +40,14 @@ test('saving the five-place journey preserves media keys and chapter destination
  const saved=[{id:moddergatJourney.id,savedAt:'2026-11-12T12:00:00Z',experience:moddergatJourney}];
  assert.deepEqual(parseSaved(serializeSaved(saved)),saved);
 });
+
+test('walking directions identify their origin and do not invent routing for old snapshots',()=>{
+ assert.equal(moddergatJourney.steps[0].visitPlace.approach,undefined);
+ for(const step of moddergatJourney.steps.slice(1)) {
+  const approach=step.visitPlace.approach;
+  assert.ok(approach.from && approach.instructions.length && approach.note);
+  assert.ok(approach.sources.every(source=>new URL(source.url).protocol==='https:'));
+ }
+ assert.ok(referenceExperiences[0].steps.every(step=>!step.visitPlace?.approach));
+ assert.equal(moddergatJourney.routePlan,undefined);
+});
