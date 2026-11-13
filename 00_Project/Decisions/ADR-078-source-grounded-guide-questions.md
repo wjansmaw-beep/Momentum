@@ -1,7 +1,7 @@
 # ADR-078 — M6: ask your Guide
 
 Status: Product goal and first extractive answer proof accepted; phased implementation underway
-Version: 1.1
+Version: 1.2
 Date: 2026-11-13
 
 ## Product Guardian and authorization
@@ -72,6 +72,10 @@ The app goal tool refused M6 creation because unfinished M4 still occupies the t
 Founder requests proceeding after M4 closure. The first source inventory and extractive fixture contract are implemented in guideEvidence.mjs and guideAnswer.mjs. Museum Over ons reviewed 2026-11-13; paraphrased evidence only, with canonical attribution. No diet/stove facts inferred. Seven tests enforce fixture facts, unknown questions, false premises, request minimization, context isolation and rejecting unsupported additions despite valid citations. Total 171 tests plus scenarios and typecheck pass. This is an explicit fixture-stage contract, not free-form model validation, a deployed endpoint or an iPhone answer flow. Provider integration must not silently relax this evidence gate.
 
 ## Connected fixture increment — 2026-11-13
+
+### Internal iPhone proof authorized — 2026-11-13
+
+Founder explicitly requests the iPhone version after approving the connected proof. Product Guardian identifies that existing preview builds have no Generator URL and would otherwise only show unavailable. Engineering applies the already permitted local editorial fallback: bundle the same three reviewed fixture answers, test exact parity against the server registry, and use them only when no service URL is configured. UI says the answer is local, labels it redactionele uitleg and uses Toon uitleg instead of promising transmission. Unknown questions remain unknown. A configured service is never silently replaced. No provider activation, public exposure, changed keys, session migration or live-AI claim. Add native scroll keyboard insets for the input. This releases the approved proof before provider evaluation; it does not complete M6.
 
 Founder read the first proof, approved it and requested continuing. Product Guardian confirms phases 2–3 fit the existing single Guide. Engineering adds /v1/guide-answer behind existing admission and rate controls, bound to moddergat-five-places-v1:museum:v1. Fixture mode serves only reviewed extractive answers. A selected model is explicitly unavailable on this route until its answering capability is evaluated; no silent fixture substitution, budget bypass or new provider activation. Request/error bodies are not logged by the new route.
 

@@ -1,3 +1,5 @@
+import bundledAnswers from './museumAnswers.json';
+
 export const museumQuestionContext = {
   contractVersion: 'guide-answer-v1', experienceId: 'moddergat-five-places-v1',
   chapterId: 'moddergat-five-places-v1:museum:v1', packVersion: 'moddergat-museum-2026-11-13',
@@ -10,6 +12,15 @@ export type GuideAnswer = {
   sources: { id: string; title: string; url: string; checkedAt: string; scope: string }[];
   limitation?: string;
 };
+// Reviewed editorial content for an unconfigured/offline device. No model claim.
+export function localMuseumAnswer(request: GuideQuestionRequest): GuideAnswer | undefined {
+  const known = bundledAnswers.find(item => item.question.toLocaleLowerCase('nl-NL') === request.question.trim().toLocaleLowerCase('nl-NL'));
+  const raw = known ? { ...known.answer, requestId: request.requestId } : {
+    ...museumQuestionContext, requestId: request.requestId, mode: 'fixture', status: 'insufficient-evidence',
+    segments: [], sources: [], limitation: 'Voor deze vraag is in dit gecontroleerde bronnenpakket geen passend antwoord beschikbaar.',
+  };
+  return parseGuideAnswer(raw, request);
+}
 export function guideAnswerUrl(base?: string): string | undefined {
   if (!base) return;
   try {

@@ -200,7 +200,7 @@ export function GuideScreen() {
   return (
     <FlowFrame>
     <View style={styles.flowScreen}>
-    <ScrollView ref={scrollRef} contentContainerStyle={[styles.flowScroll, gd.scroll, adaptive && { paddingHorizontal: 0 }]} showsVerticalScrollIndicator={false}>
+    <ScrollView ref={scrollRef} automaticallyAdjustKeyboardInsets keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" contentContainerStyle={[styles.flowScroll, gd.scroll, adaptive && { paddingHorizontal: 0 }]} showsVerticalScrollIndicator={false}>
       {!!sessionSaveError && <View><Text accessibilityRole="alert" style={gd.caution}>{sessionSaveError}</Text><Pressable accessibilityRole="button" onPress={retrySessionSave} style={gd.quietAction}><Text style={gd.quietActionText}>Voortgang opnieuw opslaan</Text></Pressable></View>}
       {/* Kop: terug naar Voorpret, naam "Gids", kaart-handoff (de routeapp
           blijft route-eigenaar; de in-app kaart woont alleen in Voorpret). */}

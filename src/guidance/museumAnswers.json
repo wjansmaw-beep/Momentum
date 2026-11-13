@@ -1,0 +1,106 @@
+[
+  {
+    "question": "Hoe oud is het museumhuisje?",
+    "answer": {
+      "contractVersion": "guide-answer-v1",
+      "requestId": "bundled",
+      "experienceId": "moddergat-five-places-v1",
+      "chapterId": "moddergat-five-places-v1:museum:v1",
+      "packVersion": "moddergat-museum-2026-11-13",
+      "mode": "fixture",
+      "status": "answered",
+      "segments": [
+        {
+          "factId": "oldest-house",
+          "text": "Het oudste museumhuisje dateert uit 1794.",
+          "sourceId": "museum-over-ons"
+        },
+        {
+          "factId": "interior-period",
+          "text": "De inrichting verbeeldt een visserswoning aan de waddenkust rond 1850.",
+          "sourceId": "museum-over-ons"
+        }
+      ],
+      "sources": [
+        {
+          "id": "museum-over-ons",
+          "title": "Museum ’t Fiskershúske — Over ons",
+          "url": "https://www.museummoddergat.nl/over-ons/",
+          "checkedAt": "2026-11-13",
+          "scope": "Historische museumcollectie; geen live opening of prijsinformatie."
+        }
+      ]
+    }
+  },
+  {
+    "question": "Wat kan ik in de huisjes zien?",
+    "answer": {
+      "contractVersion": "guide-answer-v1",
+      "requestId": "bundled",
+      "experienceId": "moddergat-five-places-v1",
+      "chapterId": "moddergat-five-places-v1:museum:v1",
+      "packVersion": "moddergat-museum-2026-11-13",
+      "mode": "fixture",
+      "status": "answered",
+      "segments": [
+        {
+          "factId": "collection",
+          "text": "Het museum behandelt de kustvisserij en het leven in Paesens-Moddergat in vier huisjes.",
+          "sourceId": "museum-over-ons"
+        },
+        {
+          "factId": "interior-period",
+          "text": "De inrichting verbeeldt een visserswoning aan de waddenkust rond 1850.",
+          "sourceId": "museum-over-ons"
+        },
+        {
+          "factId": "klaske-period",
+          "text": "Klaske’s Húske toont kamers in vroegtwintigste-eeuwse stijl.",
+          "sourceId": "museum-over-ons"
+        },
+        {
+          "factId": "aek",
+          "text": "De Aek presenteert scheepsmodellen, vissersgereedschap, reddingswerk en herinneringen aan de ramp.",
+          "sourceId": "museum-over-ons"
+        }
+      ],
+      "sources": [
+        {
+          "id": "museum-over-ons",
+          "title": "Museum ’t Fiskershúske — Over ons",
+          "url": "https://www.museummoddergat.nl/over-ons/",
+          "checkedAt": "2026-11-13",
+          "scope": "Historische museumcollectie; geen live opening of prijsinformatie."
+        }
+      ]
+    }
+  },
+  {
+    "question": "Waarom is 1883 belangrijk voor het museum?",
+    "answer": {
+      "contractVersion": "guide-answer-v1",
+      "requestId": "bundled",
+      "experienceId": "moddergat-five-places-v1",
+      "chapterId": "moddergat-five-places-v1:museum:v1",
+      "packVersion": "moddergat-museum-2026-11-13",
+      "mode": "fixture",
+      "status": "answered",
+      "segments": [
+        {
+          "factId": "disaster",
+          "text": "Bij de ramp van 1883 kwamen 83 vissers om; de ramp heeft een belangrijke plaats in de collectie.",
+          "sourceId": "museum-over-ons"
+        }
+      ],
+      "sources": [
+        {
+          "id": "museum-over-ons",
+          "title": "Museum ’t Fiskershúske — Over ons",
+          "url": "https://www.museummoddergat.nl/over-ons/",
+          "checkedAt": "2026-11-13",
+          "scope": "Historische museumcollectie; geen live opening of prijsinformatie."
+        }
+      ]
+    }
+  }
+]

@@ -1,3 +1,7 @@
+## M6 iPhone answer proof preparation — 2026-11-13
+
+Founder requests an iPhone build of the approved proof. Local reviewed museum answers are included when no Generator URL is configured, with explicit local/editorial wording and no transmission. Existing configured-service behavior is preserved. Provider evaluation remains open; this is not free AI answering. Build preparation and verification are underway.
+
 ## M6 connected museum answer proof — 2026-11-13
 
 Founder approved the first answer proof and requested continuing. ADR-078 phases 2–3 now connect the deterministic museum fixture through the existing Generator Service to one optional Guide disclosure. Explicit send, source attribution, unknown answers, unavailable-service retry, cancellation and stale-response guards; no session or memory changes. Configured model providers are explicitly unsupported for this route until evaluated, never silently substituted.

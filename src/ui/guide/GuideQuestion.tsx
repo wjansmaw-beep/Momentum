@@ -2,7 +2,7 @@ import React, { useCallback, useRef, useState } from 'react';
 import { AppState, Linking, Platform, Text, TextInput, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { colors, useAppearance } from '../../design/theme';
-import { museumQuestionContext, museumQuestions, requestGuideAnswer } from '../../guidance/guideQuestion';
+import { localMuseumAnswer, museumQuestionContext, museumQuestions, requestGuideAnswer } from '../../guidance/guideQuestion';
 import type { GuideAnswer } from '../../guidance/guideQuestion';
 import { ed, EditorialAction, EditorialDisclosure } from '../editorial';
 declare const process: { env: { EXPO_PUBLIC_MOMENTUM_GENERATOR_URL?: string } };
@@ -10,6 +10,8 @@ declare const process: { env: { EXPO_PUBLIC_MOMENTUM_GENERATOR_URL?: string } };
 // Ephemeral, mounted only for this chapter: no session/storage writes.
 export function GuideQuestion() {
   useAppearance();
+  const base = process.env.EXPO_PUBLIC_MOMENTUM_GENERATOR_URL ?? (Platform.OS === 'web' ? 'http://127.0.0.1:8787/v1/experience-drafts' : undefined);
+  const local = !base;
   const [question, setQuestion] = useState('');
   const [answer, setAnswer] = useState<GuideAnswer>();
   const [answeredQuestion, setAnsweredQuestion] = useState('');
@@ -29,11 +31,13 @@ export function GuideQuestion() {
     setBusy(true); setMessage(''); setAnswer(undefined);
     const submitted = question.trim();
     try {
-      const result = await requestGuideAnswer({
-        base: process.env.EXPO_PUBLIC_MOMENTUM_GENERATOR_URL ?? (Platform.OS === 'web' ? 'http://127.0.0.1:8787/v1/experience-drafts' : undefined),
+      const request = { ...museumQuestionContext, question: submitted, requestId: `museum_${Date.now()}_${id}` };
+      const result = local ? localMuseumAnswer(request) : await requestGuideAnswer({
+        base,
         native: Platform.OS !== 'web', signal: controller.signal,
-        request: { ...museumQuestionContext, question: submitted, requestId: `museum_${Date.now()}_${id}` },
+        request,
       });
+      if (!result) throw new Error('invalid');
       if (serial.current !== id || controller.signal.aborted) return;
       setAnswer(result); setAnsweredQuestion(submitted);
     } catch (error) {
@@ -52,9 +56,9 @@ export function GuideQuestion() {
     <TextInput accessibilityLabel="Je vraag over het museum" placeholder="Wat wil je over deze plek weten?"
       placeholderTextColor={colors.muted} multiline maxLength={600} editable={!busy} value={question} onChangeText={setQuestion}
       style={[ed.body, { minHeight: 100, padding: 12, borderWidth: 1, borderColor: colors.line, borderRadius: 8, textAlignVertical: 'top' }]} />
-    <Text style={ed.small}>Met Verstuur stuur je alleen je vraag en dit hoofdstuk naar de ingestelde gidsdienst. Geen locatie, profiel of herinneringen. Je vraag wordt niet in je boek bewaard.</Text>
+    <Text style={ed.small}>{local ? 'Deze uitleg staat op je telefoon en werkt zonder verbinding. Je vraag wordt niet verstuurd of bewaard.' : 'Met Verstuur stuur je alleen je vraag en dit hoofdstuk naar de ingestelde gidsdienst. Geen locatie, profiel of herinneringen. Je vraag wordt niet in je boek bewaard.'}</Text>
     {busy ? <><Text accessibilityLiveRegion="polite" style={ed.small}>Je vraag wordt opgehaald…</Text><EditorialAction title="Annuleer" onPress={() => { cancel(); setMessage('Geannuleerd. Je vraag blijft staan.'); }} /></>
-      : <EditorialAction primary title="Verstuur" disabled={question.trim().length < 3} onPress={send} />}
+      : <EditorialAction primary title={local ? 'Toon uitleg' : 'Verstuur'} disabled={question.trim().length < 3} onPress={send} />}
     {!!message && <Text accessibilityRole="alert" style={ed.small}>{message}</Text>}
     {answer && <View style={ed.depth} accessibilityLiveRegion="polite">
       <Text style={ed.small}>Redactionele uitleg · {answeredQuestion}</Text>

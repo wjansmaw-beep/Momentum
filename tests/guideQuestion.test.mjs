@@ -1,12 +1,18 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { museumQuestionContext, museumQuestions, parseGuideAnswer, requestGuideAnswer, guideAnswerUrl } from '../src/guidance/guideQuestion.ts';
+import { localMuseumAnswer, museumQuestionContext, museumQuestions, parseGuideAnswer, requestGuideAnswer, guideAnswerUrl } from '../src/guidance/guideQuestion.ts';
 import { fixtureGuideAnswer, GUIDE_QUESTIONS } from '../services/generator/guideAnswer.mjs';
 import { GUIDE_PACK } from '../services/generator/guideEvidence.mjs';
 import { chapterIds } from '../src/guidance/adaptiveGuide.ts';
 import { moddergatJourney } from '../src/product/moddergatJourney.ts';
 const request={...museumQuestionContext,question:museumQuestions[0],requestId:'client_test'};
 const valid=fixtureGuideAnswer(request);
+test('bundled iPhone explanations exactly match reviewed server fixture and reject another chapter',()=>{
+ for (const question of [...museumQuestions,'Wat aten vissersgezinnen?']) {
+   const input={...request,question};assert.deepEqual(localMuseumAnswer(input),JSON.parse(JSON.stringify(fixtureGuideAnswer(input))));
+ }
+ assert.equal(localMuseumAnswer({...request,chapterId:'other'}),undefined);
+});
 test('client and server bind to actual museum identity and reviewed pack',()=>{
  assert.equal(museumQuestionContext.chapterId,chapterIds(moddergatJourney)[0]);assert.equal(GUIDE_PACK.chapterId,museumQuestionContext.chapterId);
  assert.equal(GUIDE_PACK.version,museumQuestionContext.packVersion);assert.deepEqual(museumQuestions,GUIDE_QUESTIONS.map(q=>q.question));
