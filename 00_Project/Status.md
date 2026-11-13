@@ -126,3 +126,7 @@ ADR-067 additionally approves concept v2 as the build direction after the Founde
 ## M4 phone-away refinement delivered — 2026-11-12
 
 Source 3c63830 removes phone-away controls/overlay and unused styles, preserving observation, narration, timers and session data. Typecheck, 155 tests plus scenarios, web export and browser resume/mode checks pass. Internal iOS build 0.4.0 (10), 52303230-1cf4-4471-8cd4-f12a420d0bad, FINISHED. Founder general acceptance applies to build 9; this small refinement has not yet been retested on a physical device. Location-aware return remains future-only. No final quality-score uplift inferred.
+
+## M5 first internal iPhone candidate — 2026-11-13
+
+ADR-077 first implementation delivered: source d76637d; EAS aa6f2b26-dd69-4df4-a64b-12cdd8898ba0 FINISHED, iOS 0.4.0 (11). Voluntary persisted session opt-in; foreground-only one-shot matching; proposals require explicit acceptance; uncertain data preserves current story. Typecheck, 164 tests plus scenarios and web export pass. Browser checks cover restored chapter, disclosure and honest native-only fallback. Native permission/reopen/field validation pending. M4 residual checks remain separate; no false completed-goal claim.

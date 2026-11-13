@@ -30,3 +30,7 @@ Expected files: guidance/nearbyStory.ts; guidance/adaptiveGuide.ts; app/store.ts
 ## First implementation verification
 
 Typecheck, all 164 counted tests (80 generator, 13 affirmation, 71 Guide) plus existing scenarios pass; nine new selection/restoration tests included in test:app. Web export succeeds. Browser verifies restored museum chapter, collapsed/expanded location disclosure and truthful iPhone-only location fallback without requesting browser permission. Native permission/reopening and field accuracy remain untested. Stored preference is a validated boolean; no coordinate persistence added. iPhone build pending.
+
+## Internal build delivered — 2026-11-13
+
+EAS aa6f2b26-dd69-4df4-a64b-12cdd8898ba0 FINISHED: iOS 0.4.0 (11), source d76637d, existing minimal4-preview internal distribution. No public release or native acceptance claimed. Founder test instructions and actual web screenshot are in task outputs.
