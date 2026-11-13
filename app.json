@@ -10,7 +10,7 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Momentum vraagt je locatie alleen op jouw verzoek: voor voorstellen in je globale omgeving of om je positie op de kaart van de gids te tonen.",
+          "locationWhenInUsePermission": "Momentum gebruikt je locatie voor voorstellen in je omgeving, je positie op de gidskaart en, als je dit aanzet, passende verhalen wanneer je terugkomt in de gids. Geen locatiegebruik op de achtergrond.",
           "isIosBackgroundLocationEnabled": false,
           "isAndroidBackgroundLocationEnabled": false,
           "isAndroidForegroundServiceEnabled": false

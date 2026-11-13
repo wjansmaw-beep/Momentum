@@ -171,3 +171,7 @@ Priority labels:
 ## Future location-aware return to the Guide — 2026-11-12
 
 Founder wants relevant story content to follow the place when reopening the app. Future design must decide location permission timing, freshness/accuracy, narrative selection and session continuity, user control over chapter changes, and offline/denied-permission behavior. No automatic GPS advance, background tracking or new event infrastructure is authorized now. Telefoon weg is removed under ADR-076 instead of being replaced by another special mode.
+
+## M5 scope accepted — 2026-11-13
+
+ADR-077 supersedes the future-only status above for the five-place Moddergat opt-in. Foreground return proposals may now be implemented, without automatic chapter changes or location history. Field tuning of the conservative proximity thresholds and native permission/lifecycle testing remain open. No broader generated event engine or background tracking approved.

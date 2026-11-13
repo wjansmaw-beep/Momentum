@@ -1,3 +1,5 @@
+import { useNearbyStory } from '../guide/useNearbyStory';
+import { NearbyStory } from '../guide/NearbyStory';
 import { ImageCredit } from '../ImageCredit';
 import { EditorialDisclosure } from '../editorial';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -39,7 +41,7 @@ import { currentPlace, currentDestination } from '../../guidance/placeInformatio
 // Observation and narration stay in the Guide; no separate phone-away screen.
 
 export function GuideScreen() {
-  const { selected: experience, personalProfile: personal, activeSession, sessionSaveError, retrySessionSave, updatePresenceStep, updateGuideMode, toggleCurrentGuideTask, presenceBack, finishPresence, discardSession, liveWorld, prototypeContext } = useApp();
+  const { selected: experience, personalProfile: personal, activeSession, sessionSaveError, retrySessionSave, updateLocationStories, updatePresenceStep, updateGuideMode, toggleCurrentGuideTask, presenceBack, finishPresence, discardSession, liveWorld, prototypeContext } = useApp();
   const adaptive = supportsAdaptiveGuide(experience);
   const adaptiveState = restoreAdaptiveGuide(experience, activeSession?.experienceId === experience.id ? activeSession.adaptiveGuide : undefined, activeSession?.stepIndex ?? 0);
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -65,6 +67,8 @@ export function GuideScreen() {
   const [stepIndex, setStepIndex] = useState(Math.min(initialStep, Math.max(0, experience.steps.length - 1)));
   const [remaining, setRemaining] = useState(experience.steps[Math.min(initialStep, Math.max(0, experience.steps.length - 1))]?.seconds ?? 0);
   const [timerRunning, setTimerRunning] = useState(false);
+  const nearby = useNearbyStory(experience, stepIndex, adaptiveState.locationStories === true, updateLocationStories);
+  const nearbyView = <NearbyStory guide={nearby} onSelect={index => { setStepIndex(index); updateGuideMode('discover'); }} />;
   const [deepOpen, setDeepOpen] = useState(false);
   const [factsOpen, setFactsOpen] = useState(false);
   const [handoffStatus, setHandoffStatus] = useState('');
@@ -190,7 +194,7 @@ export function GuideScreen() {
       <GuideModeBar mode={adaptiveState.mode} onChange={updateGuideMode} />
       <GuideModeScene key={adaptiveState.chapterId} mode={adaptiveState.mode} experience={experience} step={current} index={stepIndex}
         onDiscover={() => updateGuideMode('discover')} onRoute={openHandoff}
-        onBack={onBack} onFinish={onFinish} routeStatus={handoffStatus} />
+        onBack={onBack} onFinish={onFinish} routeStatus={handoffStatus} nearby={nearbyView} />
     </View>
   </FlowFrame>;
   return (
@@ -214,6 +218,7 @@ export function GuideScreen() {
       </View>
 
       {adaptive && <><GuideChapterMenu experience={experience} index={stepIndex} onSelect={setStepIndex} /><GuideModeBar mode="discover" onChange={updateGuideMode} /></>}
+      <View style={{ marginHorizontal: 20 }}>{nearbyView}</View>
       {/* De cover draagt de beleving: beeld, serif-titel en voortgang uit
           echte sessiedata (tijd- en stapgebaseerd — er is geen GPS-tracking,
           dus nooit een verzonnen kilometerstand). */}

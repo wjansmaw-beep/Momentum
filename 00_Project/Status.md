@@ -1,3 +1,7 @@
+## M5 started — 2026-11-13
+
+Founder explicitly approves M5 and immediate work. ADR-077 scopes voluntary location-aware story proposals on return to the existing Guide, initially the five-place Moddergat journey. No automatic chapter changes, background tracking or external location transmission. M4 device/accessibility checks and provisional score remain open separately. Goal-tool registration could not replace the unfinished M4 goal; M5 is recorded here without falsely completing M4.
+
 ## M4 Founder feedback and simplification — 2026-11-12
 
 Founder reports build 9 tests work very well. ADR-076 now authorizes removal of the redundant phone-away controls and screen, retaining observation and listening. Location-relevant storytelling on reopening is a future direction only. Verification of this refinement is in progress; no additional native test coverage is inferred from general feedback.

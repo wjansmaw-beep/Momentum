@@ -92,8 +92,8 @@ export function DiscoverChapter({ step, index, total, showInsight, onObserve, ex
   </View>;
 }
 
-export function GuideModeScene({ mode, experience, step, index, onDiscover, onRoute, onBack, onFinish, routeStatus }: {
-  mode: 'navigate' | 'immerse'; experience: Experience; step: CapsuleStep; index: number;
+export function GuideModeScene({ mode, experience, step, index, onDiscover, onRoute, onBack, onFinish, routeStatus, nearby }: {
+  nearby?: React.ReactNode; mode: 'navigate' | 'immerse'; experience: Experience; step: CapsuleStep; index: number;
   onDiscover: () => void; onRoute: () => void; onBack: () => void; onFinish: () => void; routeStatus: string;
 }) {
   const editorial = step.editorial?.composition === 'editorial-place';
@@ -109,6 +109,7 @@ export function GuideModeScene({ mode, experience, step, index, onDiscover, onRo
         <Feather name="arrow-left" size={20} color={colors.bone} /><Text style={s.source}>Voorpret</Text>
       </Pressable>
     </View>    <View style={s.sceneBody}>
+      {nearby}
       <Text style={s.heroMeta}>{mode === 'navigate' ? 'NAVIGATE' : 'IMMERSE'}</Text>
       <Text accessibilityRole="header" style={s.sceneTitle}>{mode === 'navigate' ? place?.name ?? experience.routePlan?.destinationName ?? step.title : observing ? 'Geef de plek even de ruimte' : 'Het verhaal om je heen'}</Text>
       {mode === 'navigate' ? <>

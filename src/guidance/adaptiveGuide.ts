@@ -6,6 +6,7 @@ export type AdaptiveGuideState = {
   chapterId: string;
   mode: GuideMode;
   completedTaskIds: string[];
+  locationStories?: boolean;
   presence?: 'listen' | 'observe';
 };
 
@@ -36,6 +37,7 @@ export function restoreAdaptiveGuide(experience: Experience, value: unknown, leg
   const validVersion = saved.version === 1;
   return {
     version: 1,
+    locationStories: validVersion && saved.locationStories === true,
     presence: validVersion && saved.presence === 'observe' ? 'observe' : 'listen',
     chapterId: validVersion && typeof saved.chapterId === 'string' && ids.includes(saved.chapterId)
       ? saved.chapterId : ids[index] ?? '',

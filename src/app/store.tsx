@@ -680,6 +680,11 @@ function useAppStore() {
       adaptiveGuide: { ...restoreAdaptiveGuide(selected, current.adaptiveGuide, current.stepIndex), mode } } : current);
   };
 
+  const updateLocationStories = (enabled: boolean) => {
+    setActiveSession(current => current && current.experienceId === selected.id ? { ...current,
+      adaptiveGuide: { ...restoreAdaptiveGuide(selected, current.adaptiveGuide, current.stepIndex), locationStories: enabled === true } } : current);
+  };
+
   const toggleCurrentGuideTask = () => {
     setActiveSession((current) => {
       if (!current || current.experienceId !== selected.id) return current;
@@ -804,6 +809,7 @@ function useAppStore() {
     presenceBack,
     updatePresenceStep,
     updateGuideMode,
+    updateLocationStories,
     toggleCurrentGuideTask,
     applyFeedback,
     setEnergyCheckin,
