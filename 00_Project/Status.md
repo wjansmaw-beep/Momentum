@@ -1,3 +1,7 @@
+## M6 goal accepted — 2026-11-13
+
+Founder requests elaborating and creating M6: source-grounded questions in the existing Guide, first at the Moddergat museum. ADR-078 records the product goal, proposed contract, phases and acceptance criteria. Current work is goal/design registration only; no application changes or new build. Existing Generator Service has no Q&A endpoint; private-network access and server-side provider/budget boundaries remain. M4/M5 residual tests stay open. App goal creation is blocked by unfinished M4, so M6 is registered in the project without falsely completing M4.
+
 ## M5 started — 2026-11-13
 
 Founder explicitly approves M5 and immediate work. ADR-077 scopes voluntary location-aware story proposals on return to the existing Guide, initially the five-place Moddergat journey. No automatic chapter changes, background tracking or external location transmission. M4 device/accessibility checks and provisional score remain open separately. Goal-tool registration could not replace the unfinished M4 goal; M5 is recorded here without falsely completing M4.

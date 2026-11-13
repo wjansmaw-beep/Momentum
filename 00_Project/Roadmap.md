@@ -1,3 +1,7 @@
+## M6 — Vraag aan je gids, 2026-11-13
+
+Goal accepted; see ADR-078. Source inventory and question-moment prototype > deterministic evidence contract > one museum chapter integration > configured-provider evaluation > internal iPhone review. No public deployment, new provider activation or expansion to all chapters by default.
+
 ## M5 — location-aware Guide return, 2026-11-13
 
 Approved scope in ADR-077: experience/state design, conservative place matching, session opt-in, existing Guide integration, tests and internal iPhone review. No new planner, generated event engine or background tracking. M4 residual device checks remain open.

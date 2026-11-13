@@ -175,3 +175,7 @@ Founder wants relevant story content to follow the place when reopening the app.
 ## M5 scope accepted — 2026-11-13
 
 ADR-077 supersedes the future-only status above for the five-place Moddergat opt-in. Foreground return proposals may now be implemented, without automatic chapter changes or location history. Field tuning of the conservative proximity thresholds and native permission/lifecycle testing remain open. No broader generated event engine or background tracking approved.
+
+## M6 — source-grounded Guide questions
+
+Product goal accepted in ADR-078. Resolve during design: evidence coverage for each example question, fixed evaluation set, same-chapter follow-up limits and which existing configured provider supports validated answers. Public/field reachability remains a separate deployment decision, not implied by native client identification. Do not treat the current FreshQuestion editorial screen as an implemented AI answer feature.
