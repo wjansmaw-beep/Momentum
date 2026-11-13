@@ -2,6 +2,8 @@
 
 Founder requests an iPhone build of the approved proof. Local reviewed museum answers are included when no Generator URL is configured, with explicit local/editorial wording and no transmission. Existing configured-service behavior is preserved. Provider evaluation remains open; this is not free AI answering. Build preparation and verification are underway.
 
+Source 96611fd: typecheck and all 183 counted tests plus scenarios pass. EAS build invocation was rejected by automatic approval review before execution because explicit authorization to send project source to Expo EAS Build was required. No build was dispatched and no new installation link exists. Await that specific authorization; do not bypass via another upload path. Build 11 remains current.
+
 ## M6 connected museum answer proof — 2026-11-13
 
 Founder approved the first answer proof and requested continuing. ADR-078 phases 2–3 now connect the deterministic museum fixture through the existing Generator Service to one optional Guide disclosure. Explicit send, source attribution, unknown answers, unavailable-service retry, cancellation and stale-response guards; no session or memory changes. Configured model providers are explicitly unsupported for this route until evaluated, never silently substituted.
