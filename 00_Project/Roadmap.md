@@ -1,5 +1,7 @@
 ## M6 — Vraag aan je gids, 2026-11-13
 
+Completed increment: reviewed evidence, extractive service route, cancellation-safe client and museum disclosure; 182 tests plus scenarios. Next: evaluated configured-provider capability and internal iPhone delivery. Goal remains in progress.
+
 Goal accepted; see ADR-078. Source inventory and question-moment prototype > deterministic evidence contract > one museum chapter integration > configured-provider evaluation > internal iPhone review. No public deployment, new provider activation or expansion to all chapters by default.
 
 ## M5 — location-aware Guide return, 2026-11-13

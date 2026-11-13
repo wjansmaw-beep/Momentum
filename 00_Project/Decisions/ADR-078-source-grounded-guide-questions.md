@@ -1,7 +1,7 @@
 # ADR-078 — M6: ask your Guide
 
-Status: Product goal accepted by Founder; detailed contract is a design proposal
-Version: 1.0
+Status: Product goal and first extractive answer proof accepted; phased implementation underway
+Version: 1.1
 Date: 2026-11-13
 
 ## Product Guardian and authorization
@@ -70,3 +70,11 @@ The app goal tool refused M6 creation because unfinished M4 still occupies the t
 ## Implementation start — 2026-11-13
 
 Founder requests proceeding after M4 closure. The first source inventory and extractive fixture contract are implemented in guideEvidence.mjs and guideAnswer.mjs. Museum Over ons reviewed 2026-11-13; paraphrased evidence only, with canonical attribution. No diet/stove facts inferred. Seven tests enforce fixture facts, unknown questions, false premises, request minimization, context isolation and rejecting unsupported additions despite valid citations. Total 171 tests plus scenarios and typecheck pass. This is an explicit fixture-stage contract, not free-form model validation, a deployed endpoint or an iPhone answer flow. Provider integration must not silently relax this evidence gate.
+
+## Connected fixture increment — 2026-11-13
+
+Founder read the first proof, approved it and requested continuing. Product Guardian confirms phases 2–3 fit the existing single Guide. Engineering adds /v1/guide-answer behind existing admission and rate controls, bound to moddergat-five-places-v1:museum:v1. Fixture mode serves only reviewed extractive answers. A selected model is explicitly unavailable on this route until its answering capability is evaluated; no silent fixture substitution, budget bypass or new provider activation. Request/error bodies are not logged by the new route.
+
+Client sends an explicit minimal envelope, checks context/version/source shape, uses a 20-second abortable timeout and rejects late results. Factual entailment remains the server's extractive responsibility. One museum disclosure contains three fill-only example prompts, explicit send/cancel, temporary question/answer, source disclosure and truthful unknown/unavailable states. Blur, chapter unmount and background cancel outstanding requests; no session or Life Book migration. The UI labels this as redactionele uitleg and explains that free AI answers are not connected.
+
+Validation: typecheck, 182 counted tests (91 service, 13 affirmation, 78 Guide/client) plus existing content/memory scenarios pass; web export and whitespace checks pass. Real browser verifies prompt fill vs send, supported answer with canonical source, unknown food question, unavailable service preserving draft, chapter transition and reload/resume. Dark 390/320 px screenshots show wrapping without horizontal overflow. This does not establish native keyboard, VoiceOver, Dynamic Type, other-theme visual coverage or live-model quality. No new iPhone build; build 11 remains current. Next: configured-provider capability/evaluation, then internal device delivery on an explicitly configured supported connection.

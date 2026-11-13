@@ -3,6 +3,7 @@
 export const GUIDE_PACK = Object.freeze({
   version: 'moddergat-museum-2026-11-13',
   experienceId: 'moddergat-five-places-v1',
+  chapterId: 'moddergat-five-places-v1:museum:v1',
   source: Object.freeze({
     id: 'museum-over-ons',
     title: 'Museum ’t Fiskershúske — Over ons',

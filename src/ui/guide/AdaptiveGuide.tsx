@@ -14,6 +14,9 @@ import { NarrationPlayer } from './NarrationPlayer';
 import { referenceAudio } from './referenceAudio';
 import { resolveChapterPhoto } from '../../product/chapterPhotos';
 import { localChapterImages } from './chapterImages';
+import { GuideQuestion } from './GuideQuestion';
+import { museumQuestionContext } from '../../guidance/guideQuestion';
+import { chapterIds } from '../../guidance/adaptiveGuide';
 
 
 
@@ -89,6 +92,7 @@ export function DiscoverChapter({ step, index, total, showInsight, onObserve, ex
       {photo && <><Text style={s.source}>{photo.caption}</Text><ImageCredit uri={photo.credit.uri} original /></>}
       {!!sourceError && <Text accessibilityLiveRegion="polite" style={s.source}>{sourceError}</Text>}
     </EditorialDisclosure>}
+    {experience && chapterIds(experience)[index] === museumQuestionContext.chapterId && <GuideQuestion key={museumQuestionContext.chapterId} />}
   </View>;
 }
 

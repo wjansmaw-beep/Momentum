@@ -5,6 +5,8 @@ import { BRIEFING_CONTRACT_VERSION, validateBriefingRequest, validateBriefingSen
 import { createBudgetTracker } from './budget.mjs';
 import { createFixtureProvider } from './providers/fixture.mjs';
 import { estimateCostUsd, selectProvider } from './providers/provider.mjs';
+import { GUIDE_PACK } from './guideEvidence.mjs';
+import { validateGuideQuestion, fixtureGuideAnswer, validateExtractiveGuideAnswer } from './guideAnswer.mjs';
 
 // ADR-063: explicit native-client access. Browsers always send an Origin and
 // stay governed by the MOMENTUM_ALLOWED_ORIGINS allowlist. React Native fetch
@@ -130,9 +132,29 @@ export const createGeneratorServer = (env = process.env, argv = process.argv) =>
         budget: isModel ? budget.status() : undefined,
       }, origin); return;
     }
-    if (request.method !== 'POST' || (request.url !== '/v1/experience-drafts' && request.url !== '/v1/living-world-briefing')) { json(response, 404, { error: 'not_found' }, origin); return; }
+    if (request.method !== 'POST' || !['/v1/experience-drafts', '/v1/living-world-briefing', '/v1/guide-answer'].includes(request.url)) { json(response, 404, { error: 'not_found' }, origin); return; }
     if (!isRequestAllowed(origin, request.headers[NATIVE_CLIENT_HEADER], allowedOrigins)) { json(response, 403, { error: 'origin_not_allowed' }, origin); return; }
     if (!withinRateLimit(request.socket.remoteAddress || 'unknown')) { json(response, 429, { error: 'rate_limited' }, origin); return; }
+
+    // ADR-078: explicit extractive evaluation stage. Never silently replace a
+    // configured model with canned answers, and never log question/error bodies.
+    if (request.url === '/v1/guide-answer') {
+      try {
+        const parsed = validateGuideQuestion(await readBody(request), GUIDE_PACK.chapterId);
+        if (!parsed.ok) { json(response, 400, { error: 'invalid_request' }, origin); return; }
+        const { isModel, configured, budgetExhausted } = resolveRuntime();
+        if (isModel) {
+          json(response, 503, { error: !configured ? 'provider_not_configured' : budgetExhausted ? 'budget_exhausted' : 'guide_answer_not_supported' }, origin); return;
+        }
+        const answer = fixtureGuideAnswer(parsed.value);
+        if (!validateExtractiveGuideAnswer(answer, parsed.value)) { json(response, 502, { error: 'invalid_answer' }, origin); return; }
+        json(response, 200, answer, origin);
+      } catch (error) {
+        const code = error instanceof Error && error.message === 'request_too_large' ? 413 : error instanceof SyntaxError ? 400 : 502;
+        json(response, code, { error: 'guide_answer_unavailable' }, origin);
+      }
+      return;
+    }
 
     // ADR-068: the Levende Wereld briefing is a separate, narrower route. Same
     // access, rate limit, runtime resolution and budget watch; its own small

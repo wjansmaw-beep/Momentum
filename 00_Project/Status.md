@@ -1,3 +1,9 @@
+## M6 connected museum answer proof — 2026-11-13
+
+Founder approved the first answer proof and requested continuing. ADR-078 phases 2–3 now connect the deterministic museum fixture through the existing Generator Service to one optional Guide disclosure. Explicit send, source attribution, unknown answers, unavailable-service retry, cancellation and stale-response guards; no session or memory changes. Configured model providers are explicitly unsupported for this route until evaluated, never silently substituted.
+
+Typecheck, 182 counted tests plus scenarios, web export and browser checks pass. Dark 320/390 px inspection passes. This is a local connected editorial proof, not live AI or a new iPhone release. Build 11 remains current. Provider evaluation, native connection/build and device accessibility checks remain open.
+
 ## M4 closed by Founder; M6 underway — 2026-11-13
 
 Founder explicitly requests closing M4 and continuing M6. M4 is administratively closed with residual device/accessibility/field checks retained as follow-up debt; its provisional 8.39 score is not represented as a proven 8.5. The goal API cannot retire an unmet goal and is left unchanged, rather than recording false completion. This does not block project work.
