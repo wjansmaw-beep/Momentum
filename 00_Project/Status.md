@@ -1,3 +1,13 @@
+## M6 internal iPhone proof delivered — 2026-11-13
+
+EAS build 34790ab8-b2f5-4b2e-bc67-3c5a2c1e997a is FINISHED with installation artifact: version 0.4.0 (12), source c414ce9 (application changes 96611fd), existing minimal4-preview internal distribution. Founder explicitly authorized the source upload. Typecheck and 183 counted tests plus scenarios pass. Museum explanations are bundled for this unconfigured-service build and clearly labelled editorial; no free AI answers, public release or field-service capability claimed. Native keyboard/accessibility/theme checks and Founder acceptance remain open. M6 is not complete.
+
+Install: https://expo.dev/accounts/wjansmaw/projects/momentum/builds/34790ab8-b2f5-4b2e-bc67-3c5a2c1e997a
+
+## M6 iPhone upload authorized — 2026-11-13
+
+Founder explicitly approved sending the project source to Expo EAS Build. Upload succeeded; internal build 34790ab8-b2f5-4b2e-bc67-3c5a2c1e997a is in progress, version 0.4.0 (12), source c414ce9 (application changes 96611fd). This supersedes the upload blocker below. No native acceptance or free AI answering is inferred.
+
 ## M6 iPhone answer proof preparation — 2026-11-13
 
 Founder requests an iPhone build of the approved proof. Local reviewed museum answers are included when no Generator URL is configured, with explicit local/editorial wording and no transmission. Existing configured-service behavior is preserved. Provider evaluation remains open; this is not free AI answering. Build preparation and verification are underway.
