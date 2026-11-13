@@ -66,3 +66,7 @@ Expected files: services/generator/server.mjs; new guideAnswer contract/evidence
 ## Goal registration
 
 The app goal tool refused M6 creation because unfinished M4 still occupies the thread goal. M6 is registered in the repository and task deliverable, not falsely represented as an active app goal. Do not mark M4 complete to bypass that restriction. Current change is documentation only; build 11 remains current.
+
+## Implementation start — 2026-11-13
+
+Founder requests proceeding after M4 closure. The first source inventory and extractive fixture contract are implemented in guideEvidence.mjs and guideAnswer.mjs. Museum Over ons reviewed 2026-11-13; paraphrased evidence only, with canonical attribution. No diet/stove facts inferred. Seven tests enforce fixture facts, unknown questions, false premises, request minimization, context isolation and rejecting unsupported additions despite valid citations. Total 171 tests plus scenarios and typecheck pass. This is an explicit fixture-stage contract, not free-form model validation, a deployed endpoint or an iPhone answer flow. Provider integration must not silently relax this evidence gate.

@@ -357,3 +357,7 @@ The four continuous tracks are Philosophy, Experience, Understanding, and Trust.
 ## Advancement rule
 
 A phase may begin discovery before the prior phase is fully complete, but implementation may not use unresolved foundational questions as silent assumptions. Founder approval is required to lift the no-application-code gate.
+
+## Founder milestone transition — 2026-11-13
+
+M4 administratively closed at Founder request, with outstanding device/field checks retained as debt and no claimed 8.5 score. M6 implementation begins with reviewed evidence and pure fixture contract; integration and native acceptance remain to do. M5 field validation remains open separately.

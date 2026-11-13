@@ -1,3 +1,9 @@
+## M4 closed by Founder; M6 underway — 2026-11-13
+
+Founder explicitly requests closing M4 and continuing M6. M4 is administratively closed with residual device/accessibility/field checks retained as follow-up debt; its provisional 8.39 score is not represented as a proven 8.5. The goal API cannot retire an unmet goal and is left unchanged, rather than recording false completion. This does not block project work.
+
+M6 first increment: reviewed museum evidence registry, versioned pure question/fixture contract and seven tests. Typecheck and 171 counted tests plus scenarios pass. No endpoint, client question UI, live model answering or new iPhone build is claimed yet; build 11 remains current.
+
 ## M6 goal accepted — 2026-11-13
 
 Founder requests elaborating and creating M6: source-grounded questions in the existing Guide, first at the Moddergat museum. ADR-078 records the product goal, proposed contract, phases and acceptance criteria. Current work is goal/design registration only; no application changes or new build. Existing Generator Service has no Q&A endpoint; private-network access and server-side provider/budget boundaries remain. M4/M5 residual tests stay open. App goal creation is blocked by unfinished M4, so M6 is registered in the project without falsely completing M4.

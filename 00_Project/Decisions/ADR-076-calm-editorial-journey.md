@@ -165,3 +165,7 @@ Verification: typecheck, all 155 counted app tests plus scenarios and web export
 ## Reviewer continuation — 2026-11-12
 
 Build 10 is FINISHED (52303230-1cf4-4471-8cd4-f12a420d0bad); supersedes the pending-build note above. No application code changed in this review. At 320 px the web Guide chapter menu and museum practical disclosure expose no horizontally out-of-viewport controls/headings or targets below 44 px height. Chapter selection and keyboard Enter expansion work. Static primary/secondary text contrast ratios across all three palettes are documented in the task output Momentum_M4_Laatste_Controle.txt; minimum tested pair is 5.26:1. Native Dynamic Type, VoiceOver, offline cold start and permission-denial behavior still require device evidence. General Founder satisfaction is recorded; do not infer specific device tests or inflate the provisional 8.39 score. Future location-aware storytelling remains deferred.
+
+## Administrative closure — Founder request, 2026-11-13
+
+Founder explicitly closes M4 and asks to proceed with M6. Delivered scope is retained; unresolved native/field/accessibility checks become follow-up debt rather than an active M4 implementation milestone. The 8.39 assessment remains provisional and the original 8.5 target is not asserted as achieved. No retrospective test evidence is invented. The app goal API has no cancellation/replacement operation for an unmet objective; its state is not falsely changed to complete.
